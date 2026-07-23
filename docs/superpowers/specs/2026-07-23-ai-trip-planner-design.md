@@ -1,11 +1,13 @@
-# AI Trip Planner — Design Spec
+# Triperco — AI Trip Planner — Design Spec
 
+**Project name:** Triperco
+**Domain:** triperco.com
 **Date:** 2026-07-23
 **Status:** Approved (brainstorming) — ready for implementation planning
 
 ## 1. Summary
 
-A responsive web AI trip planner, global in scope, modeled on the value proposition and UX of odessia.com. A guided conversational chat plans a complete trip — flights, stays, and things to do — and renders it live alongside the conversation. There is **no in-app booking**: every item deep-links out to the provider (airline, Booking.com, Airbnb, etc.), which also serves as the revenue model via affiliate links where a program exists. No user accounts in v1; every plan gets a shareable URL that others can open and clone.
+**Triperco** (triperco.com) is a responsive web AI trip planner, global in scope, modeled on the value proposition and UX of odessia.com. A guided conversational chat plans a complete trip — flights, stays, and things to do — and renders it live alongside the conversation. There is **no in-app booking**: every item deep-links out to the provider (airline, Booking.com, Airbnb, etc.), which also serves as the revenue model via affiliate links where a program exists. No user accounts in v1; every plan gets a shareable URL that others can open and clone.
 
 The product's edge is **richness and UX**, not inventory — full place details, real photos, and review-based pros/cons that make the plan feel like a complete guide to the trip.
 
