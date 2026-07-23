@@ -5,7 +5,10 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['src/**/*.test.ts'],
+    // Component tests (*.test.tsx) run in jsdom; pure logic tests stay in node.
+    environmentMatchGlobs: [['**/*.test.tsx', 'jsdom']],
+    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
+    setupFiles: ['./vitest.setup.ts'],
   },
   resolve: {
     alias: { '@': path.resolve(__dirname, './src') },
