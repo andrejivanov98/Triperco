@@ -780,13 +780,15 @@ export async function POST(req: Request) {
   const { messages, trip }: { messages: UIMessage[]; trip?: TripState } = await req.json()
 
   const { agent } = createPlannerAgent({ trip })
-  const result = agent.stream({ messages: await convertToModelMessages(messages) })
+  const result = await agent.stream({ messages: await convertToModelMessages(messages) })
 
   return createUIMessageStreamResponse({
     stream: toUIMessageStream({ stream: result.stream }),
   })
 }
 ```
+
+> **Verified against installed AI SDK v7:** `ToolLoopAgent({ model, instructions, tools })`, `tool({ description, inputSchema, execute })`, `agent.stream({ messages })` (returns a Promise → must `await`), and `createUIMessageStreamResponse({ stream: toUIMessageStream({ stream: result.stream }) })` all match this plan.
 
 > **Version check (do this now):** confirm against `node_modules/ai/docs` how the installed version turns an agent/stream into a `Response`. If the installed API exposes `result.toUIMessageStreamResponse()`, prefer:
 > ```ts

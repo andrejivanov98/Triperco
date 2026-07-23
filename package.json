@@ -12,9 +12,12 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@ai-sdk/google": "^4.0.22",
+    "ai": "^7.0.35",
     "next": "^15.1.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.0.0",
