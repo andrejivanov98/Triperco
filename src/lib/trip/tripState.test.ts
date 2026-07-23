@@ -117,3 +117,31 @@ describe('stays', () => {
     expect(trip.estimatedTotal).toBe(0)
   })
 })
+
+import { addItineraryItem, removeItineraryItem } from './tripState'
+import type { ItineraryItem } from './types'
+
+const colosseum: ItineraryItem = { placeId: 'p1', name: 'Colosseum' }
+const vatican: ItineraryItem = { placeId: 'p2', name: 'Vatican' }
+
+describe('itinerary items', () => {
+  it('creates days as needed when adding at an index', () => {
+    const trip = addItineraryItem(createTrip('t1'), 1, colosseum)
+    expect(trip.days).toHaveLength(2) // day 0 (empty) + day 1
+    expect(trip.days[0].items).toEqual([])
+    expect(trip.days[1].items[0].name).toBe('Colosseum')
+  })
+
+  it('appends multiple items to the same day', () => {
+    let trip = addItineraryItem(createTrip('t1'), 0, colosseum)
+    trip = addItineraryItem(trip, 0, vatican)
+    expect(trip.days[0].items).toHaveLength(2)
+  })
+
+  it('removes an item by placeId from a day', () => {
+    let trip = addItineraryItem(createTrip('t1'), 0, colosseum)
+    trip = addItineraryItem(trip, 0, vatican)
+    trip = removeItineraryItem(trip, 0, 'p1')
+    expect(trip.days[0].items.map((i) => i.placeId)).toEqual(['p2'])
+  })
+})

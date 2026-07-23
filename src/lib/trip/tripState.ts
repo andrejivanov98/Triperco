@@ -51,3 +51,27 @@ export function removeStay(trip: TripState, stayId: string): TripState {
     stays: trip.stays.filter((s) => s.id !== stayId),
   })
 }
+
+export function addItineraryItem(
+  trip: TripState,
+  dayIndex: number,
+  item: ItineraryItem,
+): TripState {
+  const days = trip.days.map((d) => ({ ...d, items: [...d.items] }))
+  while (days.length <= dayIndex) days.push({ items: [] })
+  days[dayIndex].items.push(item)
+  return withTotal({ ...trip, days })
+}
+
+export function removeItineraryItem(
+  trip: TripState,
+  dayIndex: number,
+  placeId: string,
+): TripState {
+  const days = trip.days.map((d, i) =>
+    i === dayIndex
+      ? { ...d, items: d.items.filter((it) => it.placeId !== placeId) }
+      : d,
+  )
+  return withTotal({ ...trip, days })
+}
