@@ -3,12 +3,14 @@ import type { Stay } from '../trip/types'
 interface RawProperty {
   name: string
   type?: string
-  price_per_night?: { extracted_price?: number }
+  price_per_night?: { price?: string; extracted_price?: number }
+  total_price?: { price?: string; extracted_price?: number }
   rating?: number
   reviews?: number
   gps_coordinates?: { latitude: number; longitude: number }
   images?: { thumbnail?: string; original?: string }[]
   link?: string
+  hotel_class?: string
 }
 
 export interface RawHotelsResponse {

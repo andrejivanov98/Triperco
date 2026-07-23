@@ -15,7 +15,7 @@ export interface RawReviewsResponse {
 
 export function normalizeReviews(raw: RawReviewsResponse): ReviewSnippet[] {
   return (raw.reviews ?? [])
-    .map((r) => {
+    .map((r): ReviewSnippet | null => {
       const text = r.snippet ?? r.text
       if (!text) return null
       return { author: r.user?.name, rating: r.rating, text }
