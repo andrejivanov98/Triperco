@@ -278,7 +278,8 @@ export function MapView({ markers }: { markers: MapMarker[] }) {
     let map: any
 
     void (async () => {
-      const maplibregl = (await import('maplibre-gl')).default
+      // maplibre-gl v6 is ESM named-exports only (no default export).
+      const maplibregl = await import('maplibre-gl')
       if (cancelled || !container) return
 
       const first = markers[0]
