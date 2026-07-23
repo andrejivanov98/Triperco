@@ -6,9 +6,23 @@
 
 **Architecture:** Next.js (App Router, TypeScript) on Vercel. Pure, framework-agnostic domain logic lives under `src/lib/` as small, focused, immutable modules that are trivial to unit test with Vitest. No React, no network, and no AI in this plan — just a running app shell plus a tested core.
 
-**Tech Stack:** Next.js 15, React 19, TypeScript (strict), Tailwind CSS v4, Vitest. Package manager: npm.
+**Tech Stack:** Next.js 15, React 19, TypeScript (strict), Tailwind CSS v4, Vitest, `next/font` (Inter). Package manager: npm. The **Sky Glass** design system (below) is established in the scaffold so every later plan inherits it.
 
-**Scope of this plan (Plan 1 of 5):** project scaffold, test harness, `TripState` model + reducer functions, affiliate URL builder, trip serialize/deserialize + in-memory store. **Out of scope here:** SearchApi calls, the chat agent, any UI beyond a placeholder home page, and real Vercel KV wiring (those are Plans 2–5).
+**Scope of this plan (Plan 1 of 5):** project scaffold **including the Sky Glass design tokens**, test harness, `TripState` model + reducer functions, affiliate URL builder, trip serialize/deserialize + in-memory store. **Out of scope here:** SearchApi calls, the chat agent, any UI beyond a token-driven placeholder home page, and real Vercel KV wiring (those are Plans 2–5).
+
+---
+
+## Design System — "Sky Glass" (reference for Task 1)
+
+The full rationale lives in the spec (§15). This is the concrete implementation contract Task 1 must produce, so the aesthetic is consistent from the first commit:
+
+- **Canvas (main background):** light cool grey `#ECEFF3` + a faint sky glow radial-gradient in the top-right.
+- **Theme accent:** sky blue — primary `#0EA5E9` (Tailwind `sky-500`), hover `#0284C7` (`sky-600`). Tailwind ships the full `sky-*` palette, so no custom color definitions are needed; components use `text-sky-600`, `bg-sky-500`, etc.
+- **Glass primitive:** a single reusable `.glass` class — white at 30% opacity, `backdrop-filter: blur(28px) saturate(160%)`, 1px `rgba(255,255,255,.55)` border, sky-tinted shadow + inset top highlight, radius ~22px.
+- **Text:** slate `#0F172A`; muted `#64748B`.
+- **Type:** Inter via `next/font/google`, weights 400/500/600/700.
+
+These are defined once in `src/app/globals.css` (tokens + `.glass`) and `src/app/layout.tsx` (font), then reused everywhere.
 
 ---
 
@@ -43,16 +57,16 @@ Each `lib` module has one responsibility and no dependency on Next.js, so it can
 
 ---
 
-## Task 1: Scaffold the Next.js app
+## Task 1: Scaffold the Next.js app with Sky Glass design tokens
 
 **Files:**
 - Create: `package.json`
 - Create: `tsconfig.json`
 - Create: `next.config.ts`
 - Create: `postcss.config.mjs`
-- Create: `src/app/globals.css`
-- Create: `src/app/layout.tsx`
-- Create: `src/app/page.tsx`
+- Create: `src/app/globals.css` (Tailwind import + Sky Glass tokens + `.glass` primitive)
+- Create: `src/app/layout.tsx` (Inter font via `next/font`)
+- Create: `src/app/page.tsx` (token-driven glass hero)
 
 - [ ] **Step 1: Create `package.json`**
 
@@ -135,17 +149,52 @@ const config = {
 export default config
 ```
 
-- [ ] **Step 5: Create `src/app/globals.css`**
+- [ ] **Step 5: Create `src/app/globals.css` (Tailwind + Sky Glass tokens + glass primitive)**
 
 ```css
 @import "tailwindcss";
+
+:root {
+  --canvas: #eceff3;
+  --glass-bg: rgba(255, 255, 255, 0.30);
+  --glass-border: rgba(255, 255, 255, 0.55);
+  --glass-shadow: 0 12px 40px rgba(2, 132, 199, 0.10);
+  --text: #0f172a;
+  --muted: #64748b;
+}
+
+body {
+  color: var(--text);
+  min-height: 100vh;
+  background:
+    radial-gradient(1100px 600px at 78% -8%, rgba(56, 189, 248, 0.14), transparent 60%),
+    var(--canvas);
+}
+
+/* Frosted "Sky Glass" surface — the core reusable primitive, used everywhere */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid var(--glass-border);
+  border-radius: 22px;
+  box-shadow: var(--glass-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
 ```
 
-- [ ] **Step 6: Create `src/app/layout.tsx`**
+> Note: Tailwind v4 already provides the full `sky-*` color scale (`text-sky-600`, `bg-sky-500`, …) and `text-slate-*`, so the accent needs no custom config — components reference those utilities directly.
+
+- [ ] **Step 6: Create `src/app/layout.tsx` (Inter font)**
 
 ```tsx
 import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
 import './globals.css'
+
+const inter = Inter({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+})
 
 export const metadata: Metadata = {
   title: 'Triperco',
@@ -159,19 +208,29 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className={inter.className}>{children}</body>
     </html>
   )
 }
 ```
 
-- [ ] **Step 7: Create `src/app/page.tsx`**
+- [ ] **Step 7: Create `src/app/page.tsx` (token-driven glass hero)**
 
 ```tsx
 export default function Home() {
   return (
-    <main className="min-h-screen flex items-center justify-center">
-      <h1 className="text-3xl font-semibold">Triperco</h1>
+    <main className="min-h-screen flex items-center justify-center p-6">
+      <div className="glass max-w-md p-10 text-center">
+        <p className="text-sm font-semibold uppercase tracking-wide text-sky-600">
+          Triperco
+        </p>
+        <h1 className="mt-2 text-3xl font-bold text-slate-900">
+          Plan your whole trip in one chat.
+        </h1>
+        <p className="mt-3 font-medium text-slate-500">
+          Sky Glass design system — coming to life.
+        </p>
+      </div>
     </main>
   )
 }
@@ -185,13 +244,18 @@ Expected: dependencies install with no errors; `node_modules/` and `package-lock
 - [ ] **Step 9: Verify the app builds**
 
 Run: `npm run build`
-Expected: build succeeds; output ends with a route table listing `/`. (Next.js auto-generates `next-env.d.ts` during this step.)
+Expected: build succeeds; output ends with a route table listing `/`. (Next.js auto-generates `next-env.d.ts` during this step, and fetches the Inter font.)
 
-- [ ] **Step 10: Commit**
+- [ ] **Step 10: Visually confirm the Sky Glass look**
+
+Run: `npm run dev`, open `http://localhost:3000`.
+Expected: a frosted glass card centered on a light-grey canvas with a faint sky glow top-right, an uppercase sky-blue "Triperco" label, a bold slate headline, and Inter type. Stop the dev server (Ctrl+C) once confirmed.
+
+- [ ] **Step 11: Commit**
 
 ```bash
 git add -A
-git commit -m "chore: scaffold Next.js app with Tailwind v4"
+git commit -m "chore: scaffold Next.js app with Sky Glass design tokens"
 ```
 
 ---
