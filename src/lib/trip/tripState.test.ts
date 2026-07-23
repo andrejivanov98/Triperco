@@ -49,3 +49,21 @@ describe('computeEstimatedTotal', () => {
     expect(computeEstimatedTotal(withFlight)).toBe(50)
   })
 })
+
+import { setMeta } from './tripState'
+
+describe('setMeta', () => {
+  it('patches meta immutably and recomputes the total', () => {
+    let trip = createTrip('t1')
+    trip = {
+      ...trip,
+      flights: [{ id: 'f1', from: 'A', to: 'B', stops: 0, price: 100, bookUrl: 'https://a' }],
+    }
+    const updated = setMeta(trip, { destination: 'Rome', travelers: 3 })
+    expect(updated.meta.destination).toBe('Rome')
+    expect(updated.meta.travelers).toBe(3)
+    expect(updated.estimatedTotal).toBe(300) // 100 * 3
+    // original untouched
+    expect(trip.meta.destination).toBeUndefined()
+  })
+})

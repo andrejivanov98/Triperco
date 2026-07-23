@@ -21,3 +21,11 @@ export function computeEstimatedTotal(trip: TripState): number {
   )
   return flightsTotal + staysTotal
 }
+
+function withTotal(trip: TripState): TripState {
+  return { ...trip, estimatedTotal: computeEstimatedTotal(trip) }
+}
+
+export function setMeta(trip: TripState, patch: Partial<TripMeta>): TripState {
+  return withTotal({ ...trip, meta: { ...trip.meta, ...patch } })
+}
