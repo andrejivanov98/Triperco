@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+:root {
+  --canvas: #eceff3;
+  --glass-bg: rgba(255, 255, 255, 0.30);
+  --glass-border: rgba(255, 255, 255, 0.55);
+  --glass-shadow: 0 12px 40px rgba(2, 132, 199, 0.10);
+  --text: #0f172a;
+  --muted: #64748b;
+}
+
+body {
+  color: var(--text);
+  min-height: 100vh;
+  background:
+    radial-gradient(1100px 600px at 78% -8%, rgba(56, 189, 248, 0.14), transparent 60%),
+    var(--canvas);
+}
+
+/* Frosted "Sky Glass" surface — the core reusable primitive, used everywhere */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid var(--glass-border);
+  border-radius: 22px;
+  box-shadow: var(--glass-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
