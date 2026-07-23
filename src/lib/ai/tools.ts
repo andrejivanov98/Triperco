@@ -1,6 +1,6 @@
 import { tool } from 'ai'
 import { z } from 'zod'
-import type { TripState, Flight, Stay, Place } from '../trip/types'
+import type { TripState, Flight, Stay, Place, ItineraryItem } from '../trip/types'
 import {
   createTrip,
   setMeta,
@@ -8,10 +8,15 @@ import {
   removeFlight as removeFlightR,
   addStay as addStayR,
   removeStay as removeStayR,
+  addItineraryItem as addItineraryItemR,
+  removeItineraryItem as removeItineraryItemR,
 } from '../trip/tripState'
 import {
   searchFlights as apiSearchFlights,
   searchHotels as apiSearchHotels,
+  searchPlaces as apiSearchPlaces,
+  getPlaceReviews as apiGetPlaceReviews,
+  getPlacePhotos as apiGetPlacePhotos,
   type SearchDeps,
 } from '../searchapi/search'
 
@@ -131,6 +136,64 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
       execute: async ({ id }) => {
         state.trip = removeStayR(state.trip, id)
         return { removed: id, estimatedTotal: state.trip.estimatedTotal }
+      },
+    }),
+
+    searchPlaces: tool({
+      description:
+        'Search places/attractions/restaurants near a location. Returns options with ids; add to itinerary only by these ids.',
+      inputSchema: z.object({
+        q: z.string().describe('What to search, e.g. "top attractions in Rome"'),
+        ll: z.string().optional().describe('GPS bias, format "@lat,lng,zoom"'),
+      }),
+      execute: async (params) => {
+        state.lastPlaces = await apiSearchPlaces(params, deps)
+        return state.lastPlaces.map((p) => ({
+          id: p.id,
+          name: p.name,
+          category: p.category,
+          rating: p.rating,
+          reviewCount: p.reviewCount,
+        }))
+      },
+    }),
+
+    addPlaceToItinerary: tool({
+      description: 'Add a searched place to a specific day of the itinerary (dayIndex is 0-based).',
+      inputSchema: z.object({ id: z.string(), dayIndex: z.number().int().min(0) }),
+      execute: async ({ id, dayIndex }) => {
+        const place = state.lastPlaces.find((p) => p.id === id)
+        if (!place) return { error: `No place "${id}" in the latest search results.` }
+        const item: ItineraryItem = { placeId: place.id, name: place.name, coords: place.coords }
+        state.trip = addItineraryItemR(state.trip, dayIndex, item)
+        return { added: place.name, dayIndex }
+      },
+    }),
+
+    removeItineraryItem: tool({
+      description: 'Remove a place from a day of the itinerary by dayIndex + placeId.',
+      inputSchema: z.object({ dayIndex: z.number().int().min(0), placeId: z.string() }),
+      execute: async ({ dayIndex, placeId }) => {
+        state.trip = removeItineraryItemR(state.trip, dayIndex, placeId)
+        return { removed: placeId, dayIndex }
+      },
+    }),
+
+    getPlaceDetails: tool({
+      description:
+        'Fetch reviews and photos for a searched place by id, to enrich its card. Use before recommending so you can cite real pros and cons.',
+      inputSchema: z.object({ id: z.string() }),
+      execute: async ({ id }) => {
+        const [reviews, photos] = await Promise.all([
+          apiGetPlaceReviews(id, deps),
+          apiGetPlacePhotos(id, deps),
+        ])
+        const place = state.lastPlaces.find((p) => p.id === id)
+        if (place) {
+          place.reviewSnippets = reviews
+          if (photos.length) place.photos = photos
+        }
+        return { reviews: reviews.slice(0, 5), photos: photos.slice(0, 5) }
       },
     }),
   }
