@@ -38,7 +38,7 @@ The product's edge is **richness and UX**, not inventory — full place details,
 - **Framework:** Next.js (App Router).
 - **Hosting:** Vercel.
 - **UI:** Tailwind CSS + shadcn/ui, styled with the **Sky Glass** design system (see §15).
-- **AI:** Vercel AI SDK. Primary model **Claude Sonnet 5** for the planner; a cheap/fast model (Claude Haiku or Gemini Flash) for lightweight tasks (intent detection, suggestion chips). Model is swappable by design so Gemini vs Sonnet can be A/B'd on real traffic later.
+- **AI:** Vercel AI SDK. **v1 default model = Google Gemini** (a current Gemini model, e.g. Gemini 2.5 Flash / Pro — exact id chosen at Plan 3 time), because the user already has a Gemini API key and it is the fastest to set up. **Claude Sonnet 5 is the documented fallback** if Gemini quality proves insufficient during testing. The provider is centralized in `src/lib/ai/model.ts`, so switching Gemini ↔ Sonnet is a one-file change (swap `@ai-sdk/google`↔`@ai-sdk/anthropic`, one model reference, one env var); tools/streaming/TripState wiring are provider-agnostic. Env: `GOOGLE_GENERATIVE_AI_API_KEY`, `SEARCHAPI_API_KEY`.
 - **Map rendering:** MapLibre GL with free/open tiles (avoids a second Google billing relationship; place data comes from SearchApi).
 - **Data source:** SearchApi.io (see §7).
 - **Ephemeral persistence:** Vercel KV (Redis) for caching and for shareable-trip storage. No relational DB in v1.
@@ -47,12 +47,12 @@ The product's edge is **richness and UX**, not inventory — full place details,
 
 - **Client:** landing page + planner UI (two-zone, toggle) + MapLibre map.
 - **Server (Next.js route handlers / server actions):** the agent loop and **all** SearchApi calls. API keys never reach the browser.
-- **Model choice:** primary planner = Claude Sonnet 5 via AI SDK; cheap model for light tasks.
+- **Model choice:** v1 default planner = Google Gemini via AI SDK (Sonnet fallback); a cheap/fast model for light tasks.
 
 **Data flow:**
 ```
 user message
-  → agent (Sonnet + tools)
+  → agent (Gemini + tools)
   → server calls SearchApi (cached)
   → tool results mutate TripState
   → stream chat text + updated TripState
@@ -97,7 +97,7 @@ SearchApi bills per successful search, and breadth of endpoints multiplies cost.
 
 ## 8. Chat agent
 
-- **Model:** Claude Sonnet 5 (AI SDK).
+- **Model:** Google Gemini (AI SDK), via `src/lib/ai/model.ts`; Sonnet is a one-file swap fallback.
 - **Tools:** `setTripMeta` (destination/dates/travelers/budget), `searchFlights`, `exploreDestinations`, `searchStays` (hotels + Airbnb), `searchPlaces`, `getPlaceDetails` (details + photos + reviews), `addToItinerary`, `removeFromItinerary`.
 - **System prompt:** concierge voice — proposes options, surfaces cons as well as pros, suggests hidden gems, adapts to budget/dates.
 - **Guardrail:** the agent never invents prices or facts; it only shows what SearchApi returned, and labels prices "as of search — confirm on provider site."
