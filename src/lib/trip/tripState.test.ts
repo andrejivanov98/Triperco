@@ -67,3 +67,53 @@ describe('setMeta', () => {
     expect(trip.meta.destination).toBeUndefined()
   })
 })
+
+import { addFlight, removeFlight, addStay, removeStay } from './tripState'
+import type { Flight, Stay } from './types'
+
+const sampleFlight: Flight = {
+  id: 'f1',
+  from: 'SKP',
+  to: 'FCO',
+  stops: 0,
+  price: 180,
+  bookUrl: 'https://air',
+}
+
+const sampleStay: Stay = {
+  id: 's1',
+  name: 'Hotel Trastevere',
+  source: 'hotel',
+  pricePerNight: 110,
+  nights: 3,
+  photos: [],
+  bookUrl: 'https://hotel',
+}
+
+describe('flights', () => {
+  it('adds a flight and recomputes total', () => {
+    const trip = addFlight(createTrip('t1'), sampleFlight)
+    expect(trip.flights).toHaveLength(1)
+    expect(trip.estimatedTotal).toBe(180) // 1 traveler
+  })
+
+  it('removes a flight by id', () => {
+    const trip = removeFlight(addFlight(createTrip('t1'), sampleFlight), 'f1')
+    expect(trip.flights).toHaveLength(0)
+    expect(trip.estimatedTotal).toBe(0)
+  })
+})
+
+describe('stays', () => {
+  it('adds a stay and recomputes total', () => {
+    const trip = addStay(createTrip('t1'), sampleStay)
+    expect(trip.stays).toHaveLength(1)
+    expect(trip.estimatedTotal).toBe(330) // 110 * 3
+  })
+
+  it('removes a stay by id', () => {
+    const trip = removeStay(addStay(createTrip('t1'), sampleStay), 's1')
+    expect(trip.stays).toHaveLength(0)
+    expect(trip.estimatedTotal).toBe(0)
+  })
+})

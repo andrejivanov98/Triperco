@@ -29,3 +29,25 @@ function withTotal(trip: TripState): TripState {
 export function setMeta(trip: TripState, patch: Partial<TripMeta>): TripState {
   return withTotal({ ...trip, meta: { ...trip.meta, ...patch } })
 }
+
+export function addFlight(trip: TripState, flight: Flight): TripState {
+  return withTotal({ ...trip, flights: [...trip.flights, flight] })
+}
+
+export function removeFlight(trip: TripState, flightId: string): TripState {
+  return withTotal({
+    ...trip,
+    flights: trip.flights.filter((f) => f.id !== flightId),
+  })
+}
+
+export function addStay(trip: TripState, stay: Stay): TripState {
+  return withTotal({ ...trip, stays: [...trip.stays, stay] })
+}
+
+export function removeStay(trip: TripState, stayId: string): TripState {
+  return withTotal({
+    ...trip,
+    stays: trip.stays.filter((s) => s.id !== stayId),
+  })
+}
