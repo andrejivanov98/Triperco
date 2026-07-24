@@ -5,7 +5,7 @@ import { PlanMapToggle } from './PlanMapToggle'
 describe('PlanMapToggle', () => {
   it('renders both segments and marks the active one', () => {
     render(<PlanMapToggle view="plan" onChange={() => {}} />)
-    expect(screen.getByRole('button', { name: /plan/i })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: /itinerary/i })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: /map/i })).toHaveAttribute('aria-pressed', 'false')
   })
 

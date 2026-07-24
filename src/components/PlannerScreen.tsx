@@ -10,7 +10,7 @@ import { getLatestTrip } from '@/lib/ui/messages'
 import { tripToMarkers } from '@/lib/ui/mapMarkers'
 import { createTrip } from '@/lib/trip/tripState'
 import { ChatPane } from './chat/ChatPane'
-import { PlanView } from './plan/PlanView'
+import { ItineraryView } from './itinerary/ItineraryView'
 import { MapView } from './plan/MapView'
 import { PlanMapToggle, type PlanView as PlanViewMode } from './plan/PlanMapToggle'
 import { ShareButton } from './share/ShareButton'
@@ -97,7 +97,7 @@ export function PlannerScreen() {
           <ShareButton onShare={handleShare} sharing={sharing} shareUrl={shareUrl} />
         </div>
         <div className="min-h-0 flex-1">
-          {view === 'plan' ? <PlanView trip={trip} /> : <MapView markers={markers} />}
+          {view === 'plan' ? <ItineraryView trip={trip} /> : <MapView markers={markers} />}
         </div>
       </div>
     </main>

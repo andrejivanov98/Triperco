@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getTripStore } from '@/lib/share/tripStore'
-import { PlanView } from '@/components/plan/PlanView'
+import { ItineraryView } from '@/components/itinerary/ItineraryView'
 
 export default async function SharedTripPage({
   params,
@@ -24,7 +24,7 @@ export default async function SharedTripPage({
         </Link>
       </div>
       <div className="glass min-h-0 flex-1 p-4">
-        <PlanView trip={trip} />
+        <ItineraryView trip={trip} />
       </div>
     </main>
   )

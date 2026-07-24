@@ -26,7 +26,7 @@ export function PlanMapToggle({
 
   return (
     <div className="inline-flex gap-1 rounded-2xl border border-hairline bg-white/60 p-1">
-      {seg('plan', '📋 Plan')}
+      {seg('plan', '📋 Itinerary')}
       {seg('map', '🗺 Map')}
     </div>
   )
