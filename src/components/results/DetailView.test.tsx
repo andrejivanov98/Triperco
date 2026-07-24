@@ -12,7 +12,7 @@ describe('DetailView (stay)', () => {
   it('renders the title, price, gallery and a book-out link', () => {
     render(<DetailView kind="stays" item={stay} onClose={() => {}} onAdd={() => {}} />)
     expect(screen.getByRole('heading', { name: "Guido's Apartments" })).toBeInTheDocument()
-    expect(screen.getByText('$1,400')).toBeInTheDocument() // 100 * 14 total
+    expect(screen.getByText(/\$1,400 total/)).toBeInTheDocument() // 100 * 14 total
     expect(screen.getAllByRole('img').length).toBe(2)
     const book = screen.getByRole('link', { name: /book on airbnb/i })
     expect(book).toHaveAttribute('href', 'https://air/1')

@@ -92,7 +92,7 @@ export function DetailView({
               <img
                 key={i}
                 src={src}
-                alt=""
+                alt={`${d.title} photo ${i + 1}`}
                 className={'w-full rounded-xl object-cover ' + (i === 0 ? 'col-span-2 h-40' : 'h-24')}
               />
             ))}
