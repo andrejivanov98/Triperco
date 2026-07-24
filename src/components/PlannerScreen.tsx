@@ -23,9 +23,24 @@ const SUGGESTIONS = ['Plan a weekend in Rome', 'Find me a cheap flight', 'Add a 
 export function PlannerScreen() {
   const searchParams = useSearchParams()
   const fromId = searchParams.get('from')
-  const initialQuery = searchParams.get('q')
 
-  const [trip, setTrip] = useState<TripState>(() => createTrip('draft'))
+  const [trip, setTrip] = useState<TripState>(() => {
+    let t = createTrip('draft')
+    const dest = searchParams.get('dest') ?? undefined
+    const start = searchParams.get('start') ?? undefined
+    const end = searchParams.get('end') ?? undefined
+    const travelersRaw = searchParams.get('travelers')
+    const travelers = travelersRaw ? Number(travelersRaw) : undefined
+    if (dest || start || end || (travelers && travelers > 0)) {
+      t = setMeta(t, {
+        destination: dest,
+        startDate: start,
+        endDate: end,
+        ...(travelers && travelers > 0 ? { travelers } : {}),
+      })
+    }
+    return t
+  })
   const [view, setView] = useState<PlanViewMode>('plan')
   const [sharing, setSharing] = useState(false)
   const [shareUrl, setShareUrl] = useState<string | null>(null)
@@ -75,13 +90,29 @@ export function PlannerScreen() {
     }
   }, [fromId])
 
-  // Auto-send the landing prompt once when arriving via /plan?q={prompt}.
+  // Auto-send one opening message: the free-text q, or a composed prompt from structured context.
   const sentInitialRef = useRef(false)
   useEffect(() => {
-    if (!initialQuery || sentInitialRef.current) return
+    if (sentInitialRef.current) return
+    const q = searchParams.get('q')
+    const dest = searchParams.get('dest')
+    const start = searchParams.get('start')
+    const end = searchParams.get('end')
+    const travelers = searchParams.get('travelers')
+
+    let text: string | null = null
+    if (q) {
+      text = q
+    } else if (dest || start || end || travelers) {
+      const parts = [`Plan my trip to ${dest || 'somewhere great'}`]
+      if (start && end) parts.push(`from ${start} to ${end}`)
+      if (travelers) parts.push(`for ${travelers} travelers`)
+      text = parts.join(' ') + '.'
+    }
+    if (!text) return
     sentInitialRef.current = true
-    sendMessage({ text: initialQuery })
-  }, [initialQuery, sendMessage])
+    sendMessage({ text })
+  }, [searchParams, sendMessage])
 
   useEffect(() => {
     const latest = getLatestTrip(messages)
