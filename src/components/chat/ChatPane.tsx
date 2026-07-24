@@ -2,12 +2,18 @@
 
 import { useState } from 'react'
 import type { TriperUIMessage } from '@/lib/ui/messages'
+import type { Flight, Stay, Place } from '@/lib/trip/types'
+import type { ResultSet } from '@/lib/ui/results'
+import { getResultSets } from '@/lib/ui/results'
+import { ResultCarousel } from '@/components/results/ResultCarousel'
 
 interface ChatPaneProps {
   messages: TriperUIMessage[]
   status: string
   suggestions: string[]
   onSend: (text: string) => void
+  onAddResult?: (set: ResultSet, item: Flight | Stay | Place) => void
+  onOpenDetail?: (set: ResultSet, item: Flight | Stay | Place) => void
 }
 
 function messageText(message: TriperUIMessage): string {
@@ -17,7 +23,14 @@ function messageText(message: TriperUIMessage): string {
     .join('')
 }
 
-export function ChatPane({ messages, status, suggestions, onSend }: ChatPaneProps) {
+export function ChatPane({
+  messages,
+  status,
+  suggestions,
+  onSend,
+  onAddResult,
+  onOpenDetail,
+}: ChatPaneProps) {
   const [input, setInput] = useState('')
   const busy = status !== 'ready'
 
@@ -33,18 +46,33 @@ export function ChatPane({ messages, status, suggestions, onSend }: ChatPaneProp
       <div className="mb-3 text-sm font-bold tracking-tight text-accent">✦ Triperco</div>
 
       <div className="flex flex-1 flex-col gap-2 overflow-y-auto pr-1">
-        {messages.map((m) => (
-          <div
-            key={m.id}
-            className={
-              m.role === 'user'
-                ? 'ml-6 rounded-2xl border border-hairline bg-sand px-3 py-2 text-sm font-medium text-ink'
-                : 'rounded-2xl border border-hairline bg-white/60 px-3 py-2 text-sm font-medium text-ink'
-            }
-          >
-            {messageText(m)}
-          </div>
-        ))}
+        {messages.map((m) => {
+          const sets = m.role === 'assistant' ? getResultSets(m) : []
+          const text = messageText(m)
+          return (
+            <div key={m.id} className="flex flex-col gap-2">
+              {text && (
+                <div
+                  className={
+                    m.role === 'user'
+                      ? 'ml-6 rounded-2xl border border-hairline bg-sand px-3 py-2 text-sm font-medium text-ink'
+                      : 'rounded-2xl border border-hairline bg-white/60 px-3 py-2 text-sm font-medium text-ink'
+                  }
+                >
+                  {text}
+                </div>
+              )}
+              {sets.map((set, i) => (
+                <ResultCarousel
+                  key={i}
+                  set={set}
+                  onOpen={(s, item) => onOpenDetail?.(s, item)}
+                  onAdd={(s, item) => onAddResult?.(s, item)}
+                />
+              ))}
+            </div>
+          )
+        })}
       </div>
 
       {suggestions.length > 0 && (

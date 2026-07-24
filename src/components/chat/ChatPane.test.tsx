@@ -32,4 +32,21 @@ describe('ChatPane', () => {
     fireEvent.submit(screen.getByRole('form'))
     expect(onSend).toHaveBeenCalledWith('Plan Rome')
   })
+
+  it('renders a result carousel from a data-results part', () => {
+    const withResults: TriperUIMessage[] = [
+      {
+        id: 'r', role: 'assistant',
+        parts: [
+          { type: 'text', text: 'Here are stays.' },
+          { type: 'data-results', data: { kind: 'stays', query: 'Rome', items: [
+            { id: 's1', name: 'Hotel One', source: 'hotel', pricePerNight: 90, nights: 3, photos: [], bookUrl: 'x' },
+          ] } },
+        ],
+      },
+    ]
+    render(<ChatPane messages={withResults} status="ready" suggestions={[]} onSend={() => {}} />)
+    expect(screen.getByText('Hotel One')).toBeInTheDocument()
+    expect(screen.getByText(/1 stays/i)).toBeInTheDocument()
+  })
 })
