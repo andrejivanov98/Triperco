@@ -15,10 +15,10 @@ export default async function SharedTripPage({
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-4 p-4">
       <div className="flex items-center justify-between">
-        <div className="text-sm font-bold tracking-tight text-sky-600">✦ Triperco</div>
+        <div className="text-sm font-bold tracking-tight text-accent">✦ Triperco</div>
         <Link
           href={`/plan?from=${id}`}
-          className="rounded-xl bg-sky-500 px-4 py-2 text-sm font-bold text-white shadow-md shadow-sky-500/30"
+          className="rounded-xl bg-accent px-4 py-2 text-sm font-bold text-white shadow-md shadow-accent/25"
         >
           Make it your own →
         </Link>

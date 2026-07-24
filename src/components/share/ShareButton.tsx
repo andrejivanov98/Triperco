@@ -14,12 +14,12 @@ export function ShareButton({ onShare, sharing, shareUrl }: ShareButtonProps) {
           readOnly
           value={shareUrl}
           onFocus={(e) => e.currentTarget.select()}
-          className="min-w-0 flex-1 rounded-xl border border-white/60 bg-white/50 px-3 py-1.5 text-xs font-medium text-slate-700"
+          className="min-w-0 flex-1 rounded-xl border border-hairline bg-white/60 px-3 py-1.5 text-xs font-medium text-ink"
         />
         <button
           type="button"
           onClick={() => navigator.clipboard?.writeText(shareUrl)}
-          className="shrink-0 rounded-xl bg-sky-500 px-3 py-1.5 text-xs font-bold text-white"
+          className="shrink-0 rounded-xl bg-accent px-3 py-1.5 text-xs font-bold text-white"
         >
           Copy
         </button>
@@ -32,7 +32,7 @@ export function ShareButton({ onShare, sharing, shareUrl }: ShareButtonProps) {
       type="button"
       onClick={onShare}
       disabled={sharing}
-      className="rounded-xl border border-sky-200 bg-sky-100/70 px-3 py-1.5 text-xs font-semibold text-sky-700 disabled:opacity-50"
+      className="rounded-xl border border-accent/30 bg-accent-050 px-3 py-1.5 text-xs font-semibold text-accent-600 disabled:opacity-50"
     >
       {sharing ? 'Sharing…' : 'Share trip'}
     </button>

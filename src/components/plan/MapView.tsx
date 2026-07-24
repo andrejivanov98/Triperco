@@ -54,7 +54,7 @@ export function MapView({ markers }: { markers: MapMarker[] }) {
     <div className="relative h-full w-full overflow-hidden rounded-2xl">
       <div ref={containerRef} className="h-full w-full" />
       {markers.length === 0 && (
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm font-medium text-slate-400">
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm font-medium text-muted">
           Add places to your plan to see them on the map.
         </div>
       )}
