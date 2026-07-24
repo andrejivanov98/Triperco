@@ -2,6 +2,7 @@ import { tool } from 'ai'
 import { z } from 'zod'
 import type { TripState, Flight, Stay, Place, ItineraryItem } from '../trip/types'
 import type { ResultSet } from '../ui/results'
+import type { OptionSet, PrefForm } from '../ui/interactions'
 import {
   createTrip,
   setMeta,
@@ -27,6 +28,8 @@ export interface PlannerState {
   lastStays: Stay[]
   lastPlaces: Place[]
   pendingResults: ResultSet[]
+  pendingOptions: OptionSet[]
+  pendingForms: PrefForm[]
 }
 
 export function createPlannerState(trip?: TripState): PlannerState {
@@ -36,6 +39,8 @@ export function createPlannerState(trip?: TripState): PlannerState {
     lastStays: [],
     lastPlaces: [],
     pendingResults: [],
+    pendingOptions: [],
+    pendingForms: [],
   }
 }
 
@@ -49,6 +54,7 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
         endDate: z.string().optional(),
         travelers: z.number().optional(),
         budget: z.number().optional(),
+        title: z.string().optional().describe('Short evocative trip name, e.g. "Tenerife Escape"'),
       }),
       execute: async (patch) => {
         state.trip = setMeta(state.trip, patch)
@@ -204,6 +210,36 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
           if (photos.length) place.photos = photos
         }
         return { reviews: reviews.slice(0, 5), photos: photos.slice(0, 5) }
+      },
+    }),
+
+    presentOptions: tool({
+      description:
+        'Show the traveler a short menu of next steps to choose from (e.g. Find a hotel / Look up flights / Build the full trip). After calling this, STOP and wait for their choice.',
+      inputSchema: z.object({
+        question: z.string().optional(),
+        options: z
+          .array(z.object({ label: z.string(), prompt: z.string() }))
+          .min(1)
+          .describe('Each option: a short label and the prompt to send when chosen.'),
+      }),
+      execute: async ({ question, options }) => {
+        state.pendingOptions.push({ question, options })
+        return { presented: options.length }
+      },
+    }),
+
+    askPreferences: tool({
+      description:
+        "Ask a preference question with preset options — mode 'multi' for interests (pick several), 'single' for a single choice like pace. After calling this, STOP and wait.",
+      inputSchema: z.object({
+        question: z.string(),
+        mode: z.enum(['single', 'multi']),
+        options: z.array(z.string()).min(2),
+      }),
+      execute: async ({ question, mode, options }) => {
+        state.pendingForms.push({ question, mode, options })
+        return { presented: options.length }
       },
     }),
   }

@@ -24,6 +24,33 @@ describe('setTripMeta', () => {
   })
 })
 
+describe('guided interaction tools', () => {
+  it('presentOptions queues an option set', async () => {
+    const state = createPlannerState()
+    const tools = buildPlannerTools(state)
+    const res = await run(tools.presentOptions, {
+      question: 'Start with',
+      options: [{ label: 'Find a hotel', prompt: 'Find me a hotel' }],
+    })
+    expect(res.presented).toBe(1)
+    expect(state.pendingOptions[0].options[0].label).toBe('Find a hotel')
+  })
+
+  it('askPreferences queues a form', async () => {
+    const state = createPlannerState()
+    const tools = buildPlannerTools(state)
+    await run(tools.askPreferences, { question: 'Interests?', mode: 'multi', options: ['Beaches', 'Hikes'] })
+    expect(state.pendingForms[0]).toMatchObject({ mode: 'multi' })
+  })
+
+  it('setTripMeta accepts a title', async () => {
+    const state = createPlannerState()
+    const tools = buildPlannerTools(state)
+    await run(tools.setTripMeta, { title: 'Tenerife Escape' })
+    expect(state.trip.meta.title).toBe('Tenerife Escape')
+  })
+})
+
 describe('searchFlights + addFlight', () => {
   it('searches, stashes results, and adds by id', async () => {
     const deps = fakeDeps({
