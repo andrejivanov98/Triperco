@@ -5,7 +5,10 @@ import type { TriperUIMessage } from '@/lib/ui/messages'
 import type { Flight, Stay, Place } from '@/lib/trip/types'
 import type { ResultSet } from '@/lib/ui/results'
 import { getResultSets } from '@/lib/ui/results'
+import { getOptionSets, getForms } from '@/lib/ui/interactions'
 import { ResultCarousel } from '@/components/results/ResultCarousel'
+import { OptionList } from './OptionList'
+import { PrefForm } from './PrefForm'
 
 interface ChatPaneProps {
   messages: TriperUIMessage[]
@@ -68,6 +71,17 @@ export function ChatPane({
                   set={set}
                   onOpen={(s, item) => onOpenDetail?.(s, item)}
                   onAdd={(s, item) => onAddResult?.(s, item)}
+                />
+              ))}
+              {(m.role === 'assistant' ? getOptionSets(m) : []).map((set, i) => (
+                <OptionList key={`o${i}`} set={set} onChoose={onSend} />
+              ))}
+              {(m.role === 'assistant' ? getForms(m) : []).map((form, i) => (
+                <PrefForm
+                  key={`f${i}`}
+                  form={form}
+                  onSubmit={onSend}
+                  onSkip={() => onSend("Let's skip that.")}
                 />
               ))}
             </div>

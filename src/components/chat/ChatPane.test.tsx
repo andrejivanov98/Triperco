@@ -49,4 +49,20 @@ describe('ChatPane', () => {
     expect(screen.getByText('Hotel One')).toBeInTheDocument()
     expect(screen.getByText(/1 stays/i)).toBeInTheDocument()
   })
+
+  it('renders a guided option menu and sends the chosen prompt', () => {
+    const onSend = vi.fn()
+    const msgs: TriperUIMessage[] = [
+      {
+        id: 'o', role: 'assistant',
+        parts: [
+          { type: 'text', text: 'How shall we start?' },
+          { type: 'data-options', data: { question: 'Start with', options: [{ label: 'Find a hotel', prompt: 'Find me a hotel' }] } },
+        ],
+      },
+    ]
+    render(<ChatPane messages={msgs} status="ready" suggestions={[]} onSend={onSend} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Find a hotel' }))
+    expect(onSend).toHaveBeenCalledWith('Find me a hotel')
+  })
 })
