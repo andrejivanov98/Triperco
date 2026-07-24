@@ -56,6 +56,9 @@ describe('searchFlights + addFlight', () => {
     })
     expect(results).toHaveLength(1)
     expect(state.lastFlights).toHaveLength(1)
+    expect(state.pendingResults).toHaveLength(1)
+    expect(state.pendingResults[0]).toMatchObject({ kind: 'flights' })
+    expect(state.pendingResults[0].items).toHaveLength(1)
 
     const added = await run(tools.addFlight, { id: 'F1' })
     expect(added.added).toBe('F1')

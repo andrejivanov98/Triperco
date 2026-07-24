@@ -1,6 +1,7 @@
 import { tool } from 'ai'
 import { z } from 'zod'
 import type { TripState, Flight, Stay, Place, ItineraryItem } from '../trip/types'
+import type { ResultSet } from '../ui/results'
 import {
   createTrip,
   setMeta,
@@ -25,6 +26,7 @@ export interface PlannerState {
   lastFlights: Flight[]
   lastStays: Stay[]
   lastPlaces: Place[]
+  pendingResults: ResultSet[]
 }
 
 export function createPlannerState(trip?: TripState): PlannerState {
@@ -33,6 +35,7 @@ export function createPlannerState(trip?: TripState): PlannerState {
     lastFlights: [],
     lastStays: [],
     lastPlaces: [],
+    pendingResults: [],
   }
 }
 
@@ -64,6 +67,11 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
       }),
       execute: async (params) => {
         state.lastFlights = await apiSearchFlights(params, deps)
+        state.pendingResults.push({
+          kind: 'flights',
+          query: `${params.departure_id} → ${params.arrival_id}`,
+          items: state.lastFlights,
+        })
         return state.lastFlights.map((f) => ({
           id: f.id,
           from: f.from,
@@ -108,6 +116,7 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
       }),
       execute: async (params) => {
         state.lastStays = await apiSearchHotels(params, deps)
+        state.pendingResults.push({ kind: 'stays', query: params.q, items: state.lastStays })
         return state.lastStays.map((s) => ({
           id: s.id,
           name: s.name,
@@ -148,6 +157,7 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
       }),
       execute: async (params) => {
         state.lastPlaces = await apiSearchPlaces(params, deps)
+        state.pendingResults.push({ kind: 'places', query: params.q, items: state.lastPlaces })
         return state.lastPlaces.map((p) => ({
           id: p.id,
           name: p.name,
