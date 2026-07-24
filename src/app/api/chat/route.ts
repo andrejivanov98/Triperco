@@ -23,6 +23,10 @@ export async function POST(req: Request) {
         onFinish: () => {
           // Emit the trip the tools built this turn so the client can render it.
           writer.write({ type: 'data-trip', data: state.trip })
+          // Emit each search performed this turn so the client can show result carousels.
+          for (const set of state.pendingResults) {
+            writer.write({ type: 'data-results', data: set })
+          }
         },
       })
       writer.merge(toUIMessageStream({ stream: result.stream }))
