@@ -30,7 +30,7 @@ export function ChatPane({ messages, status, suggestions, onSend }: ChatPaneProp
 
   return (
     <div className="glass flex h-full flex-col p-4">
-      <div className="mb-3 text-sm font-bold tracking-tight text-sky-600">✦ Triperco</div>
+      <div className="mb-3 text-sm font-bold tracking-tight text-accent">✦ Triperco</div>
 
       <div className="flex flex-1 flex-col gap-2 overflow-y-auto pr-1">
         {messages.map((m) => (
@@ -38,8 +38,8 @@ export function ChatPane({ messages, status, suggestions, onSend }: ChatPaneProp
             key={m.id}
             className={
               m.role === 'user'
-                ? 'ml-6 rounded-2xl border border-sky-200 bg-sky-100/70 px-3 py-2 text-sm font-medium text-sky-900'
-                : 'rounded-2xl border border-white/60 bg-white/50 px-3 py-2 text-sm font-medium text-slate-800'
+                ? 'ml-6 rounded-2xl border border-hairline bg-sand px-3 py-2 text-sm font-medium text-ink'
+                : 'rounded-2xl border border-hairline bg-white/60 px-3 py-2 text-sm font-medium text-ink'
             }
           >
             {messageText(m)}
@@ -55,7 +55,7 @@ export function ChatPane({ messages, status, suggestions, onSend }: ChatPaneProp
               type="button"
               onClick={() => submit(s)}
               disabled={busy}
-              className="rounded-full border border-sky-200 bg-sky-100/70 px-3 py-1.5 text-xs font-semibold text-sky-700 disabled:opacity-50"
+              className="rounded-full border border-accent/30 bg-accent-050 px-3 py-1.5 text-xs font-semibold text-accent-600 disabled:opacity-50"
             >
               {s}
             </button>
@@ -75,12 +75,12 @@ export function ChatPane({ messages, status, suggestions, onSend }: ChatPaneProp
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ask anything about your trip…"
-          className="flex-1 rounded-xl border border-white/60 bg-white/50 px-3 py-2 text-sm font-medium text-slate-800 outline-none placeholder:text-slate-400"
+          className="flex-1 rounded-xl border border-hairline bg-white/60 px-3 py-2 text-sm font-medium text-ink outline-none placeholder:text-muted"
         />
         <button
           type="submit"
           disabled={busy}
-          className="rounded-xl bg-sky-500 px-4 py-2 text-sm font-bold text-white shadow-md shadow-sky-500/30 disabled:opacity-50"
+          className="rounded-xl bg-accent px-4 py-2 text-sm font-bold text-white shadow-md shadow-accent/25 disabled:opacity-50"
         >
           Send
         </button>
