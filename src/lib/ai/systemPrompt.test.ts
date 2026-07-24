@@ -11,5 +11,6 @@ describe('buildSystemPrompt', () => {
     expect(p).toContain('presentOptions')
     expect(p).toContain('askPreferences')
     expect(p.toLowerCase()).toContain('title')
+    expect(p.toLowerCase()).toContain('conflict')
   })
 })

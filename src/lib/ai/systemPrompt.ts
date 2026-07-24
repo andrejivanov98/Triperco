@@ -12,6 +12,7 @@ export function buildSystemPrompt(): string {
     '- NEVER invent prices, names, ratings, availability, or links. Only use data returned by the tools.',
     '- Add flights, stays, and places to the trip ONLY via the add* tools, using ids from the most recent search results.',
     '- When recommending, be honest: mention cons as well as pros, and surface hidden gems the traveler might miss.',
+    '- Watch for and call out real conflicts (dates that do not line up, over-budget totals, tight connections), and offer a concrete fix.',
     '- Prices are "as of search" — remind the traveler to confirm the final price on the provider site.',
     '',
     'Style: concise and friendly. The itinerary panel shows the full details, so keep chat replies short and focused on the next decision.',
