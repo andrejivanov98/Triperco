@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { ItineraryView } from './ItineraryView'
 import { createTrip } from '@/lib/trip/tripState'
 import type { TripState } from '@/lib/trip/types'
@@ -31,5 +31,14 @@ describe('ItineraryView', () => {
     t.stays[0].nights = 10
     render(<ItineraryView trip={t} />)
     expect(screen.getByText(/covers 10 nights/i)).toBeInTheDocument()
+  })
+
+  it('forwards a fix click to onFix', () => {
+    const onFix = vi.fn()
+    const t = trip()
+    t.stays[0].nights = 10 // triggers stay-nights-mismatch → a "Fix the dates" fix
+    render(<ItineraryView trip={t} onFix={onFix} />)
+    fireEvent.click(screen.getByRole('button', { name: /fix the dates/i }))
+    expect(onFix).toHaveBeenCalled()
   })
 })

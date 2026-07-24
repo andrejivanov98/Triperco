@@ -12,7 +12,13 @@ const ADD_SLOT_LABEL: Record<AddSlot, string> = {
   activities: '🎫  Add things to do',
 }
 
-export function ItineraryView({ trip }: { trip: TripState }) {
+export function ItineraryView({
+  trip,
+  onFix,
+}: {
+  trip: TripState
+  onFix?: (prompt: string) => void
+}) {
   const timeline = buildTimeline(trip)
   const watchouts = computeWatchouts(trip)
   const title =
@@ -52,7 +58,7 @@ export function ItineraryView({ trip }: { trip: TripState }) {
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-1">
-        <WatchoutBanner watchouts={watchouts} />
+        <WatchoutBanner watchouts={watchouts} onFix={onFix} />
 
         {isEmpty ? (
           <p className="mt-6 text-center text-sm font-medium text-muted">
