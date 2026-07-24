@@ -4,16 +4,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport } from 'ai'
-import type { TripState } from '@/lib/trip/types'
+import type { TripState, Flight, Stay, Place, ItineraryItem } from '@/lib/trip/types'
 import type { TriperUIMessage } from '@/lib/ui/messages'
+import type { ResultSet } from '@/lib/ui/results'
 import { getLatestTrip } from '@/lib/ui/messages'
 import { tripToMarkers } from '@/lib/ui/mapMarkers'
-import { createTrip } from '@/lib/trip/tripState'
+import { createTrip, addFlight, addStay, addItineraryItem } from '@/lib/trip/tripState'
 import { ChatPane } from './chat/ChatPane'
 import { ItineraryView } from './itinerary/ItineraryView'
 import { MapView } from './plan/MapView'
 import { PlanMapToggle, type PlanView as PlanViewMode } from './plan/PlanMapToggle'
 import { ShareButton } from './share/ShareButton'
+import { DetailView } from './results/DetailView'
 
 const SUGGESTIONS = ['Plan a weekend in Rome', 'Find me a cheap flight', 'Add a hidden gem']
 
@@ -26,8 +28,24 @@ export function PlannerScreen() {
   const [view, setView] = useState<PlanViewMode>('plan')
   const [sharing, setSharing] = useState(false)
   const [shareUrl, setShareUrl] = useState<string | null>(null)
+  const [detail, setDetail] = useState<{ kind: ResultSet['kind']; item: Flight | Stay | Place } | null>(null)
   const tripRef = useRef(trip)
   tripRef.current = trip
+
+  const addResult = useCallback((set: ResultSet, item: Flight | Stay | Place) => {
+    setTrip((t) => {
+      if (set.kind === 'stays') return addStay(t, item as Stay)
+      if (set.kind === 'flights') return addFlight(t, item as Flight)
+      const p = item as Place
+      const entry: ItineraryItem = { placeId: p.id, name: p.name, coords: p.coords }
+      return addItineraryItem(t, 0, entry)
+    })
+  }, [])
+
+  const openDetail = useCallback((set: ResultSet, item: Flight | Stay | Place) => {
+    setDetail({ kind: set.kind, item })
+    setView('plan')
+  }, [])
 
   const { messages, sendMessage, status } = useChat<TriperUIMessage>({
     transport: new DefaultChatTransport({
@@ -89,16 +107,32 @@ export function PlannerScreen() {
         status={status}
         suggestions={messages.length === 0 ? SUGGESTIONS : []}
         onSend={(text) => sendMessage({ text })}
+        onAddResult={addResult}
+        onOpenDetail={openDetail}
       />
 
       <div className="glass flex min-h-0 flex-col gap-3 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <PlanMapToggle view={view} onChange={setView} />
-          <ShareButton onShare={handleShare} sharing={sharing} shareUrl={shareUrl} />
-        </div>
-        <div className="min-h-0 flex-1">
-          {view === 'plan' ? <ItineraryView trip={trip} /> : <MapView markers={markers} />}
-        </div>
+        {detail ? (
+          <DetailView
+            kind={detail.kind}
+            item={detail.item}
+            onClose={() => setDetail(null)}
+            onAdd={() => {
+              addResult({ kind: detail.kind, items: [] } as ResultSet, detail.item)
+              setDetail(null)
+            }}
+          />
+        ) : (
+          <>
+            <div className="flex items-center justify-between gap-3">
+              <PlanMapToggle view={view} onChange={setView} />
+              <ShareButton onShare={handleShare} sharing={sharing} shareUrl={shareUrl} />
+            </div>
+            <div className="min-h-0 flex-1">
+              {view === 'plan' ? <ItineraryView trip={trip} /> : <MapView markers={markers} />}
+            </div>
+          </>
+        )}
       </div>
     </main>
   )
