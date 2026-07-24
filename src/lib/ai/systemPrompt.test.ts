@@ -8,5 +8,8 @@ describe('buildSystemPrompt', () => {
     expect(p.toLowerCase()).toContain('concierge')
     expect(p.toLowerCase()).toContain('never invent')
     expect(p.toLowerCase()).toContain('cons')
+    expect(p).toContain('presentOptions')
+    expect(p).toContain('askPreferences')
+    expect(p.toLowerCase()).toContain('title')
   })
 })
