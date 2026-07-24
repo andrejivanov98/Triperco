@@ -36,6 +36,7 @@ export interface Flight {
   /** Price per traveler, in the trip's base currency. */
   price: number
   bookUrl: string
+  bookingStatus?: 'not_booked' | 'booked'
 }
 
 export interface Stay {
@@ -49,6 +50,7 @@ export interface Stay {
   nights: number
   photos: string[]
   bookUrl: string
+  bookingStatus?: 'not_booked' | 'booked'
 }
 
 export interface ItineraryItem {
@@ -69,6 +71,8 @@ export interface TripMeta {
   endDate?: string
   travelers: number
   budget?: number
+  title?: string
+  coverImage?: string
 }
 
 export interface TripState {
