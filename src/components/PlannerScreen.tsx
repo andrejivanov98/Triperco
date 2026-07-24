@@ -139,7 +139,11 @@ export function PlannerScreen() {
               <ShareButton onShare={handleShare} sharing={sharing} shareUrl={shareUrl} />
             </div>
             <div className="min-h-0 flex-1">
-              {view === 'plan' ? <ItineraryView trip={trip} /> : <MapView markers={markers} />}
+              {view === 'plan' ? (
+                <ItineraryView trip={trip} onFix={(prompt) => sendMessage({ text: prompt })} />
+              ) : (
+                <MapView markers={markers} />
+              )}
             </div>
           </>
         )}
