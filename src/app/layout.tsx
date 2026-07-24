@@ -1,20 +1,6 @@
 import type { Metadata } from 'next'
-import { Inter, Fraunces } from 'next/font/google'
+import { inter, fraunces } from './fonts'
 import './globals.css'
-
-export const inter = Inter({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-inter',
-  display: 'swap',
-})
-
-export const fraunces = Fraunces({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-fraunces',
-  display: 'swap',
-})
 
 export const metadata: Metadata = {
   title: 'Triperco',
