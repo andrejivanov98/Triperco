@@ -9,8 +9,9 @@ import type { TriperUIMessage } from '@/lib/ui/messages'
 import type { ResultSet } from '@/lib/ui/results'
 import { getLatestTrip } from '@/lib/ui/messages'
 import { tripToMarkers } from '@/lib/ui/mapMarkers'
-import { createTrip, addFlight, addStay, addItineraryItem } from '@/lib/trip/tripState'
+import { createTrip, setMeta, addFlight, addStay, addItineraryItem } from '@/lib/trip/tripState'
 import { ChatPane } from './chat/ChatPane'
+import { ContextChips } from './chat/ContextChips'
 import { ItineraryView } from './itinerary/ItineraryView'
 import { MapView } from './plan/MapView'
 import { PlanMapToggle, type PlanView as PlanViewMode } from './plan/PlanMapToggle'
@@ -45,6 +46,10 @@ export function PlannerScreen() {
   const openDetail = useCallback((set: ResultSet, item: Flight | Stay | Place) => {
     setDetail({ kind: set.kind, item })
     setView('plan')
+  }, [])
+
+  const editMeta = useCallback((patch: Partial<TripState['meta']>) => {
+    setTrip((t) => setMeta(t, patch))
   }, [])
 
   const { messages, sendMessage, status } = useChat<TriperUIMessage>({
@@ -102,14 +107,19 @@ export function PlannerScreen() {
 
   return (
     <main className="mx-auto grid h-screen max-w-6xl grid-cols-1 gap-4 p-4 md:grid-cols-[minmax(320px,36%)_1fr]">
-      <ChatPane
-        messages={messages}
-        status={status}
-        suggestions={messages.length === 0 ? SUGGESTIONS : []}
-        onSend={(text) => sendMessage({ text })}
-        onAddResult={addResult}
-        onOpenDetail={openDetail}
-      />
+      <div className="flex min-h-0 flex-col gap-3">
+        <ContextChips meta={trip.meta} onEdit={editMeta} />
+        <div className="min-h-0 flex-1">
+          <ChatPane
+            messages={messages}
+            status={status}
+            suggestions={messages.length === 0 ? SUGGESTIONS : []}
+            onSend={(text) => sendMessage({ text })}
+            onAddResult={addResult}
+            onOpenDetail={openDetail}
+          />
+        </div>
+      </div>
 
       <div className="glass flex min-h-0 flex-col gap-3 p-4">
         {detail ? (
