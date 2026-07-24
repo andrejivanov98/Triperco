@@ -20,6 +20,7 @@ const SUGGESTIONS = ['Plan a weekend in Rome', 'Find me a cheap flight', 'Add a 
 export function PlannerScreen() {
   const searchParams = useSearchParams()
   const fromId = searchParams.get('from')
+  const initialQuery = searchParams.get('q')
 
   const [trip, setTrip] = useState<TripState>(() => createTrip('draft'))
   const [view, setView] = useState<PlanViewMode>('plan')
@@ -50,6 +51,14 @@ export function PlannerScreen() {
       cancelled = true
     }
   }, [fromId])
+
+  // Auto-send the landing prompt once when arriving via /plan?q={prompt}.
+  const sentInitialRef = useRef(false)
+  useEffect(() => {
+    if (!initialQuery || sentInitialRef.current) return
+    sentInitialRef.current = true
+    sendMessage({ text: initialQuery })
+  }, [initialQuery, sendMessage])
 
   useEffect(() => {
     const latest = getLatestTrip(messages)
