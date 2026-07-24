@@ -1,28 +1,43 @@
 @import "tailwindcss";
 
+/* ---- Sky Glass 2.0 (Warm) design tokens ---- */
+@theme {
+  --color-canvas: #f4f2ec;
+  --color-surface: #fbfaf7;
+  --color-ink: #1b2430;
+  --color-deep: #14213a;
+  --color-muted: #6b7280;
+  --color-hairline: #e7e2d6;
+  --color-sand: #ece6da;
+  --color-accent: #0ea5e9;
+  --color-accent-600: #0284c7;
+  --color-accent-050: #e9f6fe;
+
+  /* next/font exposes these CSS variables (see layout.tsx) */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-fraunces), ui-serif, Georgia, "Times New Roman", serif;
+}
+
 :root {
-  --canvas: #eceff3;
-  --glass-bg: rgba(255, 255, 255, 0.30);
-  --glass-border: rgba(255, 255, 255, 0.55);
-  --glass-shadow: 0 12px 40px rgba(2, 132, 199, 0.10);
-  --text: #0f172a;
-  --muted: #64748b;
+  --glass-bg: rgba(255, 255, 255, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.65);
+  --glass-shadow: 0 10px 30px rgba(20, 33, 58, 0.08);
 }
 
 body {
-  color: var(--text);
+  color: var(--color-ink);
   min-height: 100vh;
   background:
-    radial-gradient(1100px 600px at 78% -8%, rgba(56, 189, 248, 0.14), transparent 60%),
-    var(--canvas);
+    radial-gradient(1100px 600px at 82% -10%, rgba(56, 189, 248, 0.08), transparent 60%),
+    var(--color-canvas);
 }
 
-/* Frosted "Sky Glass" surface — the core reusable primitive, used everywhere */
+/* Frosted "Sky Glass" surface — softened: lighter blur, creamier fill, warm shadow */
 .glass {
   background: var(--glass-bg);
-  backdrop-filter: blur(28px) saturate(160%);
-  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(135%);
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
   border: 1px solid var(--glass-border);
-  border-radius: 22px;
+  border-radius: 20px;
   box-shadow: var(--glass-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
