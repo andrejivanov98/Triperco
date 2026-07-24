@@ -27,6 +27,12 @@ export async function POST(req: Request) {
           for (const set of state.pendingResults) {
             writer.write({ type: 'data-results', data: set })
           }
+          for (const o of state.pendingOptions) {
+            writer.write({ type: 'data-options', data: o })
+          }
+          for (const f of state.pendingForms) {
+            writer.write({ type: 'data-form', data: f })
+          }
         },
       })
       writer.merge(toUIMessageStream({ stream: result.stream }))
