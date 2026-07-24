@@ -16,7 +16,7 @@ export function PlanMapToggle({
         onClick={() => onChange(value)}
         className={
           'rounded-xl px-4 py-1.5 text-xs font-semibold transition ' +
-          (active ? 'bg-sky-500 text-white shadow-md shadow-sky-500/30' : 'text-slate-600')
+          (active ? 'bg-accent text-white shadow-md shadow-accent/25' : 'text-muted')
         }
       >
         {label}
@@ -25,7 +25,7 @@ export function PlanMapToggle({
   }
 
   return (
-    <div className="inline-flex gap-1 rounded-2xl border border-white/60 bg-white/50 p-1">
+    <div className="inline-flex gap-1 rounded-2xl border border-hairline bg-white/60 p-1">
       {seg('plan', '📋 Plan')}
       {seg('map', '🗺 Map')}
     </div>
