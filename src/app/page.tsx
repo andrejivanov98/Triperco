@@ -2,17 +2,18 @@ import { HeroPrompt } from '@/components/landing/HeroPrompt'
 import { SectionRow } from '@/components/landing/SectionRow'
 import { DestinationCard } from '@/components/landing/DestinationCard'
 import { ExperienceCard } from '@/components/landing/ExperienceCard'
+import { Heading } from '@/components/ui/Heading'
 import { destinations, experiences } from '@/lib/landing/content'
 
 export default function Home() {
   return (
     <main className="mx-auto flex max-w-5xl flex-col gap-10 p-6 pb-16">
       <section className="flex flex-col items-center gap-4 pt-10 text-center">
-        <p className="text-sm font-semibold uppercase tracking-wide text-sky-600">✦ Triperco</p>
-        <h1 className="max-w-2xl text-4xl font-bold tracking-tight text-slate-900">
+        <p className="text-sm font-semibold uppercase tracking-wide text-accent">✦ Triperco</p>
+        <Heading level={1} className="max-w-2xl text-4xl text-deep">
           Plan your whole trip in one conversation.
-        </h1>
-        <p className="max-w-xl font-medium text-slate-500">
+        </Heading>
+        <p className="max-w-xl font-medium text-muted">
           Tell Triperco where you want to go. It finds flights, stays, and things to do —
           and builds a plan you can book yourself.
         </p>

@@ -18,11 +18,11 @@ export function DestinationCard({ destination }: { destination: Destination }) {
         />
       </div>
       <div className="p-3">
-        <div className="text-[10px] font-bold uppercase tracking-wide text-sky-600">
+        <div className="text-[10px] font-bold uppercase tracking-wide text-accent">
           {destination.country}
         </div>
-        <div className="text-sm font-bold text-slate-900">{destination.title}</div>
-        <p className="mt-1 line-clamp-2 text-xs font-medium text-slate-500">
+        <div className="text-sm font-bold text-ink">{destination.title}</div>
+        <p className="mt-1 line-clamp-2 text-xs font-medium text-muted">
           {destination.blurb}
         </p>
       </div>
