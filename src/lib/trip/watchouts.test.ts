@@ -46,3 +46,24 @@ describe('computeWatchouts', () => {
     expect(computeWatchouts(trip)).toEqual([])
   })
 })
+
+describe('over-budget', () => {
+  it('warns when the estimated total exceeds the budget', () => {
+    const trip: TripState = {
+      ...createTrip('t'),
+      meta: { travelers: 2, budget: 1000 },
+      estimatedTotal: 1500,
+    }
+    const w = computeWatchouts(trip)
+    expect(w.some((x) => x.id === 'over-budget' && x.severity === 'warning')).toBe(true)
+  })
+
+  it('does not warn when within budget', () => {
+    const trip: TripState = {
+      ...createTrip('t'),
+      meta: { travelers: 2, budget: 2000 },
+      estimatedTotal: 1500,
+    }
+    expect(computeWatchouts(trip).some((x) => x.id === 'over-budget')).toBe(false)
+  })
+})

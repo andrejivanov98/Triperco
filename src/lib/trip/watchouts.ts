@@ -51,5 +51,15 @@ export function computeWatchouts(trip: TripState): Watchout[] {
     })
   }
 
+  // Over budget.
+  if (meta.budget !== undefined && meta.budget > 0 && trip.estimatedTotal > meta.budget) {
+    out.push({
+      id: 'over-budget',
+      severity: 'warning',
+      message: `Your plan is ${(trip.estimatedTotal - meta.budget).toLocaleString()} over your budget.`,
+      fixes: [{ label: 'Find cheaper options', prompt: 'Suggest cheaper flights or stays to get back under my budget.' }],
+    })
+  }
+
   return out
 }
