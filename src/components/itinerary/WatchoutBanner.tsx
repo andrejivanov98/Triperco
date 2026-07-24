@@ -1,6 +1,12 @@
 import type { Watchout } from '@/lib/trip/watchouts'
 
-export function WatchoutBanner({ watchouts }: { watchouts: Watchout[] }) {
+export function WatchoutBanner({
+  watchouts,
+  onFix,
+}: {
+  watchouts: Watchout[]
+  onFix?: (prompt: string) => void
+}) {
   if (watchouts.length === 0) return null
   return (
     <div className="flex flex-col gap-2">
@@ -20,14 +26,25 @@ export function WatchoutBanner({ watchouts }: { watchouts: Watchout[] }) {
           </div>
           {w.fixes.length > 0 && (
             <div className="mt-1.5 flex flex-wrap gap-1.5">
-              {w.fixes.map((f) => (
-                <span
-                  key={f.label}
-                  className="rounded-full border border-hairline bg-white/60 px-2.5 py-1 text-[11px] font-semibold text-ink"
-                >
-                  {f.label}
-                </span>
-              ))}
+              {w.fixes.map((f) =>
+                onFix ? (
+                  <button
+                    key={f.label}
+                    type="button"
+                    onClick={() => onFix(f.prompt)}
+                    className="rounded-full border border-hairline bg-white/60 px-2.5 py-1 text-[11px] font-semibold text-ink hover:bg-white"
+                  >
+                    {f.label}
+                  </button>
+                ) : (
+                  <span
+                    key={f.label}
+                    className="rounded-full border border-hairline bg-white/60 px-2.5 py-1 text-[11px] font-semibold text-ink"
+                  >
+                    {f.label}
+                  </span>
+                ),
+              )}
             </div>
           )}
         </div>
