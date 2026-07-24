@@ -1,9 +1,13 @@
 import type { UIMessage } from 'ai'
 import type { TripState } from '../trip/types'
 import type { ResultSet } from './results'
+import type { OptionSet, PrefForm } from './interactions'
 
-/** Our chat message type: standard parts + custom data parts (trip sync + search results). */
-export type TriperUIMessage = UIMessage<never, { trip: TripState; results: ResultSet }>
+/** Standard parts + custom data parts (trip sync, search results, guided menus, forms). */
+export type TriperUIMessage = UIMessage<
+  never,
+  { trip: TripState; results: ResultSet; options: OptionSet; form: PrefForm }
+>
 
 /** Scan messages newest-first and return the most recent TripState, or null. */
 export function getLatestTrip(messages: TriperUIMessage[]): TripState | null {
