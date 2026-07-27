@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { searchFlights, searchHotels, searchPlaces, getPlaceReviews, getPlacePhotos } from './search'
+import {
+  searchFlights,
+  searchHotels,
+  searchPlaces,
+  getPlaceReviews,
+  getPlacePhotos,
+  getStayDetails,
+} from './search'
 import { createInMemoryCache } from './cache'
 
 // A fake search fn that records calls and returns canned raw responses per engine.
@@ -68,6 +75,44 @@ describe('searchHotels', () => {
     )
     expect(stays[0].nights).toBe(3)
     expect(stays[0].pricePerNight).toBe(100)
+  })
+})
+
+describe('getStayDetails', () => {
+  const dates = { check_in_date: '2026-05-01', check_out_date: '2026-05-03' }
+
+  it('looks up one property by token and returns the enriched stay', async () => {
+    const { deps, calls } = fakeDeps({
+      google_hotels: {
+        properties: [
+          {
+            name: 'Hotel X',
+            description: 'Central and quiet.',
+            amenities: ['Pool'],
+            price_per_night: { extracted_price: 120 },
+          },
+        ],
+      },
+    })
+    const stay = await getStayDetails({ property_token: 'tok', ...dates }, deps)
+    expect(stay?.description).toBe('Central and quiet.')
+    expect(stay?.amenities).toEqual(['Pool'])
+    expect(stay?.nights).toBe(2)
+    expect(calls).toEqual(['google_hotels'])
+  })
+
+  it('accepts a single-property payload with no properties array', async () => {
+    const { deps } = fakeDeps({
+      google_hotels: { name: 'Hotel Y', description: 'Rooftop views.' },
+    })
+    const stay = await getStayDetails({ property_token: 'tok', ...dates }, deps)
+    expect(stay?.name).toBe('Hotel Y')
+    expect(stay?.description).toBe('Rooftop views.')
+  })
+
+  it('returns null when the provider has nothing', async () => {
+    const { deps } = fakeDeps({ google_hotels: {} })
+    expect(await getStayDetails({ property_token: 'tok', ...dates }, deps)).toBeNull()
   })
 })
 

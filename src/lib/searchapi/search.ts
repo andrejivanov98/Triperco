@@ -2,7 +2,7 @@ import type { Flight, Stay, Place, ReviewSnippet } from '../trip/types'
 import { searchApi, type SearchApiOptions, type SearchParams } from './client'
 import { createInMemoryCache, withCache, type Cache } from './cache'
 import { normalizeFlights, type RawFlightsResponse } from './normalizeFlights'
-import { normalizeHotels, type RawHotelsResponse } from './normalizeHotels'
+import { normalizeHotels, type RawHotelsResponse, type RawProperty } from './normalizeHotels'
 import { normalizePlaces, type RawMapsResponse } from './normalizePlaces'
 import { normalizeReviews, type RawReviewsResponse } from './normalizeReviews'
 import { normalizePhotos, type RawPhotosResponse } from './normalizePhotos'
@@ -81,6 +81,41 @@ export async function searchHotels(params: HotelParams, deps?: SearchDeps): Prom
       adults: params.adults ?? 2,
     })
     return normalizeHotels(raw, nights)
+  })
+}
+
+export interface StayDetailsParams {
+  property_token: string
+  check_in_date: string
+  check_out_date: string
+  adults?: number
+}
+
+/**
+ * Full detail for one property (description, amenities, review breakdown, nearby …).
+ * SearchApi answers a property_token lookup with either a `properties` array of one or the
+ * property object itself, so accept both shapes.
+ */
+export async function getStayDetails(
+  params: StayDetailsParams,
+  deps?: SearchDeps,
+): Promise<Stay | null> {
+  const { search, cache } = resolve(deps)
+  const key = `google_hotels_property:${params.property_token}:${params.check_in_date}:${params.check_out_date}:${params.adults ?? 2}`
+  const nights = nightsBetween(params.check_in_date, params.check_out_date)
+  return withCache(cache, key, TTL.hotels, async () => {
+    const raw = await search<RawHotelsResponse & Partial<RawProperty>>('google_hotels', {
+      property_token: params.property_token,
+      check_in_date: params.check_in_date,
+      check_out_date: params.check_out_date,
+      adults: params.adults ?? 2,
+    })
+    const properties: RawProperty[] = raw.properties?.length
+      ? raw.properties
+      : raw.name
+        ? [{ ...raw, name: raw.name }]
+        : []
+    return normalizeHotels({ properties }, nights)[0] ?? null
   })
 }
 
