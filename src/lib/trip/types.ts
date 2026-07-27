@@ -200,6 +200,9 @@ export interface TripMeta {
   coverImage?: string
   /** Where the traveler is flying from, once known (IATA code or city). */
   origin?: string
+  rooms?: number
+  adults?: number
+  children?: number
 }
 
 export interface TripState {

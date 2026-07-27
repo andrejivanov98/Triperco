@@ -6,6 +6,7 @@ import {
   getPlaceReviews,
   getPlacePhotos,
   getStayDetails,
+  getDestinationPhoto,
 } from './search'
 import { createInMemoryCache } from './cache'
 
@@ -164,6 +165,40 @@ describe('searchPlaces', () => {
     })
     const places = await searchPlaces({ q: 'attractions', ll: '@1,2,12z' }, deps)
     expect(places[0].name).toBe('Colosseum')
+  })
+})
+
+describe('getDestinationPhoto', () => {
+  it('finds the city on maps and returns its first photo', async () => {
+    const { deps, calls } = fakeDeps({
+      google_maps: { local_results: [{ title: 'Rome', place_id: 'PID_ROME' }] },
+      google_maps_photos: { photos: [{ image: 'https://p/rome-1' }, { image: 'https://p/rome-2' }] },
+    })
+    expect(await getDestinationPhoto('Rome', deps)).toBe('https://p/rome-1')
+    expect(calls).toEqual(['google_maps', 'google_maps_photos'])
+  })
+
+  it('falls back to the search thumbnail when there are no gallery photos', async () => {
+    const { deps } = fakeDeps({
+      google_maps: { local_results: [{ title: 'Rome', place_id: 'P', thumbnail: 'https://t/rome' }] },
+      google_maps_photos: {},
+    })
+    expect(await getDestinationPhoto('Rome', deps)).toBe('https://t/rome')
+  })
+
+  it('answers null when the city is not found', async () => {
+    const { deps } = fakeDeps({ google_maps: {} })
+    expect(await getDestinationPhoto('Nowhere', deps)).toBeNull()
+  })
+
+  it('swallows provider failures — a cover photo is cosmetic', async () => {
+    const deps = {
+      cache: createInMemoryCache(),
+      search: async () => {
+        throw new Error('provider down')
+      },
+    }
+    expect(await getDestinationPhoto('Rome', deps)).toBeNull()
   })
 })
 

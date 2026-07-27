@@ -1,5 +1,5 @@
 import type { TripState, TripMeta } from '@/lib/trip/types'
-import { buildTimeline, type AddSlot } from '@/lib/trip/timeline'
+import { buildTimeline, type AddSlot, type TimelineItem } from '@/lib/trip/timeline'
 import { computeWatchouts } from '@/lib/trip/watchouts'
 import { nightsBetween, formatDateRange } from '@/lib/trip/dates'
 import { formatMoney } from '@/lib/ui/format'
@@ -7,20 +7,22 @@ import { Heading } from '@/components/ui/Heading'
 import { TimelineItemCard } from './TimelineItemCard'
 import { WatchoutBanner } from './WatchoutBanner'
 import { TripContext } from './TripContext'
-
-const ADD_SLOT_LABEL: Record<AddSlot, string> = {
-  flights: '✈  No flights yet',
-  activities: '🎫  Nothing planned yet',
-}
+import { AddSlotRow, slotPrompt } from './AddSlotRow'
 
 export function ItineraryView({
   trip,
   onFix,
   onEditMeta,
+  onRemoveItem,
+  onViewItem,
+  onContinueToBook,
 }: {
   trip: TripState
   onFix?: (prompt: string) => void
   onEditMeta?: (patch: Partial<TripMeta>) => void
+  onRemoveItem?: (item: TimelineItem) => void
+  onViewItem?: (item: TimelineItem) => void
+  onContinueToBook?: () => void
 }) {
   const timeline = buildTimeline(trip)
   const watchouts = computeWatchouts(trip)
@@ -88,15 +90,25 @@ export function ItineraryView({
                 {g.items.map((item, i) => (
                   // Index-qualified: a shared trip loaded from an older payload can still
                   // contain a repeated id, and a duplicate key breaks the whole list.
-                  <TimelineItemCard key={`${item.kind}-${item.id}-${i}`} item={item} />
+                  <TimelineItemCard
+                    key={`${item.kind}-${item.id}-${i}`}
+                    item={item}
+                    onRemove={onRemoveItem}
+                    onViewDetails={onViewItem}
+                  />
                 ))}
-                {g.addSlots.map((slot) => (
-                  <div
+                {g.addSlots.map((slot: AddSlot) => (
+                  <AddSlotRow
                     key={slot}
-                    className="rounded-xl border border-dashed border-hairline px-3 py-2 text-xs font-medium text-muted"
-                  >
-                    {ADD_SLOT_LABEL[slot]}
-                  </div>
+                    slot={slot}
+                    destination={trip.meta.destination}
+                    dayLabel={g.label}
+                    onClick={
+                      onFix
+                        ? (s, day) => onFix(slotPrompt(s, trip.meta.destination, day))
+                        : undefined
+                    }
+                  />
                 ))}
               </div>
             ))}
@@ -131,10 +143,11 @@ export function ItineraryView({
           </div>
           <button
             type="button"
-            className="rounded-2xl bg-deep px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-deep/20 disabled:opacity-40"
-            disabled={isEmpty}
+            onClick={onContinueToBook}
+            className="rounded-2xl bg-deep px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-deep/20 transition hover:opacity-90 disabled:opacity-40"
+            disabled={isEmpty || !onContinueToBook}
           >
-            Book it →
+            Continue to book →
           </button>
         </div>
       </div>

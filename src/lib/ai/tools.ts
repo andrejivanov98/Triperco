@@ -74,9 +74,13 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
         destination: z.string().optional(),
         startDate: z.string().optional(),
         endDate: z.string().optional(),
-        travelers: z.number().optional(),
+        travelers: z.number().optional().describe('Total heads, adults + children'),
         budget: z.number().optional(),
         title: z.string().optional().describe('Short evocative trip name, e.g. "Tenerife Escape"'),
+        origin: z.string().optional().describe('Where they depart from (city or IATA code)'),
+        rooms: z.number().optional(),
+        adults: z.number().optional(),
+        children: z.number().optional(),
       }),
       execute: async (patch) => {
         state.trip = setMeta(state.trip, patch)

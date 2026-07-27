@@ -145,6 +145,29 @@ export async function getPlaceReviews(placeId: string, deps?: SearchDeps): Promi
   })
 }
 
+/**
+ * A photo of a destination city for the plan hero: find the place on Maps, then take its best
+ * photo. Returns null rather than throwing — a missing cover is cosmetic.
+ */
+export async function getDestinationPhoto(
+  destination: string,
+  deps?: SearchDeps,
+): Promise<string | null> {
+  const { cache } = resolve(deps)
+  const key = `destination_photo:${destination.toLowerCase()}`
+  return withCache(cache, key, TTL.photos, async () => {
+    try {
+      const places = await searchPlaces({ q: destination }, deps)
+      const first = places[0]
+      if (!first) return null
+      const photos = await getPlacePhotos(first.id, deps)
+      return photos[0] ?? first.photos[0] ?? null
+    } catch {
+      return null
+    }
+  })
+}
+
 export async function getPlacePhotos(placeId: string, deps?: SearchDeps): Promise<string[]> {
   const { search, cache } = resolve(deps)
   const key = `google_maps_photos:${placeId}`

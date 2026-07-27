@@ -49,20 +49,84 @@ describe('buildTimeline', () => {
     expect(ret.items.some((i) => i.kind === 'flight' && i.id === 'f2')).toBe(true)
   })
 
-  it('creates a dated group per activity day', () => {
+  it('dates each day group from the trip dates, so day 0 is the first day', () => {
     const trip: TripState = {
-      ...base(),
-      days: [
-        { date: '2026-09-06', items: [{ placeId: 'a1', name: 'Whale watching' }] },
-      ],
+      ...base(), // Sep 1 – 15
+      days: [{ items: [{ placeId: 'a1', name: 'Whale watching' }] }],
     }
     const tl = buildTimeline(trip)
-    const actGroup = tl.groups.find((g) => g.label === 'Sun, Sep 6')
-    expect(actGroup?.items[0]).toMatchObject({ kind: 'activity', title: 'Whale watching' })
+    const actGroup = tl.groups.find((g) => g.label === 'Tue, Sep 1')
+    expect(actGroup?.items.find((i) => i.kind === 'activity')).toMatchObject({
+      title: 'Whale watching',
+    })
+  })
+
+  it('falls back to a day\'s own date when the trip has none', () => {
+    const trip: TripState = {
+      ...createTrip('t4'),
+      meta: { travelers: 1, destination: 'Rome' },
+      days: [
+        { items: [{ placeId: 'a1', name: 'Arrival stroll' }] },
+        { date: '2026-09-06', items: [{ placeId: 'a2', name: 'Whale watching' }] },
+      ],
+    }
+    expect(buildTimeline(trip).groups.map((g) => g.label)).toContain('Sun, Sep 6')
   })
 
   it('falls back to "Your trip" header when dates are unparseable', () => {
     const trip: TripState = { ...createTrip('t2'), meta: { travelers: 1 } }
     expect(buildTimeline(trip).headerLabel).toBe('Your trip')
+  })
+
+  it('offers a stays slot until a stay is added', () => {
+    expect(buildTimeline(base()).groups[0].addSlots).toContain('stays')
+    const withStay: TripState = {
+      ...base(),
+      stays: [
+        {
+          id: 's1', name: 'Apt', source: 'airbnb',
+          pricePerNight: 100, nights: 14, photos: [], bookUrl: 'x',
+        },
+      ],
+    }
+    expect(buildTimeline(withStay).groups[0].addSlots).not.toContain('stays')
+  })
+
+  it('offers a return-flight slot once an outbound flight exists', () => {
+    const trip: TripState = {
+      ...base(),
+      flights: [{ id: 'f1', from: 'SKP', to: 'TFN', price: 500, stops: 0, bookUrl: 'x' }],
+    }
+    const last = buildTimeline(trip).groups[buildTimeline(trip).groups.length - 1]
+    expect(last.addSlots).toContain('return-flight')
+  })
+
+  it('does not ask for a return flight before the outbound one is picked', () => {
+    const slots = buildTimeline(base()).groups.flatMap((g) => g.addSlots)
+    expect(slots).not.toContain('return-flight')
+  })
+
+  it('gives every day of a dated trip its own group with an activities slot', () => {
+    const trip: TripState = {
+      ...createTrip('t3'),
+      meta: { travelers: 2, destination: 'Rome', startDate: '2026-09-01', endDate: '2026-09-03' },
+    }
+    const tl = buildTimeline(trip)
+    // Sep 1, 2 and 3 each get a group.
+    expect(tl.groups.filter((g) => g.addSlots.includes('activities'))).toHaveLength(3)
+    expect(tl.groups.map((g) => g.label)).toEqual(['Tue, Sep 1', 'Wed, Sep 2', 'Thu, Sep 3'])
+  })
+
+  it('tags each activity with the day it belongs to, so it can be removed', () => {
+    const trip: TripState = {
+      ...base(),
+      days: [
+        { date: '2026-09-01', items: [{ placeId: 'a1', name: 'Old town walk' }] },
+        { date: '2026-09-02', items: [{ placeId: 'a2', name: 'Whale watching' }] },
+      ],
+    }
+    const items = buildTimeline(trip).groups.flatMap((g) => g.items)
+    expect(items.find((i) => i.id === 'a1')?.dayIndex).toBe(0)
+    expect(items.find((i) => i.id === 'a2')?.dayIndex).toBe(1)
   })
 })

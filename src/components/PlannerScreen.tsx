@@ -10,7 +10,19 @@ import type { ResultSet } from '@/lib/ui/results'
 import { getLatestTrip } from '@/lib/ui/messages'
 import { tripToMarkers } from '@/lib/ui/mapMarkers'
 import { suggestQuickReplies } from '@/lib/ui/quickReplies'
-import { createTrip, setMeta, addFlight, addStay, addItineraryItem } from '@/lib/trip/tripState'
+import { readOpeningContext, contextToMeta, buildOpeningMessage } from '@/lib/ui/openingMessage'
+import type { TimelineItem } from '@/lib/trip/timeline'
+import {
+  createTrip,
+  setMeta,
+  addFlight,
+  addStay,
+  addItineraryItem,
+  removeFlight,
+  removeStay,
+  removeItineraryItem,
+} from '@/lib/trip/tripState'
+import { BookingPanel } from './booking/BookingPanel'
 import { ChatPane } from './chat/ChatPane'
 import { ChatEmptyState } from './chat/ChatEmptyState'
 import { ItineraryView } from './itinerary/ItineraryView'
@@ -26,26 +38,15 @@ export function PlannerScreen() {
   const fromId = searchParams.get('from')
 
   const [trip, setTrip] = useState<TripState>(() => {
-    let t = createTrip('draft')
-    const dest = searchParams.get('dest') ?? undefined
-    const start = searchParams.get('start') ?? undefined
-    const end = searchParams.get('end') ?? undefined
-    const travelersRaw = searchParams.get('travelers')
-    const travelers = travelersRaw ? Number(travelersRaw) : undefined
-    if (dest || start || end || (travelers && travelers > 0)) {
-      t = setMeta(t, {
-        destination: dest,
-        startDate: start,
-        endDate: end,
-        ...(travelers && travelers > 0 ? { travelers } : {}),
-      })
-    }
-    return t
+    const patch = contextToMeta(readOpeningContext(searchParams))
+    const t = createTrip('draft')
+    return Object.keys(patch).length > 0 ? setMeta(t, patch) : t
   })
   const [view, setView] = useState<PlanViewMode>('plan')
   const [sharing, setSharing] = useState(false)
   const [shareUrl, setShareUrl] = useState<string | null>(null)
   const [detail, setDetail] = useState<{ kind: ResultSet['kind']; item: Flight | Stay | Place } | null>(null)
+  const [booking, setBooking] = useState(false)
   const tripRef = useRef(trip)
   tripRef.current = trip
 
@@ -67,6 +68,28 @@ export function PlannerScreen() {
     setTrip((t) => setMeta(t, patch))
   }, [])
 
+  const removeItem = useCallback((item: TimelineItem) => {
+    setTrip((t) => {
+      if (item.kind === 'flight') return removeFlight(t, item.id)
+      if (item.kind === 'stay') return removeStay(t, item.id)
+      return removeItineraryItem(t, item.dayIndex ?? 0, item.id)
+    })
+  }, [])
+
+  /** Open the full detail for something already in the plan. */
+  const viewItem = useCallback((item: TimelineItem) => {
+    const current = tripRef.current
+    if (item.kind === 'flight') {
+      const flight = current.flights.find((f) => f.id === item.id)
+      if (flight) setDetail({ kind: 'flights', item: flight })
+      return
+    }
+    if (item.kind === 'stay') {
+      const stay = current.stays.find((s) => s.id === item.id)
+      if (stay) setDetail({ kind: 'stays', item: stay })
+    }
+  }, [])
+
   const { messages, sendMessage, setMessages, status } = useChat<TriperUIMessage>({
     transport: new DefaultChatTransport({
       api: '/api/chat',
@@ -80,6 +103,7 @@ export function PlannerScreen() {
     setMessages([])
     setTrip(createTrip('draft'))
     setDetail(null)
+    setBooking(false)
     setShareUrl(null)
     setView('plan')
     router.replace('/plan')
@@ -99,29 +123,39 @@ export function PlannerScreen() {
     }
   }, [fromId])
 
-  // Auto-send one opening message: the free-text q, or a composed prompt from structured context.
+  // Auto-send one opening message carrying whatever the composer collected.
   const sentInitialRef = useRef(false)
   useEffect(() => {
     if (sentInitialRef.current) return
-    const q = searchParams.get('q')
-    const dest = searchParams.get('dest')
-    const start = searchParams.get('start')
-    const end = searchParams.get('end')
-    const travelers = searchParams.get('travelers')
-
-    let text: string | null = null
-    if (q) {
-      text = q
-    } else if (dest || start || end || travelers) {
-      const parts = [`Plan my trip to ${dest || 'somewhere great'}`]
-      if (start && end) parts.push(`from ${start} to ${end}`)
-      if (travelers) parts.push(`for ${travelers} travelers`)
-      text = parts.join(' ') + '.'
-    }
+    const text = buildOpeningMessage(readOpeningContext(searchParams))
     if (!text) return
     sentInitialRef.current = true
     sendMessage({ text })
   }, [searchParams, sendMessage])
+
+  // Fetch a real photo of the destination for the plan hero.
+  useEffect(() => {
+    const destination = trip.meta.destination
+    if (!destination || trip.meta.coverImage) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await fetch('/api/destination/photo', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ destination }),
+        })
+        if (!res.ok || cancelled) return
+        const { photo } = (await res.json()) as { photo: string | null }
+        if (photo && !cancelled) setTrip((t) => setMeta(t, { coverImage: photo }))
+      } catch {
+        // A missing cover is cosmetic.
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [trip.meta.destination, trip.meta.coverImage])
 
   useEffect(() => {
     const latest = getLatestTrip(messages)
@@ -191,6 +225,9 @@ export function PlannerScreen() {
                 trip={trip}
                 onFix={(prompt) => sendMessage({ text: prompt })}
                 onEditMeta={editMeta}
+                onRemoveItem={removeItem}
+                onViewItem={viewItem}
+                onContinueToBook={() => setBooking(true)}
               />
             ) : (
               <MapView markers={markers} />
@@ -198,6 +235,8 @@ export function PlannerScreen() {
           </div>
         </aside>
       </div>
+
+      {booking && <BookingPanel trip={trip} onClose={() => setBooking(false)} />}
 
       {detail && (
         <DetailPanel
