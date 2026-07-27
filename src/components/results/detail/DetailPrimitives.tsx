@@ -33,22 +33,58 @@ export function FactGrid({ facts }: { facts: Fact[] }) {
   )
 }
 
-/** A photo gallery: one lead image, the rest in a grid. */
-export function Gallery({ photos, title }: { photos: string[]; title: string }) {
+/**
+ * A photo mosaic: one lead image with a grid beside it. Every tile opens the full gallery, and the
+ * last tile counts what's left when there are more photos than fit.
+ */
+export function Gallery({
+  photos,
+  title,
+  onOpen,
+}: {
+  photos: string[]
+  title: string
+  onOpen?: (index: number) => void
+}) {
   if (photos.length === 0) return null
+
+  const lead = photos[0]
+  const rest = photos.slice(1, 5)
+  const remaining = photos.length - 1 - rest.length
+
+  const tile = (src: string, index: number, className: string, overlay?: string) => (
+    <button
+      key={index}
+      type="button"
+      onClick={() => onOpen?.(index)}
+      aria-label={`Open ${title} photo ${index + 1}`}
+      className={`group relative overflow-hidden rounded-xl bg-sand ${className}`}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt={`${title} photo ${index + 1}`}
+        className="h-full w-full object-cover transition group-hover:scale-[1.03]"
+      />
+      {overlay && (
+        <span className="absolute inset-0 flex items-center justify-center bg-deep/55 text-sm font-bold text-white">
+          {overlay}
+        </span>
+      )}
+    </button>
+  )
+
   return (
-    <div className="grid grid-cols-4 gap-2">
-      {photos.slice(0, 5).map((src, i) => (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          key={i}
-          src={src}
-          alt={`${title} photo ${i + 1}`}
-          className={
-            'w-full rounded-xl object-cover ' + (i === 0 ? 'col-span-4 h-56' : 'h-20')
-          }
-        />
-      ))}
+    <div className={'grid gap-2 ' + (rest.length > 0 ? 'grid-cols-4' : 'grid-cols-1')}>
+      {tile(lead, 0, rest.length > 0 ? 'col-span-4 h-60' : 'h-60')}
+      {rest.map((src, i) =>
+        tile(
+          src,
+          i + 1,
+          'h-20',
+          i === rest.length - 1 && remaining > 0 ? `+${remaining}` : undefined,
+        ),
+      )}
     </div>
   )
 }

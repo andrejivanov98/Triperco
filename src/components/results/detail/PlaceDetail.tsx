@@ -3,10 +3,18 @@ import { formatRating } from '@/lib/ui/format'
 import { Heading } from '@/components/ui/Heading'
 import { DetailSection, FactGrid, Gallery, PillList, ReviewList } from './DetailPrimitives'
 
-export function PlaceDetail({ place, loading }: { place: Place; loading?: boolean }) {
+export function PlaceDetail({
+  place,
+  loading,
+  onOpenPhotos,
+}: {
+  place: Place
+  loading?: boolean
+  onOpenPhotos?: (index: number) => void
+}) {
   return (
     <div className="flex flex-col gap-5">
-      <Gallery photos={place.photos} title={place.name} />
+      <Gallery photos={place.photos} title={place.name} onOpen={onOpenPhotos} />
 
       <div>
         <Heading level={2} className="text-2xl">

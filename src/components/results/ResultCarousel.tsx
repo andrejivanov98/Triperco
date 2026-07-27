@@ -4,7 +4,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Flight, Stay, Place } from '@/lib/trip/types'
 import type { ResultSet } from '@/lib/ui/results'
 import { rankResults } from '@/lib/ui/rank'
-import { ResultCard } from './ResultCard'
+import { Lightbox } from '@/components/ui/Lightbox'
+import { StayResultCard } from './StayResultCard'
+import { FlightResultCard } from './FlightResultCard'
+import { PlaceResultCard } from './PlaceResultCard'
 
 const KIND_NOUN: Record<ResultSet['kind'], string> = {
   flights: 'flight options',
@@ -13,7 +16,7 @@ const KIND_NOUN: Record<ResultSet['kind'], string> = {
 }
 
 /** One card plus its gap — how far an arrow press moves the track. */
-const STEP = 252
+const STEP = 320
 
 export function ResultCarousel({
   set,
@@ -27,6 +30,7 @@ export function ResultCarousel({
   const trackRef = useRef<HTMLDivElement>(null)
   const [atStart, setAtStart] = useState(true)
   const [atEnd, setAtEnd] = useState(true)
+  const [photos, setPhotos] = useState<{ title: string; list: string[]; index: number } | null>(null)
 
   const sync = useCallback(() => {
     const el = trackRef.current
@@ -73,22 +77,10 @@ export function ResultCarousel({
           {hidden > 0 && <span>· showing the best {ranked.length}</span>}
         </div>
         <div className="flex shrink-0 gap-1">
-          <button
-            type="button"
-            aria-label="Scroll left"
-            onClick={() => step(-1)}
-            disabled={atStart}
-            className={arrow}
-          >
+          <button type="button" aria-label="Scroll left" onClick={() => step(-1)} disabled={atStart} className={arrow}>
             ←
           </button>
-          <button
-            type="button"
-            aria-label="Scroll right"
-            onClick={() => step(1)}
-            disabled={atEnd}
-            className={arrow}
-          >
+          <button type="button" aria-label="Scroll right" onClick={() => step(1)} disabled={atEnd} className={arrow}>
             →
           </button>
         </div>
@@ -98,20 +90,59 @@ export function ResultCarousel({
         ref={trackRef}
         data-testid="carousel-track"
         onScroll={sync}
-        className="-mx-1 flex min-w-0 max-w-full snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth px-1 pb-2"
+        className="-mx-1 flex min-w-0 max-w-full snap-x gap-4 overflow-x-auto scroll-smooth px-1 pb-2"
       >
-        {ranked.map(({ item, badges }, i) => (
-          <div key={`${item.id}-${i}`} className="snap-start">
-            <ResultCard
-              kind={set.kind}
-              item={item}
-              badges={badges}
-              onOpen={() => onOpen(set, item)}
-              onAdd={() => onAdd(set, item)}
+        {ranked.map((entry, i) => {
+          const key = `${entry.item.id}-${i}`
+          if (entry.kind === 'stays') {
+            const stay = entry.item
+            return (
+              <StayResultCard
+                key={key}
+                stay={stay}
+                badges={entry.badges}
+                onOpen={() => onOpen(set, stay)}
+                onAdd={() => onAdd(set, stay)}
+                onOpenPhotos={(index) =>
+                  setPhotos({ title: stay.name, list: stay.photos, index })
+                }
+              />
+            )
+          }
+          if (entry.kind === 'flights') {
+            const flight = entry.item
+            return (
+              <FlightResultCard
+                key={key}
+                flight={flight}
+                badges={entry.badges}
+                onOpen={() => onOpen(set, flight)}
+                onAdd={() => onAdd(set, flight)}
+              />
+            )
+          }
+          const place = entry.item
+          return (
+            <PlaceResultCard
+              key={key}
+              place={place}
+              badges={entry.badges}
+              onOpen={() => onOpen(set, place)}
+              onAdd={() => onAdd(set, place)}
+              onOpenPhotos={(index) => setPhotos({ title: place.name, list: place.photos, index })}
             />
-          </div>
-        ))}
+          )
+        })}
       </div>
+
+      {photos && (
+        <Lightbox
+          photos={photos.list}
+          startIndex={photos.index}
+          title={photos.title}
+          onClose={() => setPhotos(null)}
+        />
+      )}
     </div>
   )
 }

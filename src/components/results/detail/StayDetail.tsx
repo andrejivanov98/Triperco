@@ -10,7 +10,15 @@ import {
   ReviewList,
 } from './DetailPrimitives'
 
-export function StayDetail({ stay, loading }: { stay: Stay; loading?: boolean }) {
+export function StayDetail({
+  stay,
+  loading,
+  onOpenPhotos,
+}: {
+  stay: Stay
+  loading?: boolean
+  onOpenPhotos?: (index: number) => void
+}) {
   const total = stay.totalPrice ?? stay.pricePerNight * stay.nights
   const ratingBuckets = stay.ratingsBreakdown ?? []
   const maxBucket = Math.max(1, ...ratingBuckets.map((b) => b.count))
@@ -18,7 +26,7 @@ export function StayDetail({ stay, loading }: { stay: Stay; loading?: boolean })
 
   return (
     <div className="flex flex-col gap-5">
-      <Gallery photos={stay.photos} title={stay.name} />
+      <Gallery photos={stay.photos} title={stay.name} onOpen={onOpenPhotos} />
 
       <div>
         <Heading level={2} className="text-2xl">

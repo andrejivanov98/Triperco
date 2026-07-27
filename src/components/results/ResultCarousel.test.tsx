@@ -75,15 +75,52 @@ describe('ResultCarousel', () => {
     expect(container.firstChild).toBeNull()
   })
 
-  it('opens details and adds from a card', () => {
+  it('opens details and adds from a stay card', () => {
     const onOpen = vi.fn()
     const onAdd = vi.fn()
-    render(
-      <ResultCarousel set={{ kind: 'stays', items }} onOpen={onOpen} onAdd={onAdd} />,
-    )
+    render(<ResultCarousel set={{ kind: 'stays', items }} onOpen={onOpen} onAdd={onAdd} />)
     fireEvent.click(screen.getByRole('button', { name: /view details for Hotel a/i }))
     expect(onOpen).toHaveBeenCalled()
-    fireEvent.click(screen.getAllByRole('button', { name: /add to trip/i })[0])
+    fireEvent.click(screen.getByRole('button', { name: /add Hotel a to trip/i }))
     expect(onAdd).toHaveBeenCalled()
+  })
+
+  it('renders flights as itinerary cards with times and route', () => {
+    render(
+      <ResultCarousel
+        set={{
+          kind: 'flights',
+          items: [
+            {
+              id: 'f1',
+              from: 'SKP',
+              to: 'FCO',
+              airline: 'Wizz Air',
+              departTime: '16:10',
+              arriveTime: '17:55',
+              durationMinutes: 105,
+              stops: 0,
+              price: 36,
+              bookUrl: 'x',
+            },
+          ],
+        }}
+        onOpen={() => {}}
+        onAdd={() => {}}
+      />,
+    )
+    expect(screen.getByText('16:10')).toBeInTheDocument()
+    expect(screen.getByText('17:55')).toBeInTheDocument()
+    expect(screen.getByText('SKP')).toBeInTheDocument()
+    expect(screen.getByText('1h 45m')).toBeInTheDocument()
+    expect(screen.getByText('Nonstop')).toBeInTheDocument()
+  })
+
+  it('opens the full gallery from a stay photo', () => {
+    const withPhotos: Stay[] = [{ ...stay('a', 90), photos: ['https://p/1', 'https://p/2'] }]
+    render(<ResultCarousel set={{ kind: 'stays', items: withPhotos }} onOpen={() => {}} onAdd={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: /open photos of Hotel a/i }))
+    expect(screen.getByRole('dialog', { name: /Hotel a photos/i })).toBeInTheDocument()
+    expect(screen.getByText('1 / 2')).toBeInTheDocument()
   })
 })

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import type { Flight, Stay, Place, TripMeta, ReviewSnippet } from '@/lib/trip/types'
 import type { ResultSet } from '@/lib/ui/results'
 import { mergeStayDetail } from '@/lib/trip/mergeStay'
+import { Lightbox } from '@/components/ui/Lightbox'
 import { FlightDetail } from './detail/FlightDetail'
 import { StayDetail } from './detail/StayDetail'
 import { PlaceDetail } from './detail/PlaceDetail'
@@ -45,6 +46,7 @@ export function DetailPanel({
   const [stay, setStay] = useState<Stay>(kind === 'stays' ? (item as Stay) : ({} as Stay))
   const [place, setPlace] = useState<Place>(kind === 'places' ? (item as Place) : ({} as Place))
   const [loading, setLoading] = useState(false)
+  const [photoIndex, setPhotoIndex] = useState<number | null>(null)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -124,6 +126,8 @@ export function DetailPanel({
   }, [kind, item])
 
   const url = bookUrl(kind, item)
+  const galleryPhotos = kind === 'stays' ? stay.photos : kind === 'places' ? place.photos : []
+  const galleryTitle = kind === 'stays' ? stay.name : (place.name ?? 'Photos')
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
@@ -155,8 +159,12 @@ export function DetailPanel({
 
         <div className="min-h-0 flex-1 overflow-y-auto p-5">
           {kind === 'flights' && <FlightDetail flight={item as Flight} />}
-          {kind === 'stays' && <StayDetail stay={stay} loading={loading} />}
-          {kind === 'places' && <PlaceDetail place={place} loading={loading} />}
+          {kind === 'stays' && (
+            <StayDetail stay={stay} loading={loading} onOpenPhotos={setPhotoIndex} />
+          )}
+          {kind === 'places' && (
+            <PlaceDetail place={place} loading={loading} onOpenPhotos={setPhotoIndex} />
+          )}
         </div>
 
         <div className="flex items-center gap-2 border-t border-hairline bg-white/40 px-5 py-3">
@@ -179,6 +187,15 @@ export function DetailPanel({
           )}
         </div>
       </div>
+
+      {photoIndex !== null && (
+        <Lightbox
+          photos={galleryPhotos}
+          startIndex={photoIndex}
+          title={galleryTitle}
+          onClose={() => setPhotoIndex(null)}
+        />
+      )}
     </div>
   )
 }
