@@ -147,16 +147,26 @@ export function PlannerScreen() {
   }, [])
 
   return (
-    <main className="mx-auto flex h-screen max-w-[1700px] flex-col gap-2 p-3 sm:p-4">
+    // Locked viewport height on desktop; on narrow screens the panes stack and the page scrolls.
+    <main className="mx-auto flex min-h-screen max-w-[1700px] flex-col gap-2 p-3 sm:p-4 lg:h-screen lg:overflow-hidden">
       <PlannerHeader
         title={trip.meta.title ?? trip.meta.destination}
         onNewTrip={startNewTrip}
         right={<ShareButton onShare={handleShare} sharing={sharing} shareUrl={shareUrl} />}
       />
 
-      {/* The chat is where the planning happens, so it gets the room. */}
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-[1fr_minmax(300px,30%)]">
-        <div className="glass flex min-h-0 flex-col p-4">
+      {/*
+        A fixed 70/30 split: 7fr/3fr can't be renegotiated by content, and min-w-0 on each pane
+        stops a wide card row from stretching its column (grid children default to min-width:auto).
+      */}
+      <div
+        data-testid="planner-grid"
+        className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-hidden lg:grid-cols-[7fr_3fr]"
+      >
+        <div
+          data-testid="chat-pane"
+          className="glass flex min-h-[60vh] min-w-0 flex-col overflow-hidden p-4 lg:min-h-0"
+        >
           <ChatPane
             messages={messages}
             status={status}
@@ -168,7 +178,10 @@ export function PlannerScreen() {
           />
         </div>
 
-        <aside className="glass flex min-h-0 flex-col gap-3 p-3">
+        <aside
+          data-testid="plan-pane"
+          className="glass flex min-h-[50vh] min-w-0 flex-col gap-3 overflow-hidden p-3 lg:min-h-0"
+        >
           <div className="flex items-center justify-between gap-2">
             <PlanMapToggle view={view} onChange={setView} />
           </div>

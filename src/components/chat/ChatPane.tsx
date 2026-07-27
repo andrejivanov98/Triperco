@@ -63,8 +63,8 @@ export function ChatPane({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1 pb-4">
+    <div className="flex h-full min-h-0 min-w-0 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden px-1 pb-4">
         {messages.length === 0 && emptyState}
 
         {messages.map((m) => {
@@ -75,13 +75,18 @@ export function ChatPane({
           const isUser = m.role === 'user'
 
           return (
-            <div key={m.id} className={'flex flex-col gap-3 ' + (isUser ? 'items-end' : 'items-start')}>
+            <div
+              key={m.id}
+              className={
+                'flex min-w-0 flex-col gap-3 ' + (isUser ? 'items-end' : 'items-start')
+              }
+            >
               {text && (
                 <div
                   className={
                     isUser
-                      ? 'max-w-[85%] rounded-3xl rounded-br-lg bg-deep px-4 py-2.5 text-sm font-medium text-white'
-                      : 'max-w-[92%] text-[15px] font-medium text-ink'
+                      ? 'max-w-[85%] break-words rounded-3xl rounded-br-lg bg-deep px-4 py-2.5 text-sm font-medium text-white'
+                      : 'max-w-[92%] break-words text-[15px] font-medium text-ink'
                   }
                 >
                   <MessageText text={text} />
@@ -89,7 +94,7 @@ export function ChatPane({
               )}
 
               {sets.length > 0 && (
-                <div className="w-full">
+                <div className="w-full min-w-0">
                   {sets.map((set, i) => (
                     <ResultCarousel
                       key={i}

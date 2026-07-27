@@ -23,7 +23,7 @@ export function ThinkingIndicator({ label = 'Working on it' }: { label?: string 
 /** Placeholder cards while results stream in. */
 export function ResultSkeleton() {
   return (
-    <div className="flex gap-3 overflow-hidden pb-1">
+    <div className="flex min-w-0 max-w-full gap-3 overflow-hidden pb-1">
       {[0, 1, 2].map((i) => (
         <div key={i} className="glass h-44 w-56 shrink-0 animate-pulse p-0">
           <div className="h-28 w-full rounded-t-[19px] bg-sand" />
