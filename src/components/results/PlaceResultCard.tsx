@@ -25,8 +25,9 @@ export function PlaceResultCard({
   const closedForGood = place.permanentlyClosed === true
 
   return (
-    <div className="flex w-[19rem] shrink-0 snap-start flex-col gap-3 rounded-[22px] border border-hairline bg-white/60 p-3">
-      <button type="button" onClick={onOpen} className="flex flex-col gap-1.5 text-left">
+    // A fixed frame: every card is the same size, so the photo and the buttons never shift.
+    <div className="flex h-[26rem] w-[19rem] shrink-0 snap-start flex-col gap-3 rounded-[22px] border border-hairline bg-white/60 p-3">
+      <button type="button" onClick={onOpen} className="flex h-[7.5rem] shrink-0 flex-col gap-1.5 overflow-hidden text-left">
         <div className="flex items-start justify-between gap-2">
           <span className="line-clamp-2 text-sm font-bold leading-snug text-ink">{place.name}</span>
           {badges.length > 0 && (
@@ -69,7 +70,7 @@ export function PlaceResultCard({
         </div>
       </button>
 
-      <div className="group relative aspect-[16/10] w-full overflow-hidden rounded-[16px] bg-sand">
+      <div className="group relative h-40 w-full shrink-0 overflow-hidden rounded-[16px] bg-sand">
         <button
           type="button"
           aria-label={photo ? `Open photos of ${place.name}` : `View details for ${place.name}`}
@@ -85,7 +86,7 @@ export function PlaceResultCard({
         </button>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="mt-auto flex items-center gap-2">
         {closedForGood ? (
           <span className="flex-1 rounded-xl border border-hairline bg-sand/60 px-3 py-2 text-center text-xs font-bold text-muted">
             Not available

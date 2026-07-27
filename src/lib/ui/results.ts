@@ -3,7 +3,13 @@ import type { TriperUIMessage } from './messages'
 
 /** A set of search results surfaced to the chat UI. Carries full domain objects. */
 export type ResultSet =
-  | { kind: 'flights'; query?: string; items: Flight[] }
+  | {
+      kind: 'flights'
+      query?: string
+      items: Flight[]
+      /** Whether these are one-ways, round trips, or just the way home. */
+      flightType?: 'one_way' | 'round_trip' | 'return'
+    }
   | { kind: 'stays'; query?: string; items: Stay[] }
   | { kind: 'places'; query?: string; items: Place[] }
 

@@ -3,7 +3,54 @@ import { formatMoney, formatDuration, formatStops } from '@/lib/ui/format'
 import { Badge, badgeTone } from '@/components/ui/Badge'
 import { RemoteImage } from '@/components/ui/RemoteImage'
 
-/** A flight itinerary as a route line: times at each end, duration and stops in between. */
+/** One leg as a route line: times at each end, duration and stops in between. */
+function Leg({ flight, label }: { flight: Flight; label?: string }) {
+  const stops = formatStops(flight.stops, flight.layovers?.map((l) => l.code))
+
+  return (
+    <div className="flex flex-col gap-1">
+      {label && (
+        <span className="text-[10px] font-bold uppercase tracking-wide text-muted">{label}</span>
+      )}
+      <div className="flex items-center gap-2">
+        <div>
+          <div className="text-base font-bold leading-tight text-ink">{flight.departTime ?? '—'}</div>
+          <div className="text-[11px] font-bold uppercase tracking-wide text-muted">{flight.from}</div>
+        </div>
+
+        <div className="flex flex-1 flex-col items-center gap-0.5 px-1">
+          <span className="text-[10px] font-semibold text-muted">
+            {formatDuration(flight.durationMinutes) ?? ''}
+          </span>
+          <span className="flex w-full items-center gap-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+            <span className="h-px flex-1 bg-hairline" />
+            <span className="text-[10px] text-muted">✈</span>
+            <span className="h-px flex-1 bg-hairline" />
+            <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+          </span>
+          <span className="text-[10px] font-semibold text-muted">{stops}</span>
+        </div>
+
+        <div className="text-right">
+          <div className="text-base font-bold leading-tight text-ink">{flight.arriveTime ?? '—'}</div>
+          <div className="text-[11px] font-bold uppercase tracking-wide text-muted">{flight.to}</div>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-x-2 text-[10px] font-medium text-muted">
+        {flight.departDate && <span>{flight.departDate}</span>}
+        {flight.arriveDate && flight.arriveDate !== flight.departDate && (
+          <span>arrives {flight.arriveDate}</span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * A flight option. A round trip shows both legs on one card, because the provider sells the pair as
+ * a single fare — choosing it fills the whole journey.
+ */
 export function FlightResultCard({
   flight,
   badges = [],
@@ -15,14 +62,15 @@ export function FlightResultCard({
   onOpen: () => void
   onAdd: () => void
 }) {
-  const stops = formatStops(flight.stops, flight.layovers?.map((l) => l.code))
   const cabin = flight.segments?.find((s) => s.cabin)?.cabin
   const featured = badges.includes('Best value')
+  const roundTrip = Boolean(flight.returnLeg)
+  const isReturn = flight.direction === 'return' && !roundTrip
 
   return (
     <div
       className={
-        'flex w-[19rem] shrink-0 snap-start flex-col gap-3 rounded-[20px] border bg-white/60 p-4 transition hover:shadow-md ' +
+        'flex h-[22rem] w-[20rem] shrink-0 snap-start flex-col gap-3 overflow-hidden rounded-[20px] border bg-white/60 p-4 transition hover:shadow-md ' +
         (featured ? 'border-accent/40 ring-1 ring-accent/25' : 'border-hairline')
       }
     >
@@ -36,6 +84,9 @@ export function FlightResultCard({
             fallbackClassName="text-xs"
           />
           <span className="truncate text-xs font-bold text-ink">{flight.airline ?? 'Flight'}</span>
+          <span className="shrink-0 rounded-full bg-sand px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted">
+            {roundTrip ? 'Round trip' : isReturn ? 'Return' : 'One way'}
+          </span>
         </div>
         {badges.length > 0 && (
           <div className="flex shrink-0 gap-1">
@@ -46,54 +97,35 @@ export function FlightResultCard({
         )}
       </div>
 
-      <button type="button" onClick={onOpen} aria-label={`View details for ${flight.from} to ${flight.to}`} className="text-left">
-        <div className="flex items-center gap-2">
-          <div>
-            <div className="text-lg font-bold leading-tight text-ink">{flight.departTime ?? '—'}</div>
-            <div className="text-[11px] font-bold uppercase tracking-wide text-muted">{flight.from}</div>
-          </div>
-
-          <div className="flex flex-1 flex-col items-center gap-0.5 px-1">
-            <span className="text-[10px] font-semibold text-muted">
-              {formatDuration(flight.durationMinutes) ?? ''}
-            </span>
-            <span className="flex w-full items-center gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-              <span className="h-px flex-1 bg-hairline" />
-              <span className="text-[10px] text-muted">✈</span>
-              <span className="h-px flex-1 bg-hairline" />
-              <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-            </span>
-            <span className="text-[10px] font-semibold text-muted">{stops}</span>
-          </div>
-
-          <div className="text-right">
-            <div className="text-lg font-bold leading-tight text-ink">{flight.arriveTime ?? '—'}</div>
-            <div className="text-[11px] font-bold uppercase tracking-wide text-muted">{flight.to}</div>
-          </div>
-        </div>
-
-        {(cabin || flight.arriveDate) && (
-          <div className="mt-2 flex flex-wrap gap-x-2 text-[11px] font-medium text-muted">
-            {cabin && <span>{cabin}</span>}
-            {flight.arriveDate && flight.departDate && flight.arriveDate !== flight.departDate && (
-              <span>Arrives {flight.arriveDate}</span>
-            )}
-          </div>
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label={`View details for ${flight.from} to ${flight.to}`}
+        className="flex flex-col gap-3 text-left"
+      >
+        <Leg flight={flight} label={roundTrip ? 'Outbound' : undefined} />
+        {flight.returnLeg && (
+          <>
+            <span className="h-px w-full bg-hairline" />
+            <Leg flight={flight.returnLeg} label="Return" />
+          </>
         )}
+        {cabin && <span className="text-[11px] font-medium text-muted">{cabin}</span>}
       </button>
 
       <div className="mt-auto flex items-end justify-between gap-2 border-t border-hairline pt-3">
         <div>
           <div className="text-base font-bold text-ink">{formatMoney(flight.price)}</div>
-          <div className="text-[10px] font-medium text-muted">per traveler</div>
+          <div className="text-[10px] font-medium text-muted">
+            {roundTrip ? 'both legs, per traveler' : 'per traveler'}
+          </div>
         </div>
         <button
           type="button"
           onClick={onAdd}
           className="rounded-xl bg-accent px-3.5 py-2 text-xs font-bold text-white shadow-sm shadow-accent/25 transition hover:bg-accent-600"
         >
-          Add to trip
+          {roundTrip ? 'Add both' : 'Add to trip'}
         </button>
       </div>
     </div>

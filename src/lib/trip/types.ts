@@ -135,6 +135,15 @@ export interface Flight {
   bookingToken?: string
   /** Itinerary-level notes from the provider. */
   extensions?: string[]
+  /** Which leg of the journey this is. */
+  direction?: 'outbound' | 'return'
+  /** One way, or half of a round trip whose price covers both legs. */
+  tripType?: 'one_way' | 'round_trip'
+  /**
+   * For a round trip, the paired return leg. The provider prices the pair as one fare, so `price`
+   * on the outbound already covers both — adding the flight puts both legs in the plan.
+   */
+  returnLeg?: Flight
 }
 
 export interface Stay {

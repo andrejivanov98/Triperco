@@ -33,10 +33,14 @@ interface RawItinerary {
   price?: number
   total_duration?: number
   booking_token?: string
+  /** Present on a round-trip outbound: the handle for fetching that outbound's return options. */
+  departure_token?: string
   flights: RawSegment[]
   layovers?: RawLayover[]
   carbon_emissions?: { this_flight?: number; difference_percent?: number }
   extensions?: string[]
+  /** "One way" / "Round trip". */
+  type?: string
 }
 
 export interface RawFlightsResponse {
@@ -103,10 +107,22 @@ function toFlight(itin: RawItinerary): Flight {
     carbonVsTypical: itin.carbon_emissions?.difference_percent,
     bookingToken: itin.booking_token,
     extensions: itin.extensions,
+    tripType: itin.type?.toLowerCase().includes('round') ? 'round_trip' : 'one_way',
   }
 }
 
-export function normalizeFlights(raw: RawFlightsResponse): Flight[] {
+export function normalizeFlights(
+  raw: RawFlightsResponse,
+  direction: 'outbound' | 'return' = 'outbound',
+): Flight[] {
   const all = [...(raw.best_flights ?? []), ...(raw.other_flights ?? [])]
-  return all.map(toFlight)
+  return all.map((itin) => ({ ...toFlight(itin), direction }))
+}
+
+/** The provider's handle for an outbound's return options, paired with the flight it belongs to. */
+export function departureTokens(raw: RawFlightsResponse): { id: string; token: string }[] {
+  const all = [...(raw.best_flights ?? []), ...(raw.other_flights ?? [])]
+  return all
+    .map((itin) => ({ id: toFlight(itin).id, token: itin.departure_token ?? '' }))
+    .filter((entry) => entry.token !== '')
 }

@@ -15,6 +15,18 @@ const KIND_NOUN: Record<ResultSet['kind'], string> = {
   places: 'spots',
 }
 
+/** Name the set for what it is, so one-ways, round trips and returns never blur together. */
+function setLabel(set: ResultSet): string {
+  if (set.kind !== 'flights') return `${set.items.length} ${KIND_NOUN[set.kind]}`
+  const noun =
+    set.flightType === 'round_trip'
+      ? 'round trips'
+      : set.flightType === 'return'
+        ? 'ways home'
+        : 'one-way flights'
+  return `${set.items.length} ${noun}`
+}
+
 /** One card plus its gap — how far an arrow press moves the track. */
 const STEP = 320
 
@@ -70,9 +82,7 @@ export function ResultCarousel({
     <div data-testid="carousel" className="mt-1 flex min-w-0 max-w-full flex-col gap-2">
       <div className="flex min-w-0 items-center gap-2">
         <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 text-xs font-semibold text-muted">
-          <span className="text-ink">
-            {set.items.length} {KIND_NOUN[set.kind]}
-          </span>
+          <span className="text-ink">{setLabel(set)}</span>
           {set.query && <span className="truncate">{set.query}</span>}
           {hidden > 0 && <span>· showing the best {ranked.length}</span>}
         </div>

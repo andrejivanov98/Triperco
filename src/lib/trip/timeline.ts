@@ -82,6 +82,12 @@ export function buildTimeline(trip: TripState): Timeline {
     ? `${meta.destination ?? 'Your trip'} · ${range}`
     : meta.destination ?? 'Your trip'
 
+  // Prefer the leg the provider told us about; fall back to position for trips saved before that.
+  const outboundFlight = flights.find((f) => f.direction !== 'return') ?? undefined
+  const returnFlight =
+    flights.find((f) => f.direction === 'return') ??
+    (flights.length > 1 && flights[1] !== outboundFlight ? flights[1] : undefined)
+
   const groups: TimelineGroup[] = []
 
   const activityItems = (dayIndex: number): TimelineItem[] =>
@@ -108,7 +114,7 @@ export function buildTimeline(trip: TripState): Timeline {
     items: [],
     addSlots: [],
   }
-  if (flights[0]) arrival.items.push(flightItem(flights[0]))
+  if (outboundFlight) arrival.items.push(flightItem(outboundFlight))
   else arrival.addSlots.push('flights')
 
   if (stays.length > 0) for (const s of stays) arrival.items.push(stayItem(s))
@@ -138,9 +144,9 @@ export function buildTimeline(trip: TripState): Timeline {
     items: [],
     addSlots: [],
   }
-  if (flights[1]) returnGroup.items.push(flightItem(flights[1]))
+  if (returnFlight) returnGroup.items.push(flightItem(returnFlight))
   // Only ask for a return once there's an outbound flight to return from.
-  else if (flights[0]) returnGroup.addSlots.push('return-flight')
+  else if (outboundFlight) returnGroup.addSlots.push('return-flight')
 
   if (returnGroup.items.length > 0 || returnGroup.addSlots.length > 0) groups.push(returnGroup)
 

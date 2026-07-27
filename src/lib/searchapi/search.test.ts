@@ -219,3 +219,112 @@ describe('getPlaceReviews / getPlacePhotos', () => {
     expect(photos).toEqual(['https://p/1'])
   })
 })
+
+describe('searchFlights — legs', () => {
+  const outboundResponse = {
+    best_flights: [
+      {
+        price: 140,
+        type: 'Round trip',
+        booking_token: 'OUT1',
+        departure_token: 'TOK1',
+        flights: [
+          {
+            airline: 'Wizz',
+            flight_number: 'W6 1',
+            departure_airport: { id: 'SKP', time: '16:10', date: '2026-09-10' },
+            arrival_airport: { id: 'FCO', time: '17:55', date: '2026-09-10' },
+          },
+        ],
+      },
+    ],
+  }
+  const returnResponse = {
+    other_flights: [
+      {
+        price: 140,
+        type: 'Round trip',
+        booking_token: 'RET1',
+        flights: [
+          {
+            airline: 'Wizz',
+            flight_number: 'W6 2',
+            departure_airport: { id: 'FCO', time: '09:25', date: '2026-09-14' },
+            arrival_airport: { id: 'SKP', time: '11:00', date: '2026-09-14' },
+          },
+        ],
+      },
+    ],
+  }
+
+  /** The provider answers the same engine differently depending on departure_token. */
+  function twoStepDeps() {
+    const calls: Record<string, unknown>[] = []
+    const deps = {
+      cache: createInMemoryCache(),
+      search: async <T,>(_engine: string, params: Record<string, unknown>): Promise<T> => {
+        calls.push(params)
+        return (params.departure_token ? returnResponse : outboundResponse) as T
+      },
+    }
+    return { deps, calls }
+  }
+
+  it('pairs each round trip with its return leg', async () => {
+    const { deps, calls } = twoStepDeps()
+    const flights = await searchFlights(
+      {
+        departure_id: 'SKP',
+        arrival_id: 'FCO',
+        outbound_date: '2026-09-10',
+        return_date: '2026-09-14',
+        flight_type: 'round_trip',
+      },
+      deps,
+    )
+    expect(flights).toHaveLength(1)
+    expect(flights[0].direction).toBe('outbound')
+    expect(flights[0].tripType).toBe('round_trip')
+    expect(flights[0].returnLeg?.from).toBe('FCO')
+    expect(flights[0].returnLeg?.to).toBe('SKP')
+    expect(flights[0].returnLeg?.direction).toBe('return')
+    // Second call carried the token from the first.
+    expect(calls[1].departure_token).toBe('TOK1')
+  })
+
+  it('marks a deliberate return-only search as the way home', async () => {
+    const { deps, calls } = twoStepDeps()
+    const flights = await searchFlights(
+      {
+        departure_id: 'FCO',
+        arrival_id: 'SKP',
+        outbound_date: '2026-09-14',
+        direction: 'return',
+      },
+      deps,
+    )
+    expect(flights[0].direction).toBe('return')
+    expect(flights[0].returnLeg).toBeUndefined()
+    expect(calls).toHaveLength(1) // one-way: no token dance
+  })
+
+  it('still returns the outbound options when the provider offers no returns', async () => {
+    const deps = {
+      cache: createInMemoryCache(),
+      search: async <T,>(_e: string, params: Record<string, unknown>): Promise<T> =>
+        (params.departure_token ? {} : outboundResponse) as T,
+    }
+    const flights = await searchFlights(
+      {
+        departure_id: 'SKP',
+        arrival_id: 'FCO',
+        outbound_date: '2026-09-10',
+        return_date: '2026-09-14',
+        flight_type: 'round_trip',
+      },
+      deps,
+    )
+    expect(flights).toHaveLength(1)
+    expect(flights[0].returnLeg).toBeUndefined()
+  })
+})

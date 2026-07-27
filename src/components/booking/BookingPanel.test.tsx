@@ -30,10 +30,10 @@ function trip(): TripState {
   }
 }
 
-describe('BookingPanel — partners', () => {
-  it('lists every bookable item with its partner link', () => {
+describe('BookingPanel — booking links', () => {
+  it('lists every bookable item with its provider link', () => {
     render(<BookingPanel trip={trip()} onClose={() => {}} />)
-    expect(screen.getByRole('heading', { name: /book with our partners/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /where to book each part/i })).toBeInTheDocument()
     expect(screen.getByText('City residence apartment')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /book on Airbnb/i })).toHaveAttribute(
       'href',
@@ -65,6 +65,12 @@ describe('BookingPanel — partners', () => {
     expect(screen.getByText(/nothing to book yet/i)).toBeInTheDocument()
   })
 
+  it('does not call the providers our partners', () => {
+    const { container } = render(<BookingPanel trip={trip()} onClose={() => {}} />)
+    expect(container.textContent?.toLowerCase()).not.toContain('our partners')
+    expect(container.textContent?.toLowerCase()).toContain('not affiliated')
+  })
+
   it('closes from the button', () => {
     const onClose = vi.fn()
     render(<BookingPanel trip={trip()} onClose={onClose} />)
@@ -91,10 +97,10 @@ describe('BookingPanel — summary', () => {
     expect(screen.getByLabelText(/booking status for City residence apartment/i)).toHaveValue('booked')
   })
 
-  it('goes back to the partners view', () => {
+  it('goes back to the booking links', () => {
     render(<BookingPanel trip={trip()} onClose={() => {}} />)
     fireEvent.click(screen.getByRole('button', { name: /view trip summary/i }))
-    fireEvent.click(screen.getByRole('button', { name: /back to partners/i }))
-    expect(screen.getByRole('heading', { name: /book with our partners/i })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /back to booking links/i }))
+    expect(screen.getByRole('heading', { name: /where to book each part/i })).toBeInTheDocument()
   })
 })

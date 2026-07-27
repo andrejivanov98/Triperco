@@ -61,9 +61,10 @@ export function StayResultCard({
   const rating = formatRating(stay.rating, stay.reviewCount)
 
   return (
-    <div className="flex w-[20rem] shrink-0 snap-start flex-col gap-3 rounded-[22px] border border-hairline bg-white/60 p-3">
+    // A fixed frame: every card is the same size, so the photo and the buttons never shift.
+    <div className="flex h-[30rem] w-[20rem] shrink-0 snap-start flex-col gap-3 rounded-[22px] border border-hairline bg-white/60 p-3">
       {/* Details first: what it is, how it rates, what it costs. */}
-      <button type="button" onClick={onOpen} className="flex flex-col gap-1.5 text-left">
+      <button type="button" onClick={onOpen} className="flex h-[11rem] shrink-0 flex-col gap-1.5 overflow-hidden text-left">
         <div className="flex items-start justify-between gap-2">
           <span className="line-clamp-2 text-sm font-bold leading-snug text-ink">{stay.name}</span>
           {badges.length > 0 && (
@@ -119,7 +120,7 @@ export function StayResultCard({
       </button>
 
       {/* Then the photos. */}
-      <div className="group relative aspect-[16/10] w-full overflow-hidden rounded-[16px] bg-sand">
+      <div className="group relative h-44 w-full shrink-0 overflow-hidden rounded-[16px] bg-sand">
         <button
           type="button"
           aria-label={photos.length > 0 ? `Open photos of ${stay.name}` : `View details for ${stay.name}`}
@@ -153,7 +154,7 @@ export function StayResultCard({
         )}
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="mt-auto flex items-center gap-2">
         <button
           type="button"
           onClick={onAdd}

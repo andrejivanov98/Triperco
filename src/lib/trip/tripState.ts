@@ -43,8 +43,32 @@ function upsertById<T extends { id: string }>(list: T[], entry: T): T[] {
   return next
 }
 
+/**
+ * Put a flight in its own slot: the plan holds an outbound at index 0 and a return at index 1, so a
+ * return never lands where the outbound belongs. A round trip carries its paired return leg, and
+ * adding it fills both — the provider prices the pair as one fare, so only the outbound is charged.
+ */
+/** Outbound legs first, the way home last — regardless of the order they were added. */
+function byLeg(flights: Flight[]): Flight[] {
+  return [...flights].sort((a, b) => {
+    const aReturn = a.direction === 'return' ? 1 : 0
+    const bReturn = b.direction === 'return' ? 1 : 0
+    return aReturn - bReturn
+  })
+}
+
+/**
+ * Add a flight, keeping the legs in travel order. A round trip carries its paired return leg and
+ * adding it fills both — the provider prices the pair as one fare, so only the outbound is charged.
+ */
 export function addFlight(trip: TripState, flight: Flight): TripState {
-  return withTotal({ ...trip, flights: upsertById(trip.flights, flight) })
+  const { returnLeg, ...outbound } = flight
+  let flights = upsertById(trip.flights, outbound as Flight)
+  if (returnLeg) {
+    // The pair is one fare; the return leg must not be counted a second time.
+    flights = upsertById(flights, { ...returnLeg, direction: 'return', price: 0 })
+  }
+  return withTotal({ ...trip, flights: byLeg(flights) })
 }
 
 export function removeFlight(trip: TripState, flightId: string): TripState {

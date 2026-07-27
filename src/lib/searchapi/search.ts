@@ -1,7 +1,7 @@
 import type { Flight, Stay, Place, ReviewSnippet } from '../trip/types'
 import { searchApi, type SearchApiOptions, type SearchParams } from './client'
 import { createInMemoryCache, withCache, type Cache } from './cache'
-import { normalizeFlights, type RawFlightsResponse } from './normalizeFlights'
+import { normalizeFlights, departureTokens, type RawFlightsResponse } from './normalizeFlights'
 import { normalizeHotels, type RawHotelsResponse } from './normalizeHotels'
 import { normalizeHotelProperty, type RawPropertyResponse } from './normalizeHotelProperty'
 import { normalizePlaces, type RawMapsResponse } from './normalizePlaces'
@@ -48,23 +48,53 @@ export interface FlightParams {
   /** Required by the provider for round trips. */
   return_date?: string
   flight_type?: 'one_way' | 'round_trip'
+  /** Mark a search that is deliberately only the way home. */
+  direction?: 'outbound' | 'return'
 }
+
+/** How many round trips we complete with a return leg. Each one costs an extra provider call. */
+const ROUND_TRIP_PAIRS = 4
 
 export async function searchFlights(params: FlightParams, deps?: SearchDeps): Promise<Flight[]> {
   const { search, cache } = resolve(deps)
   // The provider rejects a round trip with no return date, so treat that as a one-way search.
   const type = params.flight_type === 'round_trip' && params.return_date ? 'round_trip' : 'one_way'
   const returnDate = type === 'round_trip' ? params.return_date : undefined
-  const key = `google_flights:${params.departure_id}:${params.arrival_id}:${params.outbound_date}:${returnDate ?? ''}:${type}`
+  const direction = params.direction ?? 'outbound'
+  const key = `google_flights:${params.departure_id}:${params.arrival_id}:${params.outbound_date}:${returnDate ?? ''}:${type}:${direction}`
+
   return withCache(cache, key, TTL.flights, async () => {
-    const raw = await search<RawFlightsResponse>('google_flights', {
+    const query = {
       departure_id: params.departure_id,
       arrival_id: params.arrival_id,
       outbound_date: params.outbound_date,
       return_date: returnDate,
       flight_type: type,
-    })
-    return normalizeFlights(raw)
+    }
+    const raw = await search<RawFlightsResponse>('google_flights', query)
+    const outbound = normalizeFlights(raw, direction)
+    if (type === 'one_way') return outbound
+
+    /*
+     * A round trip is priced as one fare but served in two steps: the first response holds outbound
+     * options with a departure_token, and that token fetches the return options for that outbound.
+     * We pair each of the first few outbounds with its best return so the traveler picks one card
+     * and gets both legs.
+     */
+    const tokens = departureTokens(raw)
+    const paired: Flight[] = []
+    for (const flight of outbound.slice(0, ROUND_TRIP_PAIRS)) {
+      const token = tokens.find((t) => t.id === flight.id)?.token
+      if (!token) continue
+      const returnRaw = await search<RawFlightsResponse>('google_flights', {
+        ...query,
+        departure_token: token,
+      })
+      const returnLeg = normalizeFlights(returnRaw, 'return')[0]
+      if (returnLeg) paired.push({ ...flight, returnLeg })
+    }
+    // If the provider gave us no returns at all, the outbound options are still useful.
+    return paired.length > 0 ? paired : outbound
   })
 }
 

@@ -82,7 +82,7 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
 
     searchFlights: tool({
       description:
-        'Search flights between two airports. Dates must be today or later. For a round trip you MUST pass return_date. The traveler picks what goes into the plan — you only surface options.',
+        'Search flights. Dates must be today or later. Pass flight_type "round_trip" WITH return_date to offer round trips (each result covers both legs); use "one_way" for a single leg, and direction "return" when searching only the way home. Search one-ways and round trips separately, never mixed. The traveler picks what goes into the plan.',
       inputSchema: z.object({
         departure_id: z.string().describe('IATA airport/city code, e.g. SKP'),
         arrival_id: z.string().describe('IATA airport/city code, e.g. FCO'),
@@ -92,14 +92,22 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
           .optional()
           .describe('YYYY-MM-DD — required when flight_type is round_trip'),
         flight_type: z.enum(['one_way', 'round_trip']).optional(),
+        direction: z
+          .enum(['outbound', 'return'])
+          .optional()
+          .describe(
+            'Use "return" for a one-way search of just the way home (swap the airports and use the return date). Choosing a round_trip result fills both legs at once.',
+          ),
       }),
       execute: async (params) =>
         withToolError(async () => {
           state.lastFlights = await apiSearchFlights(params, deps)
+          const roundTrip = state.lastFlights.some((f) => f.returnLeg)
           state.pendingResults.push({
             kind: 'flights',
             query: `${params.departure_id} → ${params.arrival_id}`,
             items: state.lastFlights,
+            flightType: roundTrip ? 'round_trip' : params.direction === 'return' ? 'return' : 'one_way',
           })
           return state.lastFlights.slice(0, 10).map((f) => ({
             id: f.id,
@@ -112,6 +120,11 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
             stops: f.stops,
             via: f.layovers?.map((l) => l.code).filter(Boolean),
             price: f.price,
+            leg: f.direction ?? 'outbound',
+            // Present only on a round trip: this option covers the way home too.
+            returns: f.returnLeg
+              ? `${f.returnLeg.from}→${f.returnLeg.to} ${f.returnLeg.departDate ?? ''} ${f.returnLeg.departTime ?? ''}`.trim()
+              : undefined,
           }))
         }),
     }),

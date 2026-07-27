@@ -97,8 +97,9 @@ function PartnerCard({
 }
 
 /**
- * What "Continue to book" opens: every bookable part of the trip with the partner that sells it.
- * Triperco never books anything — the traveler finishes on the partner site and marks it here.
+ * What "Continue to book" opens: every bookable part of the trip with the provider that sells it.
+ * Triperco is not affiliated with any of them and never books anything — the traveler finishes on
+ * the provider's own site and records here what they have done.
  */
 export function BookingPanel({ trip, onClose }: { trip: TripState; onClose: () => void }) {
   const items = useMemo(() => bookableItems(trip), [trip])
@@ -124,7 +125,7 @@ export function BookingPanel({ trip, onClose }: { trip: TripState; onClose: () =
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={view === 'partners' ? 'Book with our partners' : 'Trip summary'}
+        aria-label={view === 'partners' ? 'Where to book each part' : 'Trip summary'}
         className="relative flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-hairline bg-canvas shadow-2xl sm:rounded-3xl"
       >
         <div className="flex items-center justify-between border-b border-hairline px-5 py-3">
@@ -158,7 +159,7 @@ export function BookingPanel({ trip, onClose }: { trip: TripState; onClose: () =
 
         <div className="min-h-0 flex-1 overflow-y-auto p-5">
           <Heading level={2} className="text-3xl">
-            {view === 'partners' ? 'Book with our partners' : title}
+            {view === 'partners' ? 'Where to book each part' : title}
           </Heading>
           {view === 'summary' && range && (
             <p className="mt-1 text-sm font-medium text-muted">
@@ -196,8 +197,9 @@ export function BookingPanel({ trip, onClose }: { trip: TripState; onClose: () =
                 View trip summary
               </button>
               <p className="mt-3 text-xs font-medium leading-relaxed text-muted">
-                We&apos;ll keep this itinerary together. Partner bookings are completed on the
-                partner site, and confirmations will come from them.
+                Triperco keeps the itinerary together. Each booking is completed on the provider&apos;s
+                own site, and your confirmation comes from them — we are not affiliated with any of
+                them, and prices are as of search.
               </p>
             </>
           )}
@@ -208,7 +210,7 @@ export function BookingPanel({ trip, onClose }: { trip: TripState; onClose: () =
               onClick={() => setView('partners')}
               className="mt-5 text-sm font-bold text-accent"
             >
-              ← Back to partners
+              ← Back to booking links
             </button>
           )}
         </div>
