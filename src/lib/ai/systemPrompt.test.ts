@@ -13,4 +13,22 @@ describe('buildSystemPrompt', () => {
     expect(p.toLowerCase()).toContain('title')
     expect(p.toLowerCase()).toContain('conflict')
   })
+
+  it('forbids markdown and data-in-prose, so the cards carry the detail', () => {
+    const p = buildSystemPrompt().toLowerCase()
+    expect(p).toContain('never use markdown')
+    expect(p).toContain('cards')
+  })
+
+  it('pushes the agent to assume defaults instead of interrogating', () => {
+    const p = buildSystemPrompt().toLowerCase()
+    expect(p).toContain('one question per turn')
+    expect(p).toContain('never ask permission to search')
+  })
+
+  it('tells the agent to cover the whole trip, food included', () => {
+    const p = buildSystemPrompt().toLowerCase()
+    expect(p).toContain('where to eat')
+    expect(p).toContain('getstaydetails')
+  })
 })
