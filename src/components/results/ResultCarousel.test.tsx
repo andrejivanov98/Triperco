@@ -14,7 +14,7 @@ const set: ResultSet = {
 describe('ResultCarousel', () => {
   it('renders a count label and one card per item', () => {
     render(<ResultCarousel set={set} onOpen={() => {}} onAdd={() => {}} />)
-    expect(screen.getByText(/2 stays/i)).toBeInTheDocument()
+    expect(screen.getByText(/2 places to stay/i)).toBeInTheDocument()
     expect(screen.getByText('Hotel One')).toBeInTheDocument()
     expect(screen.getByText('Hotel Two')).toBeInTheDocument()
   })

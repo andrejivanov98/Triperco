@@ -15,8 +15,8 @@ export default function Home() {
           Where are you heading next?
         </Heading>
         <p className="max-w-xl font-medium text-muted">
-          Tell Triperco where and when. It finds flights, stays, and things to do — and builds a
-          plan you can book yourself.
+          Describe the trip in your own words. Triperco finds the real flights, stays and things to
+          do, shows you everything you need to choose, and builds the plan as you chat.
         </p>
         <div className="mt-1 flex w-full justify-center">
           <LandingComposer />

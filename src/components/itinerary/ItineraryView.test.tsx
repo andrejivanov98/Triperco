@@ -18,12 +18,34 @@ describe('ItineraryView', () => {
     render(<ItineraryView trip={trip()} />)
     expect(screen.getByRole('heading', { name: 'Tenerife Escape' })).toBeInTheDocument()
     expect(screen.getByText('$1,462')).toBeInTheDocument() // trip total (distinct from the $1,400 stay)
-    expect(screen.getByText(/search flights/i)).toBeInTheDocument()
+    expect(screen.getByText(/no flights yet/i)).toBeInTheDocument()
+  })
+
+  it('breaks the total down by flights and stays', () => {
+    const t = trip()
+    t.flights = [{ id: 'f1', from: 'SKP', to: 'TFS', stops: 0, price: 200, bookUrl: 'x' }]
+    render(<ItineraryView trip={t} />)
+    // 200 per traveler × 2 travelers
+    expect(screen.getByText(/Flights × 2/)).toBeInTheDocument()
+    expect(screen.getByText('$400')).toBeInTheDocument()
+    expect(screen.getByText('Stays')).toBeInTheDocument()
   })
 
   it('shows the empty state when nothing is added', () => {
     render(<ItineraryView trip={createTrip('empty')} />)
-    expect(screen.getByText(/your trip will appear here/i)).toBeInTheDocument()
+    expect(screen.getByText(/your plan builds here/i)).toBeInTheDocument()
+  })
+
+  it('lets the traveler correct the trip context when editing is wired up', () => {
+    const onEditMeta = vi.fn()
+    render(<ItineraryView trip={trip()} onEditMeta={onEditMeta} />)
+    fireEvent.click(screen.getByRole('button', { name: /add traveler/i }))
+    expect(onEditMeta).toHaveBeenCalledWith({ travelers: 3 })
+  })
+
+  it('hides the context editor when no handler is given', () => {
+    render(<ItineraryView trip={trip()} />)
+    expect(screen.queryByRole('button', { name: /add traveler/i })).not.toBeInTheDocument()
   })
 
   it('surfaces a watch-out (stay nights vs trip length)', () => {

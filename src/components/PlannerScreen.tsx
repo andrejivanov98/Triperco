@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport } from 'ai'
 import type { TripState, Flight, Stay, Place, ItineraryItem } from '@/lib/trip/types'
@@ -9,18 +9,19 @@ import type { TriperUIMessage } from '@/lib/ui/messages'
 import type { ResultSet } from '@/lib/ui/results'
 import { getLatestTrip } from '@/lib/ui/messages'
 import { tripToMarkers } from '@/lib/ui/mapMarkers'
+import { suggestQuickReplies } from '@/lib/ui/quickReplies'
 import { createTrip, setMeta, addFlight, addStay, addItineraryItem } from '@/lib/trip/tripState'
 import { ChatPane } from './chat/ChatPane'
-import { ContextChips } from './chat/ContextChips'
+import { ChatEmptyState } from './chat/ChatEmptyState'
 import { ItineraryView } from './itinerary/ItineraryView'
 import { MapView } from './plan/MapView'
 import { PlanMapToggle, type PlanView as PlanViewMode } from './plan/PlanMapToggle'
 import { ShareButton } from './share/ShareButton'
-import { DetailView } from './results/DetailView'
-
-const SUGGESTIONS = ['Plan a weekend in Rome', 'Find me a cheap flight', 'Add a hidden gem']
+import { DetailPanel } from './results/DetailPanel'
+import { PlannerHeader } from './PlannerHeader'
 
 export function PlannerScreen() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const fromId = searchParams.get('from')
 
@@ -60,14 +61,13 @@ export function PlannerScreen() {
 
   const openDetail = useCallback((set: ResultSet, item: Flight | Stay | Place) => {
     setDetail({ kind: set.kind, item })
-    setView('plan')
   }, [])
 
   const editMeta = useCallback((patch: Partial<TripState['meta']>) => {
     setTrip((t) => setMeta(t, patch))
   }, [])
 
-  const { messages, sendMessage, status } = useChat<TriperUIMessage>({
+  const { messages, sendMessage, setMessages, status } = useChat<TriperUIMessage>({
     transport: new DefaultChatTransport({
       api: '/api/chat',
       prepareSendMessagesRequest: ({ messages }) => ({
@@ -75,6 +75,15 @@ export function PlannerScreen() {
       }),
     }),
   })
+
+  const startNewTrip = useCallback(() => {
+    setMessages([])
+    setTrip(createTrip('draft'))
+    setDetail(null)
+    setShareUrl(null)
+    setView('plan')
+    router.replace('/plan')
+  }, [router, setMessages])
 
   // Seed from a shared trip when arriving via /plan?from={id}.
   useEffect(() => {
@@ -120,6 +129,7 @@ export function PlannerScreen() {
   }, [messages])
 
   const markers = useMemo(() => tripToMarkers(trip), [trip])
+  const quickReplies = useMemo(() => suggestQuickReplies(trip), [trip])
 
   const handleShare = useCallback(async () => {
     setSharing(true)
@@ -137,48 +147,57 @@ export function PlannerScreen() {
   }, [])
 
   return (
-    <main className="mx-auto grid h-screen max-w-6xl grid-cols-1 gap-4 p-4 md:grid-cols-[minmax(320px,36%)_1fr]">
-      <div className="flex min-h-0 flex-col gap-3">
-        <ContextChips meta={trip.meta} onEdit={editMeta} />
-        <div className="min-h-0 flex-1">
+    <main className="mx-auto flex h-screen max-w-[1700px] flex-col gap-2 p-3 sm:p-4">
+      <PlannerHeader
+        title={trip.meta.title ?? trip.meta.destination}
+        onNewTrip={startNewTrip}
+        right={<ShareButton onShare={handleShare} sharing={sharing} shareUrl={shareUrl} />}
+      />
+
+      {/* The chat is where the planning happens, so it gets the room. */}
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-[1fr_minmax(300px,30%)]">
+        <div className="glass flex min-h-0 flex-col p-4">
           <ChatPane
             messages={messages}
             status={status}
-            suggestions={messages.length === 0 ? SUGGESTIONS : []}
+            suggestions={quickReplies}
             onSend={(text) => sendMessage({ text })}
             onAddResult={addResult}
             onOpenDetail={openDetail}
+            emptyState={<ChatEmptyState onPick={(text) => sendMessage({ text })} />}
           />
         </div>
+
+        <aside className="glass flex min-h-0 flex-col gap-3 p-3">
+          <div className="flex items-center justify-between gap-2">
+            <PlanMapToggle view={view} onChange={setView} />
+          </div>
+          <div className="min-h-0 flex-1">
+            {view === 'plan' ? (
+              <ItineraryView
+                trip={trip}
+                onFix={(prompt) => sendMessage({ text: prompt })}
+                onEditMeta={editMeta}
+              />
+            ) : (
+              <MapView markers={markers} />
+            )}
+          </div>
+        </aside>
       </div>
 
-      <div className="glass flex min-h-0 flex-col gap-3 p-4">
-        {detail ? (
-          <DetailView
-            kind={detail.kind}
-            item={detail.item}
-            onClose={() => setDetail(null)}
-            onAdd={() => {
-              addResult({ kind: detail.kind, items: [] } as ResultSet, detail.item)
-              setDetail(null)
-            }}
-          />
-        ) : (
-          <>
-            <div className="flex items-center justify-between gap-3">
-              <PlanMapToggle view={view} onChange={setView} />
-              <ShareButton onShare={handleShare} sharing={sharing} shareUrl={shareUrl} />
-            </div>
-            <div className="min-h-0 flex-1">
-              {view === 'plan' ? (
-                <ItineraryView trip={trip} onFix={(prompt) => sendMessage({ text: prompt })} />
-              ) : (
-                <MapView markers={markers} />
-              )}
-            </div>
-          </>
-        )}
-      </div>
+      {detail && (
+        <DetailPanel
+          kind={detail.kind}
+          item={detail.item}
+          meta={trip.meta}
+          onClose={() => setDetail(null)}
+          onAdd={() => {
+            addResult({ kind: detail.kind, items: [] } as ResultSet, detail.item)
+            setDetail(null)
+          }}
+        />
+      )}
     </main>
   )
 }
