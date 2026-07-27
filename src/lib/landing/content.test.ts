@@ -1,7 +1,24 @@
 import { describe, it, expect } from 'vitest'
-import { destinations, experiences, allLandingItems } from './content'
+import { destinations, experiences, lovedPlaces, allLandingItems } from './content'
 
 describe('landing content', () => {
+  it('gives every row at least ten options to scroll through', () => {
+    expect(destinations.length).toBeGreaterThanOrEqual(10)
+    expect(experiences.length).toBeGreaterThanOrEqual(10)
+    expect(lovedPlaces.length).toBeGreaterThanOrEqual(10)
+  })
+
+  it('has loved places, each fully populated', () => {
+    for (const p of lovedPlaces) {
+      expect(p.id).toBeTruthy()
+      expect(p.title).toBeTruthy()
+      expect(p.blurb).toBeTruthy()
+      expect(p.country).toBeTruthy()
+      expect(p.image).toMatch(/^https:\/\//)
+      expect(p.planPrompt.toLowerCase()).toContain(p.title.toLowerCase())
+    }
+  })
+
   it('has several destinations, each fully populated', () => {
     expect(destinations.length).toBeGreaterThanOrEqual(4)
     for (const d of destinations) {

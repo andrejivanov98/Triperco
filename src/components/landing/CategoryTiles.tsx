@@ -1,34 +1,63 @@
 import Link from 'next/link'
+import {
+  StayIllustration,
+  FlightIllustration,
+  ThingsToDoIllustration,
+  DestinationsIllustration,
+} from './illustrations'
 
 interface Category {
   label: string
-  glyph: string
+  description: string
   prompt: string
-  gradient: string
+  Illustration: () => React.ReactElement
 }
 
 const CATEGORIES: Category[] = [
-  { label: 'Hotels & homes', glyph: '🏠', prompt: 'Help me find a great place to stay.', gradient: 'from-accent-050 to-sand' },
-  { label: 'Flights', glyph: '✈️', prompt: 'Help me find flights for my trip.', gradient: 'from-sand to-accent-050' },
-  { label: 'Things to do', glyph: '🎫', prompt: 'Suggest things to do on my trip.', gradient: 'from-accent-050 to-white' },
-  { label: 'Destinations', glyph: '🧭', prompt: 'Help me choose where to go.', gradient: 'from-sand to-white' },
+  {
+    label: 'Hotels & homes',
+    description: 'Insightful recs just for you at unbeatable prices.',
+    prompt: 'Help me find a great place to stay.',
+    Illustration: StayIllustration,
+  },
+  {
+    label: 'Flights',
+    description: 'Every route compared, with the trade-offs spelled out.',
+    prompt: 'Help me find flights for my trip.',
+    Illustration: FlightIllustration,
+  },
+  {
+    label: 'Things to do',
+    description: 'What to see, do, and eat — perfectly planned.',
+    prompt: 'Suggest things to do on my trip.',
+    Illustration: ThingsToDoIllustration,
+  },
+  {
+    label: 'Destinations',
+    description: 'Describe a vibe and discover epic places & itineraries.',
+    prompt: 'Help me choose where to go.',
+    Illustration: DestinationsIllustration,
+  },
 ]
 
 export function CategoryTiles() {
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-      {CATEGORIES.map((c) => (
+    <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
+      {CATEGORIES.map(({ label, description, prompt, Illustration }) => (
         <Link
-          key={c.label}
-          href={`/plan?q=${encodeURIComponent(c.prompt)}`}
-          className="glass group flex flex-col gap-2 overflow-hidden p-0"
+          key={label}
+          href={`/plan?q=${encodeURIComponent(prompt)}`}
+          className="group flex flex-col gap-3"
         >
-          <div
-            className={`flex h-24 w-full items-center justify-center bg-gradient-to-br ${c.gradient} text-3xl transition group-hover:scale-[1.03]`}
-          >
-            {c.glyph}
+          <div className="aspect-square w-full overflow-hidden rounded-3xl bg-sand/60 p-5 transition group-hover:bg-sand">
+            <div className="h-full w-full transition group-hover:scale-[1.04]">
+              <Illustration />
+            </div>
           </div>
-          <div className="px-3 pb-3 text-sm font-bold text-ink">{c.label}</div>
+          <div>
+            <div className="text-sm font-bold text-ink">{label}</div>
+            <p className="mt-1 text-xs font-medium leading-relaxed text-muted">{description}</p>
+          </div>
         </Link>
       ))}
     </div>

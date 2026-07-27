@@ -6,13 +6,13 @@ export function ExperienceCard({ experience }: { experience: Experience }) {
   return (
     <Link
       href={`/plan?q=${encodeURIComponent(experience.planPrompt)}`}
-      className="group relative block h-56 w-72 shrink-0 overflow-hidden rounded-[22px]"
+      className="group relative block h-60 w-[268px] shrink-0 snap-start overflow-hidden rounded-[20px]"
     >
       <Image
         src={experience.image}
         alt={experience.title}
         fill
-        sizes="288px"
+        sizes="268px"
         className="object-cover transition group-hover:scale-105"
       />
       <div className="absolute inset-0 bg-gradient-to-t from-deep/70 to-transparent" />
