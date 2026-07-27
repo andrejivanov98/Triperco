@@ -13,6 +13,7 @@ import {
 import { formatMoney } from '@/lib/ui/format'
 import { formatDateRange } from '@/lib/trip/dates'
 import { Heading } from '@/components/ui/Heading'
+import { RemoteImage } from '@/components/ui/RemoteImage'
 
 const STATUSES: BookingStatus[] = ['not_booked', 'booked', 'confirmed']
 
@@ -61,14 +62,13 @@ function PartnerCard({
   return (
     <div className="flex flex-col gap-3 rounded-3xl border border-hairline bg-sand/40 p-3">
       <div className="flex items-center gap-3 rounded-2xl bg-white p-3">
-        {item.thumbnail ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={item.thumbnail} alt="" className="h-14 w-14 shrink-0 rounded-xl object-cover" />
-        ) : (
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-sand text-lg">
-            {item.kind === 'flight' ? '✈' : item.kind === 'stay' ? '🏨' : '🎫'}
-          </div>
-        )}
+        <RemoteImage
+          src={item.thumbnail}
+          alt={item.title}
+          fallbackGlyph={item.kind === 'flight' ? '✈' : item.kind === 'stay' ? '🏨' : '🎫'}
+          className="h-14 w-14 shrink-0 rounded-xl object-cover"
+          fallbackClassName="text-lg"
+        />
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-bold text-ink">{item.title}</div>
           {item.detail && (

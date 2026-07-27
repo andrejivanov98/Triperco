@@ -7,7 +7,7 @@ import { DefaultChatTransport } from 'ai'
 import type { TripState, Flight, Stay, Place, ItineraryItem } from '@/lib/trip/types'
 import type { TriperUIMessage } from '@/lib/ui/messages'
 import type { ResultSet } from '@/lib/ui/results'
-import { getLatestTrip } from '@/lib/ui/messages'
+import { getLatestMeta } from '@/lib/ui/messages'
 import { tripToMarkers } from '@/lib/ui/mapMarkers'
 import { suggestQuickReplies } from '@/lib/ui/quickReplies'
 import { readOpeningContext, contextToMeta, buildOpeningMessage } from '@/lib/ui/openingMessage'
@@ -54,8 +54,19 @@ export function PlannerScreen() {
     setTrip((t) => {
       if (set.kind === 'stays') return addStay(t, item as Stay)
       if (set.kind === 'flights') return addFlight(t, item as Flight)
+      // Carry enough of the place across that the plan row looks like the card they picked.
       const p = item as Place
-      const entry: ItineraryItem = { placeId: p.id, name: p.name, coords: p.coords }
+      const entry: ItineraryItem = {
+        placeId: p.id,
+        name: p.name,
+        coords: p.coords,
+        thumbnail: p.photos[0],
+        category: p.category,
+        rating: p.rating,
+        reviewCount: p.reviewCount,
+        address: p.address,
+        bookUrl: p.sourceLinks?.maps,
+      }
       return addItineraryItem(t, 0, entry)
     })
   }, [])
@@ -157,9 +168,11 @@ export function PlannerScreen() {
     }
   }, [trip.meta.destination, trip.meta.coverImage])
 
+  // Take the context the agent learned (destination, dates, title) but never its idea of the plan:
+  // adding and removing is the traveler's alone, so the client stays the source of truth.
   useEffect(() => {
-    const latest = getLatestTrip(messages)
-    if (latest) setTrip(latest)
+    const meta = getLatestMeta(messages)
+    if (meta) setTrip((t) => setMeta(t, meta))
   }, [messages])
 
   const markers = useMemo(() => tripToMarkers(trip), [trip])

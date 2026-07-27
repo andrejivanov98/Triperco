@@ -1,6 +1,7 @@
 import type { Flight } from '@/lib/trip/types'
 import { formatMoney, formatDuration, formatStops } from '@/lib/ui/format'
 import { Badge, badgeTone } from '@/components/ui/Badge'
+import { RemoteImage } from '@/components/ui/RemoteImage'
 
 /** A flight itinerary as a route line: times at each end, duration and stops in between. */
 export function FlightResultCard({
@@ -27,12 +28,13 @@ export function FlightResultCard({
     >
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
-          {flight.airlineLogo ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={flight.airlineLogo} alt="" className="h-6 w-6 rounded object-contain" />
-          ) : (
-            <span className="flex h-6 w-6 items-center justify-center rounded bg-sand text-xs">✈</span>
-          )}
+          <RemoteImage
+            src={flight.airlineLogo}
+            alt={flight.airline ?? 'Airline'}
+            fallbackGlyph="✈"
+            className="h-6 w-6 rounded object-contain"
+            fallbackClassName="text-xs"
+          />
           <span className="truncate text-xs font-bold text-ink">{flight.airline ?? 'Flight'}</span>
         </div>
         {badges.length > 0 && (

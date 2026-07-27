@@ -8,6 +8,7 @@ import { TimelineItemCard } from './TimelineItemCard'
 import { WatchoutBanner } from './WatchoutBanner'
 import { TripContext } from './TripContext'
 import { AddSlotRow, slotPrompt } from './AddSlotRow'
+import { RemoteImage } from '@/components/ui/RemoteImage'
 
 export function ItineraryView({
   trip,
@@ -44,14 +45,13 @@ export function ItineraryView({
   return (
     <div className="flex h-full flex-col gap-2">
       {/* Hero */}
-      <div className="relative h-24 w-full shrink-0 overflow-hidden rounded-2xl">
-        {trip.meta.coverImage ? (
-          // Data-driven external host — plain img avoids next/image allowlisting.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={trip.meta.coverImage} alt="" className="h-full w-full object-cover" />
-        ) : (
-          <div className="h-full w-full bg-gradient-to-br from-accent-050 to-sand" />
-        )}
+      <div className="relative h-32 w-full shrink-0 overflow-hidden rounded-2xl">
+        <RemoteImage
+          src={trip.meta.coverImage}
+          alt={trip.meta.destination ? `${trip.meta.destination} cover photo` : 'Trip cover'}
+          fallbackGlyph="🧭"
+          className="h-full w-full object-cover"
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-deep/75 to-transparent" />
         <div className="absolute inset-x-0 bottom-0 p-3">
           <Heading level={2} className="truncate text-lg text-white">

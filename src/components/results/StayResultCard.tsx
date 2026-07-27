@@ -4,6 +4,7 @@ import { useState } from 'react'
 import type { Stay } from '@/lib/trip/types'
 import { formatMoney } from '@/lib/ui/format'
 import { Badge, badgeTone } from '@/components/ui/Badge'
+import { RemoteImage } from '@/components/ui/RemoteImage'
 
 /** "1 bedroom · 2 beds" style line, from whatever the provider gave us. */
 function bedsLine(stay: Stay): string | undefined {
@@ -47,10 +48,10 @@ export function StayResultCard({
             onClick={() => onOpenPhotos?.(photoIndex)}
             className="block h-full w-full"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <RemoteImage
               src={photos[photoIndex]}
               alt={stay.name}
+              fallbackGlyph="🏨"
               className="h-full w-full object-cover transition group-hover:scale-[1.03]"
             />
           </button>

@@ -1,18 +1,9 @@
 import { tool } from 'ai'
 import { z } from 'zod'
-import type { TripState, Flight, Stay, Place, ItineraryItem } from '../trip/types'
+import type { TripState, Flight, Stay, Place } from '../trip/types'
 import type { ResultSet } from '../ui/results'
 import type { OptionSet, PrefForm } from '../ui/interactions'
-import {
-  createTrip,
-  setMeta,
-  addFlight as addFlightR,
-  removeFlight as removeFlightR,
-  addStay as addStayR,
-  removeStay as removeStayR,
-  addItineraryItem as addItineraryItemR,
-  removeItineraryItem as removeItineraryItemR,
-} from '../trip/tripState'
+import { createTrip, setMeta } from '../trip/tripState'
 import { mergeStayDetail } from '../trip/mergeStay'
 import {
   searchFlights as apiSearchFlights,
@@ -90,7 +81,7 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
 
     searchFlights: tool({
       description:
-        'Search flights between two airports. Dates must be today or later. For a round trip you MUST pass return_date. Returns options with ids; add flights only by these ids.',
+        'Search flights between two airports. Dates must be today or later. For a round trip you MUST pass return_date. The traveler picks what goes into the plan — you only surface options.',
       inputSchema: z.object({
         departure_id: z.string().describe('IATA airport/city code, e.g. SKP'),
         arrival_id: z.string().describe('IATA airport/city code, e.g. FCO'),
@@ -124,29 +115,11 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
         }),
     }),
 
-    addFlight: tool({
-      description: 'Add a flight to the trip by an id from the latest flight search.',
-      inputSchema: z.object({ id: z.string() }),
-      execute: async ({ id }) => {
-        const flight = state.lastFlights.find((f) => f.id === id)
-        if (!flight) return { error: `No flight "${id}" in the latest search results.` }
-        state.trip = addFlightR(state.trip, flight)
-        return { added: flight.id, estimatedTotal: state.trip.estimatedTotal }
-      },
-    }),
 
-    removeFlight: tool({
-      description: 'Remove a flight from the trip by id.',
-      inputSchema: z.object({ id: z.string() }),
-      execute: async ({ id }) => {
-        state.trip = removeFlightR(state.trip, id)
-        return { removed: id, estimatedTotal: state.trip.estimatedTotal }
-      },
-    }),
 
     searchHotels: tool({
       description:
-        'Search hotels/stays for a place and date range. Returns options with ids; add stays only by these ids.',
+        'Search hotels/stays for a place and date range. The traveler picks what goes into the plan — you only surface options.',
       inputSchema: z.object({
         q: z.string().describe('Location or hotel name, e.g. "Rome"'),
         check_in_date: z.string().describe('YYYY-MM-DD, today or later'),
@@ -220,29 +193,11 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
         }),
     }),
 
-    addStay: tool({
-      description: 'Add a stay to the trip by an id from the latest hotel search.',
-      inputSchema: z.object({ id: z.string() }),
-      execute: async ({ id }) => {
-        const stay = state.lastStays.find((s) => s.id === id)
-        if (!stay) return { error: `No stay "${id}" in the latest search results.` }
-        state.trip = addStayR(state.trip, stay)
-        return { added: stay.id, estimatedTotal: state.trip.estimatedTotal }
-      },
-    }),
 
-    removeStay: tool({
-      description: 'Remove a stay from the trip by id.',
-      inputSchema: z.object({ id: z.string() }),
-      execute: async ({ id }) => {
-        state.trip = removeStayR(state.trip, id)
-        return { removed: id, estimatedTotal: state.trip.estimatedTotal }
-      },
-    }),
 
     searchPlaces: tool({
       description:
-        'Search places/attractions/restaurants near a location. Returns options with ids; add to itinerary only by these ids.',
+        'Search places, attractions and restaurants near a location. The traveler picks what goes into the plan — you only surface options.',
       inputSchema: z.object({
         q: z.string().describe('What to search, e.g. "top attractions in Rome"'),
         ll: z.string().optional().describe('GPS bias, format "@lat,lng,zoom"'),
@@ -264,26 +219,7 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
         }),
     }),
 
-    addPlaceToItinerary: tool({
-      description: 'Add a searched place to a specific day of the itinerary (dayIndex is 0-based).',
-      inputSchema: z.object({ id: z.string(), dayIndex: z.number().int().min(0) }),
-      execute: async ({ id, dayIndex }) => {
-        const place = state.lastPlaces.find((p) => p.id === id)
-        if (!place) return { error: `No place "${id}" in the latest search results.` }
-        const item: ItineraryItem = { placeId: place.id, name: place.name, coords: place.coords }
-        state.trip = addItineraryItemR(state.trip, dayIndex, item)
-        return { added: place.name, dayIndex }
-      },
-    }),
 
-    removeItineraryItem: tool({
-      description: 'Remove a place from a day of the itinerary by dayIndex + placeId.',
-      inputSchema: z.object({ dayIndex: z.number().int().min(0), placeId: z.string() }),
-      execute: async ({ dayIndex, placeId }) => {
-        state.trip = removeItineraryItemR(state.trip, dayIndex, placeId)
-        return { removed: placeId, dayIndex }
-      },
-    }),
 
     getPlaceDetails: tool({
       description:

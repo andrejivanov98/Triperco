@@ -15,8 +15,9 @@ export interface Experience {
   planPrompt: string
 }
 
-// Unsplash images referenced remotely (see next.config images.remotePatterns).
+// Remote images (hosts allowed in next.config images.remotePatterns). next/image resizes them.
 const IMG = (id: string) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=800&q=70`
+const WIKI = (path: string) => `https://upload.wikimedia.org/wikipedia/commons/${path}`
 
 export const destinations: Destination[] = [
   {
@@ -104,7 +105,7 @@ export const destinations: Destination[] = [
     title: 'Edinburgh',
     country: 'Scotland',
     blurb: 'Old-town closes, a volcano in the middle, and proper pubs.',
-    image: IMG('photo-1506377585622-bfe3f2b8c8e0'),
+    image: WIKI('thumb/1/1a/Skyline_of_Edinburgh.jpg/3840px-Skyline_of_Edinburgh.jpg'),
     planPrompt: 'Plan a 3-day trip to Edinburgh with the old town, a hike, and whisky.',
   },
   {
@@ -129,7 +130,7 @@ export const experiences: Experience[] = [
     id: 'amalfi-drive',
     title: 'Drive the Amalfi Coast',
     blurb: 'Cliffside villages, lemon groves, and endless sea views.',
-    image: IMG('photo-1533165850316-4dc8f0aa2c1c'),
+    image: WIKI('thumb/3/3d/Amalfi_Coast_%28Italy%2C_October_2020%29_-_75_%2850558355441%29.jpg/3840px-Amalfi_Coast_%28Italy%2C_October_2020%29_-_75_%2850558355441%29.jpg'),
     planPrompt: 'Plan a 5-day Amalfi Coast road trip with the best coastal towns.',
   },
   {
@@ -235,7 +236,7 @@ export const lovedPlaces: Destination[] = [
     title: 'Charleston',
     country: 'United States',
     blurb: 'Cobblestone streets, Lowcountry flavors, and complex American history.',
-    image: IMG('photo-1595859703065-2259ca1bcb4c'),
+    image: WIKI('2/2e/East_Battery_Street_Charleston_Aug2010.jpg'),
     planPrompt: 'Plan a 4-day trip to Charleston with historic streets and Lowcountry food.',
   },
   {
@@ -259,7 +260,7 @@ export const lovedPlaces: Destination[] = [
     title: 'Portland',
     country: 'United States',
     blurb: 'Bookshops, food carts, and forest trails inside the city.',
-    image: IMG('photo-1541457523724-ed5b8e56e0bc'),
+    image: WIKI('4/4d/Portland_Oregon_Aerial%2C_June_2025.jpg'),
     planPrompt: 'Plan a 4-day trip to Portland with food, coffee, and a gorge day trip.',
   },
   {
@@ -283,7 +284,7 @@ export const lovedPlaces: Destination[] = [
     title: 'Valparaíso',
     country: 'Chile',
     blurb: 'Hillside murals, funiculars, and Pacific fog rolling in.',
-    image: IMG('photo-1596395819057-e37f9b3d95d5'),
+    image: WIKI('d/dd/Historic_Quarter_of_the_Seaport_City_of_Valpara%C3%ADso_04.jpg'),
     planPrompt: 'Plan a 4-day trip to Valparaíso with street art, funiculars, and wine.',
   },
   {
@@ -291,7 +292,7 @@ export const lovedPlaces: Destination[] = [
     title: 'Kotor',
     country: 'Montenegro',
     blurb: 'A walled town at the head of a fjord-like bay.',
-    image: IMG('photo-1601649949919-2ec7ad9b8daf'),
+    image: WIKI('thumb/2/26/20090719_Crkva_Gospa_od_Zdravlja_Kotor_Bay_Montenegro.jpg/3840px-20090719_Crkva_Gospa_od_Zdravlja_Kotor_Bay_Montenegro.jpg'),
     planPrompt: 'Plan a 4-day trip to Kotor with the bay, the fortress climb, and nearby beaches.',
   },
   {
@@ -299,7 +300,7 @@ export const lovedPlaces: Destination[] = [
     title: 'Tbilisi',
     country: 'Georgia',
     blurb: 'Sulphur baths, balconied old streets, and very good wine.',
-    image: IMG('photo-1565008576549-57ea3ac7b5d9'),
+    image: WIKI('thumb/4/45/View_of_Tbilisi_from_Tabori_Church_2023-10-08-2.jpg/3840px-View_of_Tbilisi_from_Tabori_Church_2023-10-08-2.jpg'),
     planPrompt: 'Plan a 5-day trip to Tbilisi with the old town, wine country, and mountains.',
   },
 ]

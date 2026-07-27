@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { RemoteImage } from '@/components/ui/RemoteImage'
 
 /** Full-screen photo viewer: arrows, keyboard, counter, click-out to close. */
 export function Lightbox({
@@ -44,11 +45,11 @@ export function Lightbox({
       />
 
       <div className="pointer-events-none relative flex h-full flex-col items-center justify-center p-4">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <RemoteImage
           src={photos[index]}
           alt={`${title} photo ${index + 1} of ${count}`}
           className="max-h-[82vh] max-w-full rounded-2xl object-contain"
+          fallbackClassName="h-64 w-64 rounded-2xl"
         />
         <div className="mt-3 text-xs font-bold uppercase tracking-wide text-white/80">
           {index + 1} / {count}

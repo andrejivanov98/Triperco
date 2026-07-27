@@ -1,6 +1,7 @@
 import type { Stay } from '@/lib/trip/types'
 import { formatMoney, formatRating } from '@/lib/ui/format'
 import { Heading } from '@/components/ui/Heading'
+import { RemoteImage } from '@/components/ui/RemoteImage'
 import {
   DetailSection,
   FactGrid,
@@ -79,12 +80,13 @@ export function StayDetail({
           <div className="flex flex-col divide-y divide-hairline overflow-hidden rounded-xl border border-hairline bg-white/50">
             {stay.offers.slice(0, 6).map((offer, i) => (
               <div key={`${offer.source}-${i}`} className="flex items-center gap-3 px-3 py-2">
-                {offer.logo ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={offer.logo} alt="" className="h-5 w-5 rounded object-contain" />
-                ) : (
-                  <span className="h-5 w-5" />
-                )}
+                <RemoteImage
+                  src={offer.logo}
+                  alt={offer.source}
+                  fallbackGlyph="🏷"
+                  className="h-5 w-5 rounded object-contain"
+                  fallbackClassName="text-[10px]"
+                />
                 <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">
                   {offer.source}
                   {offer.official && (

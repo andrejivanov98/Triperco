@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { RemoteImage } from '@/components/ui/RemoteImage'
 
 /** A titled block inside a detail panel. */
 export function DetailSection({ title, children }: { title: string; children: ReactNode }) {
@@ -60,8 +61,7 @@ export function Gallery({
       aria-label={`Open ${title} photo ${index + 1}`}
       className={`group relative overflow-hidden rounded-xl bg-sand ${className}`}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
+      <RemoteImage
         src={src}
         alt={`${title} photo ${index + 1}`}
         className="h-full w-full object-cover transition group-hover:scale-[1.03]"

@@ -21,8 +21,8 @@ export async function POST(req: Request) {
       const result = await agent.stream({
         messages: await convertToModelMessages(messages),
         onFinish: () => {
-          // Emit the trip the tools built this turn so the client can render it.
-          writer.write({ type: 'data-trip', data: state.trip })
+          // Only the context the agent learned — never the plan. The traveler owns the plan.
+          writer.write({ type: 'data-meta', data: state.trip.meta })
           // Emit each search performed this turn so the client can show result carousels.
           for (const set of state.pendingResults) {
             writer.write({ type: 'data-results', data: set })

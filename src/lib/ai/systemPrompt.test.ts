@@ -37,6 +37,19 @@ describe('buildSystemPrompt', () => {
     expect(p).toContain('never ask permission to search')
   })
 
+  it('forbids the agent from putting anything in the plan', () => {
+    const p = buildSystemPrompt().toLowerCase()
+    expect(p).toContain('you never put anything in the plan')
+    expect(p).toContain('never claim you added')
+    expect(p).toContain('add to trip')
+  })
+
+  it('bans narration so the chat shows results, not intentions', () => {
+    const p = buildSystemPrompt().toLowerCase()
+    expect(p).toContain('do not narrate')
+    expect(p).toContain('one or two short sentences')
+  })
+
   it('tells the agent to cover the whole trip, food included', () => {
     const p = buildSystemPrompt().toLowerCase()
     expect(p).toContain('where to eat')

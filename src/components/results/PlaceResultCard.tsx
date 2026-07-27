@@ -2,6 +2,7 @@
 
 import type { Place } from '@/lib/trip/types'
 import { Badge, badgeTone } from '@/components/ui/Badge'
+import { RemoteImage } from '@/components/ui/RemoteImage'
 
 /** A thing to do: photo-led, with the rating and what kind of place it is. */
 export function PlaceResultCard({
@@ -29,10 +30,10 @@ export function PlaceResultCard({
             onClick={() => onOpenPhotos?.(0)}
             className="block h-full w-full"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <RemoteImage
               src={photo}
               alt={place.name}
+              fallbackGlyph="🎫"
               className="h-full w-full object-cover transition group-hover:scale-[1.03]"
             />
           </button>

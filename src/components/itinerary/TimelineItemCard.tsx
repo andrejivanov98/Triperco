@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import type { TimelineItem } from '@/lib/trip/timeline'
 import { formatMoney, formatRating } from '@/lib/ui/format'
+import { RemoteImage } from '@/components/ui/RemoteImage'
 
 const KIND_GLYPH: Record<TimelineItem['kind'], string> = {
   flight: '✈',
@@ -41,15 +42,13 @@ export function TimelineItemCard({
         aria-label={canAct ? `${open ? 'Hide' : 'Show'} options for ${item.title}` : undefined}
         className="flex w-full items-start gap-2.5 p-2.5 text-left"
       >
-        {item.thumbnail ? (
-          // Data-driven external host (SearchApi photos) — plain img avoids next/image allowlisting.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={item.thumbnail} alt="" className="h-11 w-11 shrink-0 rounded-lg object-cover" />
-        ) : (
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-sand text-base">
-            {KIND_GLYPH[item.kind]}
-          </div>
-        )}
+        <RemoteImage
+          src={item.thumbnail}
+          alt={item.title}
+          fallbackGlyph={KIND_GLYPH[item.kind]}
+          className="h-11 w-11 shrink-0 rounded-lg object-cover"
+          fallbackClassName="text-base"
+        />
 
         <div className="min-w-0 flex-1">
           <div className="truncate text-xs font-bold text-ink">{item.title}</div>

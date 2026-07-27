@@ -183,6 +183,16 @@ export interface ItineraryItem {
   name: string
   coords?: Coords
   note?: string
+  /** Kept so the plan can show the thing you picked, not a placeholder. */
+  thumbnail?: string
+  category?: string
+  rating?: number
+  reviewCount?: number
+  address?: string
+  bookUrl?: string
+  /** Set once a tours provider supplies them. */
+  price?: number
+  durationMinutes?: number
 }
 
 export interface Day {

@@ -1,5 +1,6 @@
 import type { TripState, Flight, Stay } from './types'
 import { enumerateDates, formatDayLabel, formatDateRange } from './dates'
+import { formatDuration } from '../ui/format'
 
 export type TimelineItemKind = 'flight' | 'stay' | 'activity'
 export type AddSlot = 'flights' | 'return-flight' | 'stays' | 'activities'
@@ -88,7 +89,15 @@ export function buildTimeline(trip: TripState): Timeline {
       kind: 'activity' as const,
       id: it.placeId,
       title: it.name,
-      subtitle: it.note,
+      subtitle: it.note ?? it.category,
+      timeLabel: formatDuration(it.durationMinutes),
+      price: it.price,
+      priceUnit: it.price !== undefined ? ('total' as const) : undefined,
+      thumbnail: it.thumbnail,
+      rating: it.rating,
+      reviewCount: it.reviewCount,
+      bookUrl: it.bookUrl,
+      bookLabel: 'Open in Maps',
       bookingStatus: 'not_booked' as const,
       dayIndex,
     }))
