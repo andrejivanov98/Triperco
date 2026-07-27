@@ -126,3 +126,28 @@ describe('normalizePlaces', () => {
     expect(place.reviewSnippets).toEqual([{ text: '"Excellent timing on the food!"' }])
   })
 })
+
+describe('normalizePlaces — closed state', () => {
+  it('flags a permanently closed place', () => {
+    const [place] = normalizePlaces({
+      local_results: [{ title: 'Old Bar', place_id: 'P', open_state: 'Permanently closed' }],
+    })
+    expect(place.permanentlyClosed).toBe(true)
+    expect(place.openNow).toBe(false)
+  })
+
+  it('flags a temporarily closed place too', () => {
+    const [place] = normalizePlaces({
+      local_results: [{ title: 'Museum', place_id: 'P', open_state: 'Temporarily closed' }],
+    })
+    expect(place.permanentlyClosed).toBe(true)
+  })
+
+  it('leaves a place that is only shut right now open for planning', () => {
+    const [place] = normalizePlaces({
+      local_results: [{ title: 'Bar', place_id: 'P', open_state: 'Closed ⋅ Opens 6 PM' }],
+    })
+    expect(place.permanentlyClosed).toBeUndefined()
+    expect(place.openNow).toBe(false)
+  })
+})

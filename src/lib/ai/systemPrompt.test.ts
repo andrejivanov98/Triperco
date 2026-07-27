@@ -56,3 +56,23 @@ describe('buildSystemPrompt', () => {
     expect(p).toContain('getstaydetails')
   })
 })
+
+describe('buildSystemPrompt — later refinements', () => {
+  it('forbids inventing a budget', () => {
+    expect(buildSystemPrompt().toLowerCase()).toContain('never invent a budget')
+  })
+
+  it('requires conversation-specific follow-ups every turn', () => {
+    const p = buildSystemPrompt()
+    expect(p).toContain('suggestReplies')
+    expect(p.toLowerCase()).toContain('not a generic menu')
+  })
+
+  it('tells the agent not to fill in days on the traveler behalf', () => {
+    expect(buildSystemPrompt().toLowerCase()).toContain('do not assign things to specific days')
+  })
+
+  it('bans closed-down recommendations', () => {
+    expect(buildSystemPrompt().toLowerCase()).toContain('closed down')
+  })
+})

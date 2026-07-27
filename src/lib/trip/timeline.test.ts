@@ -106,15 +106,25 @@ describe('buildTimeline', () => {
     expect(slots).not.toContain('return-flight')
   })
 
-  it('gives every day of a dated trip its own group with an activities slot', () => {
+  it('never pre-carves the trip into a slot per day', () => {
     const trip: TripState = {
       ...createTrip('t3'),
       meta: { travelers: 2, destination: 'Rome', startDate: '2026-09-01', endDate: '2026-09-03' },
     }
     const tl = buildTimeline(trip)
-    // Sep 1, 2 and 3 each get a group.
-    expect(tl.groups.filter((g) => g.addSlots.includes('activities'))).toHaveLength(3)
-    expect(tl.groups.map((g) => g.label)).toEqual(['Tue, Sep 1', 'Wed, Sep 2', 'Thu, Sep 3'])
+    // One flexible invitation, not one per day — the traveler decides how full each day gets.
+    expect(tl.groups.filter((g) => g.addSlots.includes('activities'))).toHaveLength(1)
+    expect(tl.groups.map((g) => g.label)).toEqual(['Tue, Sep 1'])
+  })
+
+  it('adds a day group only once that day holds something', () => {
+    const trip: TripState = {
+      ...createTrip('t5'),
+      meta: { travelers: 2, destination: 'Rome', startDate: '2026-09-01', endDate: '2026-09-04' },
+      days: [{ items: [] }, { items: [] }, { items: [{ placeId: 'p1', name: 'Borghese Gallery' }] }],
+    }
+    const labels = buildTimeline(trip).groups.map((g) => g.label)
+    expect(labels).toEqual(['Tue, Sep 1', 'Thu, Sep 3'])
   })
 
   it('tags each activity with the day it belongs to, so it can be removed', () => {

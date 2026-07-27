@@ -1,26 +1,22 @@
-import type { TripState, TripMeta } from '@/lib/trip/types'
+import type { TripState } from '@/lib/trip/types'
 import { buildTimeline, type AddSlot, type TimelineItem } from '@/lib/trip/timeline'
 import { computeWatchouts } from '@/lib/trip/watchouts'
-import { nightsBetween, formatDateRange } from '@/lib/trip/dates'
 import { formatMoney } from '@/lib/ui/format'
 import { Heading } from '@/components/ui/Heading'
 import { TimelineItemCard } from './TimelineItemCard'
 import { WatchoutBanner } from './WatchoutBanner'
-import { TripContext } from './TripContext'
 import { AddSlotRow, slotPrompt } from './AddSlotRow'
 import { RemoteImage } from '@/components/ui/RemoteImage'
 
 export function ItineraryView({
   trip,
   onFix,
-  onEditMeta,
   onRemoveItem,
   onViewItem,
   onContinueToBook,
 }: {
   trip: TripState
   onFix?: (prompt: string) => void
-  onEditMeta?: (patch: Partial<TripMeta>) => void
   onRemoveItem?: (item: TimelineItem) => void
   onViewItem?: (item: TimelineItem) => void
   onContinueToBook?: () => void
@@ -29,14 +25,6 @@ export function ItineraryView({
   const watchouts = computeWatchouts(trip)
   const title =
     trip.meta.title ?? (trip.meta.destination ? `${trip.meta.destination} trip` : 'Your trip')
-
-  const nights = nightsBetween(trip.meta.startDate, trip.meta.endDate)
-  const range = formatDateRange(trip.meta.startDate, trip.meta.endDate)
-  const subParts = [
-    range || null,
-    nights !== undefined ? `${nights} night${nights === 1 ? '' : 's'}` : null,
-    `${trip.meta.travelers} traveler${trip.meta.travelers === 1 ? '' : 's'}`,
-  ].filter(Boolean)
 
   const flightTotal = trip.flights.reduce((sum, f) => sum + f.price, 0) * trip.meta.travelers
   const stayTotal = trip.stays.reduce((sum, s) => sum + s.pricePerNight * s.nights, 0)
@@ -57,15 +45,8 @@ export function ItineraryView({
           <Heading level={2} className="truncate text-lg text-white">
             {title}
           </Heading>
-          {subParts.length > 0 && (
-            <div className="mt-0.5 truncate text-[11px] font-medium text-white/85">
-              {subParts.join(' · ')}
-            </div>
-          )}
         </div>
       </div>
-
-      {onEditMeta && <TripContext meta={trip.meta} onEdit={onEditMeta} />}
 
       <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-0.5">
         <WatchoutBanner watchouts={watchouts} onFix={onFix} />

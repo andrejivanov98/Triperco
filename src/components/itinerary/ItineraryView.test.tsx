@@ -87,16 +87,13 @@ describe('ItineraryView', () => {
     expect(screen.getByText(/your plan builds here/i)).toBeInTheDocument()
   })
 
-  it('lets the traveler correct the trip context when editing is wired up', () => {
-    const onEditMeta = vi.fn()
-    render(<ItineraryView trip={trip()} onEditMeta={onEditMeta} />)
-    fireEvent.click(screen.getByRole('button', { name: /add traveler/i }))
-    expect(onEditMeta).toHaveBeenCalledWith({ travelers: 3 })
-  })
-
-  it('hides the context editor when no handler is given', () => {
+  it('keeps the trip paperwork out of the plan', () => {
     render(<ItineraryView trip={trip()} />)
+    // The plan is the planning: no destination field, no date pickers, no traveler stepper.
     expect(screen.queryByRole('button', { name: /add traveler/i })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/start date/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/14 nights/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/2 travelers/i)).not.toBeInTheDocument()
   })
 
   it('surfaces a watch-out (stay nights vs trip length)', () => {

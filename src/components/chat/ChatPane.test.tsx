@@ -50,6 +50,33 @@ describe('ChatPane', () => {
     expect(screen.getByText(/1 places to stay/i)).toBeInTheDocument()
   })
 
+  it('prefers the suggestions the agent proposed for this moment', () => {
+    const msgs: TriperUIMessage[] = [
+      {
+        id: 's',
+        role: 'assistant',
+        parts: [
+          { type: 'text', text: '14 stays in Trastevere.' },
+          { type: 'data-suggestions', data: { replies: ['Somewhere quieter', 'Only with a kitchen'] } },
+        ],
+      },
+    ]
+    render(
+      <ChatPane messages={msgs} status="ready" suggestions={['Make it cheaper']} onSend={() => {}} />,
+    )
+    expect(screen.getByText('Somewhere quieter')).toBeInTheDocument()
+    expect(screen.getByText('Only with a kitchen')).toBeInTheDocument()
+    // The generic fallback steps aside.
+    expect(screen.queryByText('Make it cheaper')).not.toBeInTheDocument()
+  })
+
+  it('falls back to trip-derived suggestions when the agent proposed none', () => {
+    render(
+      <ChatPane messages={messages} status="ready" suggestions={['Make it cheaper']} onSend={() => {}} />,
+    )
+    expect(screen.getByText('Make it cheaper')).toBeInTheDocument()
+  })
+
   it('shows a thinking indicator while a turn is in flight', () => {
     render(<ChatPane messages={messages} status="streaming" suggestions={[]} onSend={() => {}} />)
     expect(screen.getByRole('status')).toBeInTheDocument()

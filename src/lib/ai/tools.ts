@@ -2,7 +2,7 @@ import { tool } from 'ai'
 import { z } from 'zod'
 import type { TripState, Flight, Stay, Place } from '../trip/types'
 import type { ResultSet } from '../ui/results'
-import type { OptionSet, PrefForm } from '../ui/interactions'
+import type { OptionSet, PrefForm, ReplySuggestions } from '../ui/interactions'
 import { createTrip, setMeta } from '../trip/tripState'
 import { mergeStayDetail } from '../trip/mergeStay'
 import {
@@ -25,6 +25,7 @@ export interface PlannerState {
   pendingResults: ResultSet[]
   pendingOptions: OptionSet[]
   pendingForms: PrefForm[]
+  pendingSuggestions: ReplySuggestions[]
 }
 
 export function createPlannerState(trip?: TripState): PlannerState {
@@ -36,6 +37,7 @@ export function createPlannerState(trip?: TripState): PlannerState {
     pendingResults: [],
     pendingOptions: [],
     pendingForms: [],
+    pendingSuggestions: [],
   }
 }
 
@@ -60,13 +62,12 @@ export async function withToolError<T>(run: () => Promise<T>): Promise<T | { err
 export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
   return {
     setTripMeta: tool({
-      description: 'Set or update trip metadata: destination, dates (YYYY-MM-DD), travelers, budget.',
+      description: 'Record what you have learned about the trip: destination, dates (YYYY-MM-DD), party, title. Never guess a budget — only the traveler sets one.',
       inputSchema: z.object({
         destination: z.string().optional(),
         startDate: z.string().optional(),
         endDate: z.string().optional(),
         travelers: z.number().optional().describe('Total heads, adults + children'),
-        budget: z.number().optional(),
         title: z.string().optional().describe('Short evocative trip name, e.g. "Tenerife Escape"'),
         origin: z.string().optional().describe('Where they depart from (city or IATA code)'),
         rooms: z.number().optional(),
@@ -252,6 +253,22 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
       execute: async ({ question, options }) => {
         state.pendingOptions.push({ question, options })
         return { presented: options.length }
+      },
+    }),
+
+    suggestReplies: tool({
+      description:
+        'End your turn by offering 2-4 things the traveler might say next, written in their voice and specific to what you just showed them (e.g. "Somewhere quieter", "Only nonstop", "What about food near there?"). Call this every turn.',
+      inputSchema: z.object({
+        replies: z
+          .array(z.string())
+          .min(2)
+          .max(4)
+          .describe('Short first-person prompts, 2-6 words each'),
+      }),
+      execute: async ({ replies }) => {
+        state.pendingSuggestions.push({ replies })
+        return { suggested: replies.length }
       },
     }),
 

@@ -75,10 +75,6 @@ export function PlannerScreen() {
     setDetail({ kind: set.kind, item })
   }, [])
 
-  const editMeta = useCallback((patch: Partial<TripState['meta']>) => {
-    setTrip((t) => setMeta(t, patch))
-  }, [])
-
   const removeItem = useCallback((item: TimelineItem) => {
     setTrip((t) => {
       if (item.kind === 'flight') return removeFlight(t, item.id)
@@ -237,7 +233,6 @@ export function PlannerScreen() {
               <ItineraryView
                 trip={trip}
                 onFix={(prompt) => sendMessage({ text: prompt })}
-                onEditMeta={editMeta}
                 onRemoveItem={removeItem}
                 onViewItem={viewItem}
                 onContinueToBook={() => setBooking(true)}

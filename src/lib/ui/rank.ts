@@ -106,6 +106,11 @@ function placeBadges(items: Place[]): Map<string, string[]> {
  * capped at MAX_CARDS. Pure — the domain objects are never mutated.
  */
 export function rankResults(set: ResultSet): RankedItem[] {
+  // A place that has closed down can't be planned around, so it never reaches the traveler.
+  const items =
+    set.kind === 'places' ? set.items.filter((p) => p.permanentlyClosed !== true) : set.items
+  set = { ...set, items } as ResultSet
+
   const badges =
     set.kind === 'flights'
       ? flightBadges(set.items)

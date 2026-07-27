@@ -5,7 +5,7 @@ import type { TriperUIMessage } from '@/lib/ui/messages'
 import type { Flight, Stay, Place } from '@/lib/trip/types'
 import type { ResultSet } from '@/lib/ui/results'
 import { getResultSets } from '@/lib/ui/results'
-import { getOptionSets, getForms } from '@/lib/ui/interactions'
+import { getOptionSets, getForms, getSuggestions } from '@/lib/ui/interactions'
 import { ResultCarousel } from '@/components/results/ResultCarousel'
 import { MessageText } from './MessageText'
 import { OptionList } from './OptionList'
@@ -49,6 +49,10 @@ export function ChatPane({
   const busy = status !== 'ready' && status !== 'error'
   const endRef = useRef<HTMLDivElement>(null)
   const last = messages[messages.length - 1]
+
+  // What the agent proposed for this exact moment beats anything we can guess from trip state.
+  const proposed = last?.role === 'assistant' ? getSuggestions(last) : []
+  const chips = proposed.length > 0 ? proposed : suggestions
 
   // Follow the conversation as it streams.
   useEffect(() => {
@@ -136,9 +140,9 @@ export function ChatPane({
       </div>
 
       <div className="flex flex-col gap-2 border-t border-hairline pt-3">
-        {suggestions.length > 0 && (
+        {chips.length > 0 && (
           <div className="flex flex-wrap gap-2">
-            {suggestions.map((s, i) => (
+            {chips.map((s, i) => (
               <button
                 key={`${s}-${i}`}
                 type="button"

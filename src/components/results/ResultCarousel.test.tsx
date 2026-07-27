@@ -78,10 +78,12 @@ describe('ResultCarousel', () => {
   it('opens details and adds from a stay card', () => {
     const onOpen = vi.fn()
     const onAdd = vi.fn()
-    render(<ResultCarousel set={{ kind: 'stays', items }} onOpen={onOpen} onAdd={onAdd} />)
-    fireEvent.click(screen.getByRole('button', { name: /view details for Hotel a/i }))
+    render(
+      <ResultCarousel set={{ kind: 'stays', items: [items[0]] }} onOpen={onOpen} onAdd={onAdd} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /^details$/i }))
     expect(onOpen).toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: /add Hotel a to trip/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^add to trip$/i }))
     expect(onAdd).toHaveBeenCalled()
   })
 
@@ -114,6 +116,56 @@ describe('ResultCarousel', () => {
     expect(screen.getByText('SKP')).toBeInTheDocument()
     expect(screen.getByText('1h 45m')).toBeInTheDocument()
     expect(screen.getByText('Nonstop')).toBeInTheDocument()
+  })
+
+  it('shows the stay details, not just a photo', () => {
+    const detailed: Stay[] = [
+      {
+        ...stay('a', 165),
+        name: 'City Break Studio',
+        kind: 'vacation_rental',
+        rating: 4.7,
+        reviewCount: 181,
+        totalPrice: 494,
+        address: 'Trnovo, Ljubljana',
+        essentialInfo: ['Entire apartment', 'Sleeps 4', '1 bedroom'],
+        amenities: ['Free Wi-Fi', 'Kitchen', 'Air conditioning'],
+        checkInTime: '3:00 PM',
+      },
+    ]
+    render(<ResultCarousel set={{ kind: 'stays', items: detailed }} onOpen={() => {}} onAdd={() => {}} />)
+    expect(screen.getByText('City Break Studio')).toBeInTheDocument()
+    expect(screen.getByText(/4\.7 ★ · 181 reviews/)).toBeInTheDocument()
+    expect(screen.getByText(/Entire place · Trnovo/)).toBeInTheDocument()
+    expect(screen.getByText(/Sleeps 4/)).toBeInTheDocument()
+    expect(screen.getByText('$165/night')).toBeInTheDocument()
+    expect(screen.getByText(/\$494 total · 3 nights/)).toBeInTheDocument()
+    expect(screen.getByText(/Check-in 3:00 PM/)).toBeInTheDocument()
+    expect(screen.getByText('Kitchen')).toBeInTheDocument()
+  })
+
+  it('will not offer to add a place that has closed down', () => {
+    render(
+      <ResultCarousel
+        set={{
+          kind: 'places',
+          items: [
+            {
+              id: 'p1',
+              name: 'Old Bar',
+              photos: [],
+              reviewSnippets: [],
+              sourceLinks: {},
+              permanentlyClosed: true,
+            },
+          ],
+        }}
+        onOpen={() => {}}
+        onAdd={() => {}}
+      />,
+    )
+    // Closed-down places are filtered out of results entirely.
+    expect(screen.queryByText('Old Bar')).not.toBeInTheDocument()
   })
 
   it('opens the full gallery from a stay photo', () => {

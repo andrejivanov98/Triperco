@@ -71,6 +71,8 @@ export interface Place {
   /** Per-day opening hours, when available. */
   hoursByDay?: { day: string; hours: string }[]
   openNow?: boolean
+  /** Shut for good (or indefinitely) — there is nothing to plan around. */
+  permanentlyClosed?: boolean
   address?: string
   phone?: string
   website?: string

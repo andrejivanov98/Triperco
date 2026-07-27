@@ -104,3 +104,24 @@ describe('rankResults — general', () => {
     expect(ranked.map((r) => r.item.id)).toContain('f19')
   })
 })
+
+describe('rankResults — closed places', () => {
+  it('never offers a place that has closed down', () => {
+    const ranked = rankResults({
+      kind: 'places',
+      items: [
+        place({ id: 'gone', name: 'Old Bar', permanentlyClosed: true }),
+        place({ id: 'open', name: 'New Bar' }),
+      ],
+    })
+    expect(ranked.map((r) => r.item.id)).toEqual(['open'])
+  })
+
+  it('keeps a place that is merely shut right now', () => {
+    const ranked = rankResults({
+      kind: 'places',
+      items: [place({ id: 'closed-now', openNow: false })],
+    })
+    expect(ranked).toHaveLength(1)
+  })
+})

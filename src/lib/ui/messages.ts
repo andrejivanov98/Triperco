@@ -1,7 +1,7 @@
 import type { UIMessage } from 'ai'
 import type { TripMeta } from '../trip/types'
 import type { ResultSet } from './results'
-import type { OptionSet, PrefForm } from './interactions'
+import type { OptionSet, PrefForm, ReplySuggestions } from './interactions'
 
 /**
  * Standard parts + custom data parts.
@@ -12,7 +12,13 @@ import type { OptionSet, PrefForm } from './interactions'
  */
 export type TriperUIMessage = UIMessage<
   never,
-  { meta: TripMeta; results: ResultSet; options: OptionSet; form: PrefForm }
+  {
+    meta: TripMeta
+    results: ResultSet
+    options: OptionSet
+    form: PrefForm
+    suggestions: ReplySuggestions
+  }
 >
 
 /** Scan messages newest-first and return the most recent trip context, or null. */

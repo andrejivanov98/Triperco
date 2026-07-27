@@ -115,27 +115,21 @@ export function buildTimeline(trip: TripState): Timeline {
   else arrival.addSlots.push('stays')
 
   arrival.items.push(...activityItems(0))
+  // One flexible invitation to add things to do — not one per day. The traveler decides how full
+  // each day gets, so we never pre-carve the trip into slots to fill.
   arrival.addSlots.push('activities')
   groups.push(arrival)
 
-  // --- One group per remaining day, so every day can be filled ---
-  // With dates we know exactly how many days there are; without them, only days that hold something.
-  const dayCount = dates.length > 0 ? dates.length : days.length
-  for (let i = 1; i < dayCount; i++) {
-    const items = activityItems(i)
-    if (dates.length === 0 && items.length === 0) continue
-    groups.push({
-      label: dates[i] ? formatDayLabel(dates[i]) : days[i]?.date ? formatDayLabel(days[i].date!) : `Day ${i + 1}`,
-      items,
-      addSlots: ['activities'],
-    })
-  }
-
-  // Any activities parked past the known day count still need somewhere to show.
-  for (let i = dayCount; i < days.length; i++) {
+  // --- A group per day that actually holds something ---
+  for (let i = 1; i < days.length; i++) {
     const items = activityItems(i)
     if (items.length === 0) continue
-    groups.push({ label: days[i].date ? formatDayLabel(days[i].date!) : `Day ${i + 1}`, items, addSlots: [] })
+    const label = dates[i]
+      ? formatDayLabel(dates[i])
+      : days[i].date
+        ? formatDayLabel(days[i].date!)
+        : `Day ${i + 1}`
+    groups.push({ label, items, addSlots: [] })
   }
 
   // --- Getting home ---

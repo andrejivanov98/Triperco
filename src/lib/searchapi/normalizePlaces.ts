@@ -39,8 +39,18 @@ function openNow(state?: string): boolean | undefined {
   if (!state) return undefined
   const first = state.trim().toLowerCase()
   if (first.startsWith('open')) return true
-  if (first.startsWith('closed') || first.startsWith('temporarily closed')) return false
+  if (first.startsWith('closed') || first.includes('closed')) return false
   return undefined
+}
+
+/**
+ * Shut for good, as opposed to shut right now. A bar that closes at 2am is still worth planning
+ * around; one that has closed down is not.
+ */
+function permanentlyClosed(state?: string): boolean | undefined {
+  if (!state) return undefined
+  const text = state.toLowerCase()
+  return text.includes('permanently closed') || text.includes('temporarily closed') ? true : undefined
 }
 
 function titleCase(key: string): string {
@@ -86,6 +96,7 @@ export function normalizePlaces(raw: RawMapsResponse): Place[] {
       hours: r.hours ?? r.open_state,
       hoursByDay: hoursByDay(r.open_hours),
       openNow: openNow(r.open_state),
+      permanentlyClosed: permanentlyClosed(r.open_state),
       address: r.address,
       phone: r.phone,
       website: r.website,

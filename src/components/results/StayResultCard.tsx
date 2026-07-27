@@ -2,24 +2,44 @@
 
 import { useState } from 'react'
 import type { Stay } from '@/lib/trip/types'
-import { formatMoney } from '@/lib/ui/format'
+import { formatMoney, formatRating } from '@/lib/ui/format'
 import { Badge, badgeTone } from '@/components/ui/Badge'
 import { RemoteImage } from '@/components/ui/RemoteImage'
 
-/** "1 bedroom · 2 beds" style line, from whatever the provider gave us. */
-function bedsLine(stay: Stay): string | undefined {
-  const info = stay.essentialInfo ?? []
-  const beds = info.filter((i) => /bed|bedroom|sleeps|studio|apartment/i.test(i))
-  return beds.length ? beds.slice(0, 2).join(' · ') : undefined
+/** "Entire apartment · Sleeps 8 · 2 bedrooms" — whatever the provider actually told us. */
+function layoutLine(stay: Stay): string | undefined {
+  const info = (stay.essentialInfo ?? []).filter((i) =>
+    /bed|bedroom|sleeps|studio|apartment|room|guest/i.test(i),
+  )
+  return info.length ? info.slice(0, 3).join(' · ') : undefined
 }
 
-function descriptionLine(stay: Stay): string {
-  const kind = stay.kind === 'vacation_rental' ? 'Apartment' : stay.hotelClass ?? 'Hotel'
+/** What kind of place it is, and roughly where. */
+function typeLine(stay: Stay): string {
+  const kind = stay.kind === 'vacation_rental' ? 'Entire place' : stay.hotelClass ?? 'Hotel'
   const where = stay.address?.split(',')[0]
-  return [kind, where].filter(Boolean).join(' in ')
+  return [kind, where].filter(Boolean).join(' · ')
 }
 
-/** A large, photo-led stay card — the main thing the traveler compares. */
+/** The handful of amenities travelers actually decide on. */
+const HEADLINE_AMENITIES = [
+  /wi-?fi/i,
+  /kitchen/i,
+  /air condition/i,
+  /pool/i,
+  /parking/i,
+  /breakfast/i,
+  /washer/i,
+  /pet/i,
+]
+
+function headlineAmenities(stay: Stay): string[] {
+  const all = stay.amenities ?? []
+  const picked = HEADLINE_AMENITIES.flatMap((pattern) => all.filter((a) => pattern.test(a)).slice(0, 1))
+  return [...new Set(picked)].slice(0, 4)
+}
+
+/** A large, detail-first stay card — everything you'd compare on, then the photos. */
 export function StayResultCard({
   stay,
   badges = [],
@@ -36,55 +56,86 @@ export function StayResultCard({
   const [photoIndex, setPhotoIndex] = useState(0)
   const photos = stay.photos.slice(0, 6)
   const total = stay.totalPrice ?? stay.pricePerNight * stay.nights
-  const beds = bedsLine(stay)
+  const layout = layoutLine(stay)
+  const amenities = headlineAmenities(stay)
+  const rating = formatRating(stay.rating, stay.reviewCount)
 
   return (
-    <div className="flex w-[19rem] shrink-0 snap-start flex-col gap-2.5">
-      <div className="group relative aspect-[4/3] w-full overflow-hidden rounded-[20px] bg-sand">
-        {photos.length > 0 ? (
-          <button
-            type="button"
-            aria-label={`Open photos of ${stay.name}`}
-            onClick={() => onOpenPhotos?.(photoIndex)}
-            className="block h-full w-full"
-          >
-            <RemoteImage
-              src={photos[photoIndex]}
-              alt={stay.name}
-              fallbackGlyph="🏨"
-              className="h-full w-full object-cover transition group-hover:scale-[1.03]"
-            />
-          </button>
-        ) : (
-          <button
-            type="button"
-            aria-label={`View details for ${stay.name}`}
-            onClick={onOpen}
-            className="flex h-full w-full items-center justify-center text-4xl"
-          >
-            🏨
-          </button>
-        )}
+    <div className="flex w-[20rem] shrink-0 snap-start flex-col gap-3 rounded-[22px] border border-hairline bg-white/60 p-3">
+      {/* Details first: what it is, how it rates, what it costs. */}
+      <button type="button" onClick={onOpen} className="flex flex-col gap-1.5 text-left">
+        <div className="flex items-start justify-between gap-2">
+          <span className="line-clamp-2 text-sm font-bold leading-snug text-ink">{stay.name}</span>
+          {badges.length > 0 && (
+            <span className="flex shrink-0 flex-col items-end gap-1">
+              {badges.slice(0, 2).map((b) => (
+                <Badge key={b} label={b} tone={badgeTone(b)} />
+              ))}
+            </span>
+          )}
+        </div>
 
-        {badges.length > 0 && (
-          <div className="pointer-events-none absolute left-3 top-3 flex flex-wrap gap-1">
-            {badges.slice(0, 2).map((b) => (
-              <Badge key={b} label={b} tone={badgeTone(b)} />
-            ))}
+        <div className="truncate text-xs font-medium text-muted">{typeLine(stay)}</div>
+
+        <div className="flex flex-wrap items-baseline gap-x-2 text-xs font-medium">
+          {rating ? (
+            <span className="font-bold text-ink">★ {rating}</span>
+          ) : (
+            <span className="text-muted">No rating yet</span>
+          )}
+          {layout && <span className="text-muted">{layout}</span>}
+        </div>
+
+        <div className="flex flex-wrap items-baseline gap-x-2 text-xs font-medium text-muted">
+          {stay.pricePerNight > 0 && (
+            <span className="text-sm font-bold text-ink">{formatMoney(stay.pricePerNight)}/night</span>
+          )}
+          {total > 0 && (
+            <span>
+              {formatMoney(total)} total · {stay.nights} night{stay.nights === 1 ? '' : 's'}
+            </span>
+          )}
+        </div>
+
+        {(stay.checkInTime || stay.locationRating !== undefined) && (
+          <div className="flex flex-wrap gap-x-2 text-[11px] font-medium text-muted">
+            {stay.checkInTime && <span>Check-in {stay.checkInTime}</span>}
+            {stay.locationRating !== undefined && <span>Location {stay.locationRating}/5</span>}
           </div>
         )}
 
+        {amenities.length > 0 && (
+          <div className="mt-0.5 flex flex-wrap gap-1">
+            {amenities.map((a) => (
+              <span
+                key={a}
+                className="rounded-full border border-hairline bg-white/70 px-2 py-0.5 text-[10px] font-semibold text-muted"
+              >
+                {a}
+              </span>
+            ))}
+          </div>
+        )}
+      </button>
+
+      {/* Then the photos. */}
+      <div className="group relative aspect-[16/10] w-full overflow-hidden rounded-[16px] bg-sand">
         <button
           type="button"
-          aria-label={`Add ${stay.name} to trip`}
-          onClick={onAdd}
-          className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/85 text-lg text-deep shadow-sm transition hover:scale-105 hover:bg-white"
+          aria-label={photos.length > 0 ? `Open photos of ${stay.name}` : `View details for ${stay.name}`}
+          onClick={() => (photos.length > 0 ? onOpenPhotos?.(photoIndex) : onOpen())}
+          className="block h-full w-full"
         >
-          ♥
+          <RemoteImage
+            src={photos[photoIndex]}
+            alt={stay.name}
+            fallbackGlyph="🏨"
+            className="h-full w-full object-cover transition group-hover:scale-[1.03]"
+          />
         </button>
 
         {photos.length > 1 && (
-          <div className="absolute inset-x-0 bottom-2.5 flex items-center justify-center gap-1.5">
+          <div className="absolute inset-x-0 bottom-2 flex items-center justify-center gap-1.5">
             {photos.map((_, i) => (
               <button
                 key={i}
@@ -102,29 +153,22 @@ export function StayResultCard({
         )}
       </div>
 
-      <button type="button" onClick={onOpen} className="flex flex-col gap-1 text-left">
-        <div className="flex items-baseline justify-between gap-3">
-          <span className="truncate text-sm font-bold text-ink">{stay.name}</span>
-          {total > 0 && <span className="shrink-0 text-sm font-bold text-ink">{formatMoney(total)}</span>}
-        </div>
-
-        <div className="flex items-baseline justify-between gap-3 text-xs font-medium text-muted">
-          <span className="truncate">
-            {stay.rating !== undefined && (
-              <span className="text-ink">
-                ★ {stay.rating}
-                {stay.reviewCount !== undefined && ` (${stay.reviewCount.toLocaleString('en-US')})`}
-              </span>
-            )}
-            {beds && <span>{stay.rating !== undefined ? ` · ${beds}` : beds}</span>}
-          </span>
-          {stay.pricePerNight > 0 && (
-            <span className="shrink-0">{formatMoney(stay.pricePerNight)}/night</span>
-          )}
-        </div>
-
-        <div className="truncate text-xs font-medium text-muted">{descriptionLine(stay)}</div>
-      </button>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onAdd}
+          className="flex-1 rounded-xl bg-accent px-3 py-2 text-xs font-bold text-white shadow-sm shadow-accent/25 transition hover:bg-accent-600"
+        >
+          Add to trip
+        </button>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="rounded-xl border border-hairline bg-white px-3 py-2 text-xs font-bold text-ink transition hover:bg-sand"
+        >
+          Details
+        </button>
+      </div>
     </div>
   )
 }

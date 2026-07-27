@@ -18,6 +18,17 @@ export interface PrefForm {
   options: string[]
 }
 
+/** Follow-ups the agent proposes for this exact moment in the conversation. */
+export interface ReplySuggestions {
+  replies: string[]
+}
+
+export function getSuggestions(message: TriperUIMessage): string[] {
+  return message.parts
+    .filter((p): p is { type: 'data-suggestions'; data: ReplySuggestions } => p.type === 'data-suggestions')
+    .flatMap((p) => p.data.replies)
+}
+
 export function getOptionSets(message: TriperUIMessage): OptionSet[] {
   return message.parts
     .filter((p): p is { type: 'data-options'; data: OptionSet } => p.type === 'data-options')
