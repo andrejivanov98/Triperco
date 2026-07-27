@@ -109,6 +109,49 @@ describe('normalizeHotels', () => {
     ])
   })
 
+  it('falls back to city and country when there is no street address', () => {
+    const [stay] = normalizeHotels(
+      { properties: [{ name: 'Casa', city: 'Rome', country: 'IT' }] },
+      2,
+    )
+    expect(stay.address).toBe('Rome, IT')
+  })
+
+  it('keeps the provider sub-ratings and booking offers', () => {
+    const [stay] = normalizeHotels(
+      {
+        properties: [
+          {
+            name: 'Casa',
+            location_rating: 4.7,
+            proximity_to_transit_rating: 4.1,
+            offers: [
+              {
+                source: 'Bluepillow.com',
+                logo: 'https://logo/bp',
+                link: 'https://bp/book',
+                price_per_night: { extracted_price: 130 },
+                total_price: { extracted_price: 521 },
+              },
+            ],
+          },
+        ],
+      },
+      4,
+    )
+    expect(stay.locationRating).toBe(4.7)
+    expect(stay.transitRating).toBe(4.1)
+    expect(stay.offers).toEqual([
+      {
+        source: 'Bluepillow.com',
+        logo: 'https://logo/bp',
+        url: 'https://bp/book',
+        pricePerNight: 130,
+        totalPrice: 521,
+      },
+    ])
+  })
+
   it('marks a vacation rental as a whole place', () => {
     const [stay] = normalizeHotels(
       { properties: [{ name: 'Loft in Monti', type: 'vacation rental' }] },

@@ -14,6 +14,17 @@ describe('buildSystemPrompt', () => {
     expect(p.toLowerCase()).toContain('conflict')
   })
 
+  it("states today's date so the agent never searches the past", () => {
+    const p = buildSystemPrompt(new Date('2026-07-27T10:00:00Z'))
+    expect(p).toContain('TODAY IS 2026-07-27')
+    expect(p).toContain('2027-07-27') // the window for a bare month name
+    expect(p.toLowerCase()).toContain('reject past dates')
+  })
+
+  it('reminds the agent that round trips need a return date', () => {
+    expect(buildSystemPrompt()).toContain('return_date')
+  })
+
   it('forbids markdown and data-in-prose, so the cards carry the detail', () => {
     const p = buildSystemPrompt().toLowerCase()
     expect(p).toContain('never use markdown')

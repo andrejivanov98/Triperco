@@ -12,8 +12,16 @@ const raw: RawReviewsResponse = {
 describe('normalizeReviews', () => {
   it('maps reviews, preferring snippet then text', () => {
     const out = normalizeReviews(raw)
-    expect(out[0]).toEqual({ author: 'Ana', rating: 5, text: 'Incredible history.' })
+    expect(out[0]).toMatchObject({ author: 'Ana', rating: 5, text: 'Incredible history.' })
     expect(out[1].text).toBe('Busy but worth it.')
+  })
+
+  it('keeps the date and like count so reviews can be shown in context', () => {
+    const out = normalizeReviews({
+      reviews: [{ user: { name: 'Ana' }, rating: 5, text: 'Great.', date: '2 weeks ago', likes: 3 }],
+    })
+    expect(out[0].date).toBe('2 weeks ago')
+    expect(out[0].likes).toBe(3)
   })
 
   it('drops reviews with no text', () => {

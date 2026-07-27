@@ -15,6 +15,8 @@ interface RawSegment {
   travel_class?: string
   legroom?: string
   extensions?: string[]
+  /** Parsed versions of `extensions`, e.g. { legroom: "30 in", carbon_emission: 61 }. */
+  detected_extensions?: { legroom?: string; carbon_emission?: number }
   departure_airport: RawAirport
   arrival_airport: RawAirport
   duration?: number
@@ -54,7 +56,7 @@ function toSegment(s: RawSegment): FlightSegment {
     flightNumber: s.flight_number,
     aircraft: s.airplane,
     cabin: s.travel_class,
-    legroom: s.legroom,
+    legroom: s.legroom ?? s.detected_extensions?.legroom,
     fromCode: s.departure_airport.id,
     fromName: s.departure_airport.name,
     toCode: s.arrival_airport.id,

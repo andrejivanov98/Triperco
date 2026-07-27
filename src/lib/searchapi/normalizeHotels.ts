@@ -1,4 +1,4 @@
-import type { NearbyPlace, RatingBucket, ReviewSnippet, ReviewTopic, Stay } from '../trip/types'
+import type { NearbyPlace, RatingBucket, ReviewSnippet, ReviewTopic, Stay, StayOffer } from '../trip/types'
 
 interface RawPrice {
   price?: string
@@ -18,12 +18,29 @@ interface RawUserReview {
   date?: string
 }
 
+interface RawOffer {
+  source?: string
+  logo?: string
+  link?: string
+  tracking_link?: string
+  is_official?: boolean
+  price_per_night?: RawPrice
+  total_price?: RawPrice
+}
+
 export interface RawProperty {
   name: string
   type?: string
   property_token?: string
   description?: string
   address?: string
+  city?: string
+  country?: string
+  location_rating?: number
+  proximity_to_things_to_do_rating?: number
+  proximity_to_transit_rating?: number
+  airport_access_rating?: number
+  offers?: RawOffer[]
   check_in_time?: string
   check_out_time?: string
   price_per_night?: RawPrice
@@ -122,6 +139,31 @@ function toReviews(raw: RawUserReview[] | undefined): ReviewSnippet[] | undefine
   return reviews.length ? reviews : undefined
 }
 
+/** No street address in list results — "Rome, IT" still tells the traveler where they'd be. */
+function locationLabel(p: RawProperty): string | undefined {
+  if (p.address) return p.address
+  const parts = [p.city, p.country].filter(Boolean)
+  return parts.length ? parts.join(', ') : undefined
+}
+
+function toOffers(raw?: RawOffer[]): StayOffer[] | undefined {
+  const offers = (raw ?? [])
+    .filter((o): o is { source: string } & RawOffer => Boolean(o.source))
+    .map((o) => ({
+      source: o.source,
+      ...(o.logo ? { logo: o.logo } : {}),
+      ...(o.link || o.tracking_link ? { url: o.link ?? o.tracking_link } : {}),
+      ...(o.is_official ? { official: true } : {}),
+      ...(o.price_per_night?.extracted_price !== undefined
+        ? { pricePerNight: o.price_per_night.extracted_price }
+        : {}),
+      ...(o.total_price?.extracted_price !== undefined
+        ? { totalPrice: o.total_price.extracted_price }
+        : {}),
+    }))
+  return offers.length ? offers : undefined
+}
+
 export function normalizeHotels(raw: RawHotelsResponse, nights: number): Stay[] {
   return (raw.properties ?? []).map((p, i) => ({
     id: `${slugify(p.name)}-${i}`,
@@ -141,7 +183,7 @@ export function normalizeHotels(raw: RawHotelsResponse, nights: number): Stay[] 
     propertyToken: p.property_token,
     hotelClass: p.hotel_class,
     description: p.description,
-    address: p.address,
+    address: locationLabel(p),
     checkInTime: p.check_in_time,
     checkOutTime: p.check_out_time,
     amenities: p.amenities,
@@ -153,5 +195,10 @@ export function normalizeHotels(raw: RawHotelsResponse, nights: number): Stay[] 
     nearbyPlaces: toNearby(p.nearby_places),
     dealBadge: p.deal,
     ecoCertified: p.eco_certified,
+    offers: toOffers(p.offers),
+    locationRating: p.location_rating,
+    thingsToDoRating: p.proximity_to_things_to_do_rating,
+    transitRating: p.proximity_to_transit_rating,
+    airportRating: p.airport_access_rating,
   }))
 }

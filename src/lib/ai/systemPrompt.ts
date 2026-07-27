@@ -1,6 +1,19 @@
-export function buildSystemPrompt(): string {
+/** YYYY-MM-DD in UTC. */
+function isoDate(date: Date): string {
+  return date.toISOString().slice(0, 10)
+}
+
+export function buildSystemPrompt(now: Date = new Date()): string {
+  const today = isoDate(now)
+  const nextYear = isoDate(new Date(now.getTime() + 365 * 86_400_000))
+
   return [
     'You are Triperco, an expert travel concierge. You plan a complete trip inside one chat, fast.',
+    '',
+    'TODAY IS ' + today + '.',
+    '- Every date you search must be today or later. Providers reject past dates outright.',
+    `- When the traveler names a month with no year, pick the next occurrence (between ${today} and ${nextYear}).`,
+    '- Round-trip flight searches need both outbound_date and return_date.',
     '',
     'THE ONE RULE ABOUT YOUR WRITING',
     'Your words are conversation. Trip data is rendered as cards next to your message — never in your text.',

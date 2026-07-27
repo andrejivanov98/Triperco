@@ -43,7 +43,11 @@ export function StayDetail({ stay, loading }: { stay: Stay; loading?: boolean })
 
       <FactGrid
         facts={[
-          { label: 'Per night', value: stay.pricePerNight ? formatMoney(stay.pricePerNight) : undefined },
+          {
+            label: 'Per night',
+            value: stay.pricePerNight ? formatMoney(stay.pricePerNight) : undefined,
+            note: stay.priceInsight?.level ? `${stay.priceInsight.level} for this place` : undefined,
+          },
           {
             label: 'Total',
             value: total ? formatMoney(total) : undefined,
@@ -51,8 +55,85 @@ export function StayDetail({ stay, loading }: { stay: Stay; loading?: boolean })
           },
           { label: 'Check-in', value: stay.checkInTime },
           { label: 'Check-out', value: stay.checkOutTime },
+          {
+            label: 'Usual price',
+            value:
+              stay.priceInsight?.typicalLow && stay.priceInsight?.typicalHigh
+                ? `${stay.priceInsight.typicalLow}–${stay.priceInsight.typicalHigh}`
+                : undefined,
+          },
+          { label: 'Phone', value: stay.phone },
         ]}
       />
+
+      {stay.offers && stay.offers.length > 0 && (
+        <DetailSection title="Where you can book it">
+          <div className="flex flex-col divide-y divide-hairline overflow-hidden rounded-xl border border-hairline bg-white/50">
+            {stay.offers.slice(0, 6).map((offer) => (
+              <div key={offer.source} className="flex items-center gap-3 px-3 py-2">
+                {offer.logo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={offer.logo} alt="" className="h-5 w-5 rounded object-contain" />
+                ) : (
+                  <span className="h-5 w-5" />
+                )}
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">
+                  {offer.source}
+                  {offer.official && (
+                    <span className="ml-2 text-[10px] font-bold uppercase tracking-wide text-accent-600">
+                      Official
+                    </span>
+                  )}
+                </span>
+                <span className="shrink-0 text-right text-sm font-bold text-ink">
+                  {offer.pricePerNight !== undefined && (
+                    <>
+                      {formatMoney(offer.pricePerNight)}
+                      <span className="text-[10px] font-medium text-muted">/night</span>
+                    </>
+                  )}
+                </span>
+                {offer.url && (
+                  <a
+                    href={offer.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="shrink-0 rounded-lg bg-deep px-2.5 py-1 text-[11px] font-bold text-white"
+                  >
+                    Book ↗
+                  </a>
+                )}
+              </div>
+            ))}
+          </div>
+        </DetailSection>
+      )}
+
+      {(stay.locationRating !== undefined ||
+        stay.transitRating !== undefined ||
+        stay.thingsToDoRating !== undefined ||
+        stay.airportRating !== undefined) && (
+        <DetailSection title="How the location scores">
+          <div className="flex flex-col gap-1.5">
+            {[
+              { label: 'Location', value: stay.locationRating },
+              { label: 'Things to do', value: stay.thingsToDoRating },
+              { label: 'Transit', value: stay.transitRating },
+              { label: 'Airport access', value: stay.airportRating },
+            ]
+              .filter((r): r is { label: string; value: number } => r.value !== undefined)
+              .map((r) => (
+                <MeterRow
+                  key={r.label}
+                  label={r.label}
+                  value={r.value}
+                  max={5}
+                  caption={`${r.value} / 5`}
+                />
+              ))}
+          </div>
+        </DetailSection>
+      )}
 
       {stay.description && (
         <DetailSection title="About this place">

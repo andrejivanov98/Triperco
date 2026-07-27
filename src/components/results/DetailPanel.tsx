@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import type { Flight, Stay, Place, TripMeta, ReviewSnippet } from '@/lib/trip/types'
 import type { ResultSet } from '@/lib/ui/results'
+import { mergeStayDetail } from '@/lib/trip/mergeStay'
 import { FlightDetail } from './detail/FlightDetail'
 import { StayDetail } from './detail/StayDetail'
 import { PlaceDetail } from './detail/PlaceDetail'
@@ -75,7 +76,7 @@ export function DetailPanel({
         })
         if (!res.ok || cancelled) return
         const { stay: full } = (await res.json()) as { stay: Stay | null }
-        if (full && !cancelled) setStay({ ...s, ...full, id: s.id, nights: s.nights })
+        if (full && !cancelled) setStay(mergeStayDetail(s, full))
       } catch {
         // Keep what the search already gave us.
       } finally {

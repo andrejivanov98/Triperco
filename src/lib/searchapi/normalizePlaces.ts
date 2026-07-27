@@ -15,11 +15,13 @@ interface RawLocalResult {
   images?: string[]
   hours?: string
   open_state?: string
-  operating_hours?: Record<string, string>
+  open_hours?: Record<string, string>
   phone?: string
   website?: string
   description?: string
-  service_options?: Record<string, boolean>
+  review_text?: string
+  /** Grouped feature lists, e.g. { title: 'Service options', items: [{ title: 'Delivery' }] }. */
+  extensions?: { title?: string; items?: { title?: string; value?: string }[] }[]
 }
 
 export interface RawMapsResponse {
@@ -32,7 +34,7 @@ function priceLevel(price?: string): number | undefined {
   return dollars > 0 ? dollars : undefined
 }
 
-/** "Open ⋅ Closes 6 PM" → true; "Closed ⋅ Opens 9 AM" → false; anything else → undefined. */
+/** "Open" / "Open ⋅ Closes 6 PM" → true; "Closed …" → false; anything else → undefined. */
 function openNow(state?: string): boolean | undefined {
   if (!state) return undefined
   const first = state.trim().toLowerCase()
@@ -52,13 +54,13 @@ function hoursByDay(raw?: Record<string, string>): { day: string; hours: string 
   return entries.length ? entries : undefined
 }
 
-/** `{ dine_in: true, delivery: false }` → `['Dine in']`. */
-function serviceOptions(raw?: Record<string, boolean>): string[] | undefined {
-  if (!raw) return undefined
-  const on = Object.entries(raw)
-    .filter(([, enabled]) => enabled)
-    .map(([key]) => titleCase(key))
-  return on.length ? on : undefined
+/** Flatten the provider's grouped feature lists into one list of item titles. */
+function serviceOptions(raw?: RawLocalResult['extensions']): string[] | undefined {
+  const items = (raw ?? [])
+    .flatMap((group) => group.items ?? [])
+    .map((item) => item.title)
+    .filter((t): t is string => Boolean(t))
+  return items.length ? items : undefined
 }
 
 export function normalizePlaces(raw: RawMapsResponse): Place[] {
@@ -79,15 +81,16 @@ export function normalizePlaces(raw: RawMapsResponse): Place[] {
       priceLevel: priceLevel(r.price),
       priceRange: r.price,
       photos,
-      reviewSnippets: [],
+      // The search result carries at most one quote; the reviews engine fills the rest on demand.
+      reviewSnippets: r.review_text ? [{ text: r.review_text }] : [],
       hours: r.hours ?? r.open_state,
-      hoursByDay: hoursByDay(r.operating_hours),
+      hoursByDay: hoursByDay(r.open_hours),
       openNow: openNow(r.open_state),
       address: r.address,
       phone: r.phone,
       website: r.website,
       description: r.description,
-      serviceOptions: serviceOptions(r.service_options),
+      serviceOptions: serviceOptions(r.extensions),
       sourceLinks: {
         maps: `https://www.google.com/maps/place/?q=place_id:${r.place_id}`,
       },

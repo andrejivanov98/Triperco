@@ -2,7 +2,8 @@ import type { Flight, Stay, Place, ReviewSnippet } from '../trip/types'
 import { searchApi, type SearchApiOptions, type SearchParams } from './client'
 import { createInMemoryCache, withCache, type Cache } from './cache'
 import { normalizeFlights, type RawFlightsResponse } from './normalizeFlights'
-import { normalizeHotels, type RawHotelsResponse, type RawProperty } from './normalizeHotels'
+import { normalizeHotels, type RawHotelsResponse } from './normalizeHotels'
+import { normalizeHotelProperty, type RawPropertyResponse } from './normalizeHotelProperty'
 import { normalizePlaces, type RawMapsResponse } from './normalizePlaces'
 import { normalizeReviews, type RawReviewsResponse } from './normalizeReviews'
 import { normalizePhotos, type RawPhotosResponse } from './normalizePhotos'
@@ -44,18 +45,23 @@ export interface FlightParams {
   departure_id: string
   arrival_id: string
   outbound_date: string
+  /** Required by the provider for round trips. */
+  return_date?: string
   flight_type?: 'one_way' | 'round_trip'
 }
 
 export async function searchFlights(params: FlightParams, deps?: SearchDeps): Promise<Flight[]> {
   const { search, cache } = resolve(deps)
-  const type = params.flight_type ?? 'one_way'
-  const key = `google_flights:${params.departure_id}:${params.arrival_id}:${params.outbound_date}:${type}`
+  // The provider rejects a round trip with no return date, so treat that as a one-way search.
+  const type = params.flight_type === 'round_trip' && params.return_date ? 'round_trip' : 'one_way'
+  const returnDate = type === 'round_trip' ? params.return_date : undefined
+  const key = `google_flights:${params.departure_id}:${params.arrival_id}:${params.outbound_date}:${returnDate ?? ''}:${type}`
   return withCache(cache, key, TTL.flights, async () => {
     const raw = await search<RawFlightsResponse>('google_flights', {
       departure_id: params.departure_id,
       arrival_id: params.arrival_id,
       outbound_date: params.outbound_date,
+      return_date: returnDate,
       flight_type: type,
     })
     return normalizeFlights(raw)
@@ -92,9 +98,8 @@ export interface StayDetailsParams {
 }
 
 /**
- * Full detail for one property (description, amenities, review breakdown, nearby …).
- * SearchApi answers a property_token lookup with either a `properties` array of one or the
- * property object itself, so accept both shapes.
+ * Full detail for one property: sub-ratings, the review histogram, what reviewers discuss, and
+ * every provider selling the room. Served by the dedicated `google_hotels_property` engine.
  */
 export async function getStayDetails(
   params: StayDetailsParams,
@@ -104,18 +109,13 @@ export async function getStayDetails(
   const key = `google_hotels_property:${params.property_token}:${params.check_in_date}:${params.check_out_date}:${params.adults ?? 2}`
   const nights = nightsBetween(params.check_in_date, params.check_out_date)
   return withCache(cache, key, TTL.hotels, async () => {
-    const raw = await search<RawHotelsResponse & Partial<RawProperty>>('google_hotels', {
+    const raw = await search<RawPropertyResponse>('google_hotels_property', {
       property_token: params.property_token,
       check_in_date: params.check_in_date,
       check_out_date: params.check_out_date,
       adults: params.adults ?? 2,
     })
-    const properties: RawProperty[] = raw.properties?.length
-      ? raw.properties
-      : raw.name
-        ? [{ ...raw, name: raw.name }]
-        : []
-    return normalizeHotels({ properties }, nights)[0] ?? null
+    return normalizeHotelProperty(raw, nights)
   })
 }
 

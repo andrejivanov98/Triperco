@@ -40,6 +40,19 @@ describe('searchApi', () => {
     ).rejects.toThrow(/429/)
   })
 
+  it("includes the provider's reason so the agent can correct itself", async () => {
+    await expect(
+      searchApi(
+        'google_hotels',
+        { q: 'x' },
+        {
+          apiKey: 'k',
+          fetchImpl: fakeFetch(400, { error: 'check_in_date value cannot be earlier than today.' }),
+        },
+      ),
+    ).rejects.toThrow(/cannot be earlier than today/)
+  })
+
   it('throws when no api key is available', async () => {
     vi.stubEnv('SEARCHAPI_API_KEY', '')
     await expect(

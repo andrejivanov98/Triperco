@@ -81,38 +81,75 @@ describe('searchHotels', () => {
 describe('getStayDetails', () => {
   const dates = { check_in_date: '2026-05-01', check_out_date: '2026-05-03' }
 
-  it('looks up one property by token and returns the enriched stay', async () => {
+  it('uses the dedicated property engine and returns the enriched stay', async () => {
     const { deps, calls } = fakeDeps({
-      google_hotels: {
-        properties: [
-          {
-            name: 'Hotel X',
-            description: 'Central and quiet.',
-            amenities: ['Pool'],
-            price_per_night: { extracted_price: 120 },
-          },
-        ],
+      google_hotels_property: {
+        property: {
+          name: 'Hotel X',
+          address: 'Via Roma 1',
+          amenities: ['Pool'],
+          price_per_night: { extracted_price: 120 },
+          reviews_histogram: { 5: 100 },
+        },
       },
     })
     const stay = await getStayDetails({ property_token: 'tok', ...dates }, deps)
-    expect(stay?.description).toBe('Central and quiet.')
+    expect(stay?.address).toBe('Via Roma 1')
     expect(stay?.amenities).toEqual(['Pool'])
+    expect(stay?.ratingsBreakdown).toEqual([{ stars: 5, count: 100 }])
     expect(stay?.nights).toBe(2)
-    expect(calls).toEqual(['google_hotels'])
-  })
-
-  it('accepts a single-property payload with no properties array', async () => {
-    const { deps } = fakeDeps({
-      google_hotels: { name: 'Hotel Y', description: 'Rooftop views.' },
-    })
-    const stay = await getStayDetails({ property_token: 'tok', ...dates }, deps)
-    expect(stay?.name).toBe('Hotel Y')
-    expect(stay?.description).toBe('Rooftop views.')
+    expect(calls).toEqual(['google_hotels_property'])
   })
 
   it('returns null when the provider has nothing', async () => {
-    const { deps } = fakeDeps({ google_hotels: {} })
+    const { deps } = fakeDeps({ google_hotels_property: {} })
     expect(await getStayDetails({ property_token: 'tok', ...dates }, deps)).toBeNull()
+  })
+})
+
+describe('searchFlights round trips', () => {
+  it('passes the return date through for a round trip', async () => {
+    const captured: Record<string, unknown>[] = []
+    const deps = {
+      cache: createInMemoryCache(),
+      search: async <T,>(_engine: string, params: Record<string, unknown>): Promise<T> => {
+        captured.push(params)
+        return {} as T
+      },
+    }
+    await searchFlights(
+      {
+        departure_id: 'SKP',
+        arrival_id: 'FCO',
+        outbound_date: '2026-09-10',
+        return_date: '2026-09-14',
+        flight_type: 'round_trip',
+      },
+      deps,
+    )
+    expect(captured[0]).toMatchObject({ flight_type: 'round_trip', return_date: '2026-09-14' })
+  })
+
+  it('falls back to one way when a round trip has no return date', async () => {
+    const captured: Record<string, unknown>[] = []
+    const deps = {
+      cache: createInMemoryCache(),
+      search: async <T,>(_engine: string, params: Record<string, unknown>): Promise<T> => {
+        captured.push(params)
+        return {} as T
+      },
+    }
+    await searchFlights(
+      {
+        departure_id: 'SKP',
+        arrival_id: 'FCO',
+        outbound_date: '2026-09-10',
+        flight_type: 'round_trip',
+      },
+      deps,
+    )
+    expect(captured[0]).toMatchObject({ flight_type: 'one_way' })
+    expect(captured[0].return_date).toBeUndefined()
   })
 })
 

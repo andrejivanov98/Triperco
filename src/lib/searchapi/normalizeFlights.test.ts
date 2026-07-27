@@ -59,7 +59,8 @@ const rich: RawFlightsResponse = {
           flight_number: 'LH 1706',
           airplane: 'Airbus A320',
           travel_class: 'Economy',
-          legroom: '30 in',
+          // Real responses report legroom inside detected_extensions.
+          detected_extensions: { legroom: '30 in', carbon_emission: 61 },
           extensions: ['Wi-Fi for a fee'],
           duration: 85,
           departure_airport: {

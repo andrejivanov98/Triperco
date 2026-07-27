@@ -30,6 +30,28 @@ export interface NearbyPlace {
   name: string
   /** e.g. "12 min · Walking" */
   transit?: string
+  category?: string
+  rating?: number
+}
+
+/** One place you can actually book this stay, as offered by the provider. */
+export interface StayOffer {
+  source: string
+  logo?: string
+  url?: string
+  pricePerNight?: number
+  totalPrice?: number
+  /** True when the offer is the property's own site. */
+  official?: boolean
+}
+
+/** How this price compares to the norm for the property. */
+export interface PriceInsight {
+  /** e.g. "typical", "low", "high". */
+  level?: string
+  lowest?: string
+  typicalLow?: string
+  typicalHigh?: string
 }
 
 export interface Place {
@@ -146,6 +168,14 @@ export interface Stay {
   dealBadge?: string
   essentialInfo?: string[]
   ecoCertified?: boolean
+  phone?: string
+  /** Every provider selling this stay, so the traveler can compare without leaving. */
+  offers?: StayOffer[]
+  priceInsight?: PriceInsight
+  locationRating?: number
+  thingsToDoRating?: number
+  transitRating?: number
+  airportRating?: number
 }
 
 export interface ItineraryItem {

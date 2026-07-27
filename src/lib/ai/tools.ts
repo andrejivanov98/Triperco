@@ -13,6 +13,7 @@ import {
   addItineraryItem as addItineraryItemR,
   removeItineraryItem as removeItineraryItemR,
 } from '../trip/tripState'
+import { mergeStayDetail } from '../trip/mergeStay'
 import {
   searchFlights as apiSearchFlights,
   searchHotels as apiSearchHotels,
@@ -52,6 +53,19 @@ function hours(minutes?: number): string | undefined {
   return `${Math.floor(minutes / 60)}h ${minutes % 60}m`
 }
 
+/**
+ * Run a search and hand failures back as data. A thrown tool error reaches the model as a bare
+ * "An error occurred"; the provider's own message tells it what to fix and retry.
+ */
+export async function withToolError<T>(run: () => Promise<T>): Promise<T | { error: string }> {
+  try {
+    return await run()
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { error: `Search failed: ${message}. Fix the parameters and try again.` }
+  }
+}
+
 export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
   return {
     setTripMeta: tool({
@@ -72,33 +86,38 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
 
     searchFlights: tool({
       description:
-        'Search flights between two airports on a date. Returns options with ids; add flights only by these ids.',
+        'Search flights between two airports. Dates must be today or later. For a round trip you MUST pass return_date. Returns options with ids; add flights only by these ids.',
       inputSchema: z.object({
         departure_id: z.string().describe('IATA airport/city code, e.g. SKP'),
         arrival_id: z.string().describe('IATA airport/city code, e.g. FCO'),
-        outbound_date: z.string().describe('YYYY-MM-DD'),
+        outbound_date: z.string().describe('YYYY-MM-DD, today or later'),
+        return_date: z
+          .string()
+          .optional()
+          .describe('YYYY-MM-DD — required when flight_type is round_trip'),
         flight_type: z.enum(['one_way', 'round_trip']).optional(),
       }),
-      execute: async (params) => {
-        state.lastFlights = await apiSearchFlights(params, deps)
-        state.pendingResults.push({
-          kind: 'flights',
-          query: `${params.departure_id} → ${params.arrival_id}`,
-          items: state.lastFlights,
-        })
-        return state.lastFlights.slice(0, 10).map((f) => ({
-          id: f.id,
-          from: f.from,
-          to: f.to,
-          airline: f.airline,
-          departTime: f.departTime,
-          arriveTime: f.arriveTime,
-          duration: hours(f.durationMinutes),
-          stops: f.stops,
-          via: f.layovers?.map((l) => l.code).filter(Boolean),
-          price: f.price,
-        }))
-      },
+      execute: async (params) =>
+        withToolError(async () => {
+          state.lastFlights = await apiSearchFlights(params, deps)
+          state.pendingResults.push({
+            kind: 'flights',
+            query: `${params.departure_id} → ${params.arrival_id}`,
+            items: state.lastFlights,
+          })
+          return state.lastFlights.slice(0, 10).map((f) => ({
+            id: f.id,
+            from: f.from,
+            to: f.to,
+            airline: f.airline,
+            departTime: f.departTime,
+            arriveTime: f.arriveTime,
+            duration: hours(f.durationMinutes),
+            stops: f.stops,
+            via: f.layovers?.map((l) => l.code).filter(Boolean),
+            price: f.price,
+          }))
+        }),
     }),
 
     addFlight: tool({
@@ -126,63 +145,75 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
         'Search hotels/stays for a place and date range. Returns options with ids; add stays only by these ids.',
       inputSchema: z.object({
         q: z.string().describe('Location or hotel name, e.g. "Rome"'),
-        check_in_date: z.string().describe('YYYY-MM-DD'),
-        check_out_date: z.string().describe('YYYY-MM-DD'),
+        check_in_date: z.string().describe('YYYY-MM-DD, today or later'),
+        check_out_date: z.string().describe('YYYY-MM-DD, after check_in_date'),
         adults: z.number().optional(),
       }),
-      execute: async (params) => {
-        state.lastStays = await apiSearchHotels(params, deps)
-        state.lastStayQuery = {
-          check_in_date: params.check_in_date,
-          check_out_date: params.check_out_date,
-          adults: params.adults,
-        }
-        state.pendingResults.push({ kind: 'stays', query: params.q, items: state.lastStays })
-        return state.lastStays.slice(0, 10).map((s) => ({
-          id: s.id,
-          name: s.name,
-          kind: s.kind,
-          hotelClass: s.hotelClass,
-          pricePerNight: s.pricePerNight,
-          nights: s.nights,
-          total: s.totalPrice ?? s.pricePerNight * s.nights,
-          rating: s.rating,
-          reviewCount: s.reviewCount,
-          deal: s.dealBadge,
-          area: s.address,
-        }))
-      },
+      execute: async (params) =>
+        withToolError(async () => {
+          state.lastStays = await apiSearchHotels(params, deps)
+          state.lastStayQuery = {
+            check_in_date: params.check_in_date,
+            check_out_date: params.check_out_date,
+            adults: params.adults,
+          }
+          state.pendingResults.push({ kind: 'stays', query: params.q, items: state.lastStays })
+          return state.lastStays.slice(0, 10).map((s) => ({
+            id: s.id,
+            name: s.name,
+            kind: s.kind,
+            hotelClass: s.hotelClass,
+            pricePerNight: s.pricePerNight,
+            nights: s.nights,
+            total: s.totalPrice ?? s.pricePerNight * s.nights,
+            rating: s.rating,
+            reviewCount: s.reviewCount,
+            deal: s.dealBadge,
+            area: s.address,
+          }))
+        }),
     }),
 
     getStayDetails: tool({
       description:
         'Fetch full detail for a stay from the latest hotel search (description, amenities, what reviewers say, check-in times, nearby). Use before recommending a stay so your pros and cons are real.',
       inputSchema: z.object({ id: z.string() }),
-      execute: async ({ id }) => {
-        const stay = state.lastStays.find((s) => s.id === id)
-        if (!stay) return { error: `No stay "${id}" in the latest search results.` }
-        if (!stay.propertyToken || !state.lastStayQuery) {
-          return { error: 'No extra detail is available for this stay.' }
-        }
-        const full = await apiGetStayDetails(
-          { property_token: stay.propertyToken, ...state.lastStayQuery },
-          deps,
-        )
-        if (!full) return { error: 'No extra detail is available for this stay.' }
-        // Merge so later emits (and add-to-trip) carry the richer object.
-        Object.assign(stay, full, { id: stay.id, nights: stay.nights })
-        return {
-          description: stay.description,
-          amenities: stay.amenities?.slice(0, 12),
-          missing: stay.excludedAmenities?.slice(0, 6),
-          checkIn: stay.checkInTime,
-          checkOut: stay.checkOutTime,
-          address: stay.address,
-          topics: stay.reviewTopics?.slice(0, 6),
-          reviews: stay.reviewSnippets?.slice(0, 4).map((r) => r.text),
-          nearby: stay.nearbyPlaces?.slice(0, 5),
-        }
-      },
+      execute: async ({ id }) =>
+        withToolError(async () => {
+          const index = state.lastStays.findIndex((s) => s.id === id)
+          const stay = state.lastStays[index]
+          if (!stay) return { error: `No stay "${id}" in the latest search results.` }
+          if (!stay.propertyToken || !state.lastStayQuery) {
+            return { error: 'No extra detail is available for this stay.' }
+          }
+          const full = await apiGetStayDetails(
+            { property_token: stay.propertyToken, ...state.lastStayQuery },
+            deps,
+          )
+          if (!full) return { error: 'No extra detail is available for this stay.' }
+
+          // Keep the enriched stay in place so later emits and add-to-trip carry it.
+          const enriched = mergeStayDetail(stay, full)
+          state.lastStays[index] = enriched
+          return {
+            amenities: enriched.amenities?.slice(0, 12),
+            missing: enriched.excludedAmenities?.slice(0, 6),
+            checkIn: enriched.checkInTime,
+            checkOut: enriched.checkOutTime,
+            address: enriched.address,
+            ratings: {
+              overall: enriched.rating,
+              location: enriched.locationRating,
+              transit: enriched.transitRating,
+              thingsToDo: enriched.thingsToDoRating,
+            },
+            priceInsight: enriched.priceInsight,
+            topics: enriched.reviewTopics?.slice(0, 6),
+            reviews: enriched.reviewSnippets?.slice(0, 4).map((r) => r.text),
+            nearby: enriched.nearbyPlaces?.slice(0, 5).map((n) => ({ name: n.name, transit: n.transit })),
+            bookableFrom: enriched.offers?.slice(0, 4).map((o) => o.source),
+          }
+        }),
     }),
 
     addStay: tool({
@@ -212,20 +243,21 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
         q: z.string().describe('What to search, e.g. "top attractions in Rome"'),
         ll: z.string().optional().describe('GPS bias, format "@lat,lng,zoom"'),
       }),
-      execute: async (params) => {
-        state.lastPlaces = await apiSearchPlaces(params, deps)
-        state.pendingResults.push({ kind: 'places', query: params.q, items: state.lastPlaces })
-        return state.lastPlaces.slice(0, 12).map((p) => ({
-          id: p.id,
-          name: p.name,
-          category: p.category,
-          rating: p.rating,
-          reviewCount: p.reviewCount,
-          price: p.priceRange,
-          hours: p.hours,
-          address: p.address,
-        }))
-      },
+      execute: async (params) =>
+        withToolError(async () => {
+          state.lastPlaces = await apiSearchPlaces(params, deps)
+          state.pendingResults.push({ kind: 'places', query: params.q, items: state.lastPlaces })
+          return state.lastPlaces.slice(0, 12).map((p) => ({
+            id: p.id,
+            name: p.name,
+            category: p.category,
+            rating: p.rating,
+            reviewCount: p.reviewCount,
+            price: p.priceRange,
+            hours: p.hours,
+            address: p.address,
+          }))
+        }),
     }),
 
     addPlaceToItinerary: tool({
