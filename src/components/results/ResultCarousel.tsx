@@ -100,8 +100,8 @@ export function ResultCarousel({
         onScroll={sync}
         className="-mx-1 flex min-w-0 max-w-full snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth px-1 pb-2"
       >
-        {ranked.map(({ item, badges }) => (
-          <div key={item.id} className="snap-start">
+        {ranked.map(({ item, badges }, i) => (
+          <div key={`${item.id}-${i}`} className="snap-start">
             <ResultCard
               kind={set.kind}
               item={item}

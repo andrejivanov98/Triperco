@@ -31,6 +31,25 @@ describe('ItineraryView', () => {
     expect(screen.getByText('Stays')).toBeInTheDocument()
   })
 
+  it('renders a repeated id without breaking the list', () => {
+    const t = trip()
+    // A shared trip saved before adds were deduped can still carry a repeat.
+    t.days = [
+      {
+        items: [
+          { placeId: 'dup', name: 'Colosseum' },
+          { placeId: 'dup', name: 'Colosseum' },
+        ],
+      },
+    ]
+    const errors: unknown[] = []
+    const spy = vi.spyOn(console, 'error').mockImplementation((...args) => errors.push(args))
+    render(<ItineraryView trip={t} />)
+    spy.mockRestore()
+    expect(screen.getAllByText('Colosseum')).toHaveLength(2)
+    expect(JSON.stringify(errors)).not.toMatch(/same key/i)
+  })
+
   it('shows the empty state when nothing is added', () => {
     render(<ItineraryView trip={createTrip('empty')} />)
     expect(screen.getByText(/your plan builds here/i)).toBeInTheDocument()

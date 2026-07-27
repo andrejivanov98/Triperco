@@ -47,8 +47,8 @@ export function PlaceDetail({ place, loading }: { place: Place; loading?: boolea
       {place.hoursByDay && place.hoursByDay.length > 0 && (
         <DetailSection title="Opening hours">
           <ul className="flex flex-col gap-1 text-sm font-medium text-ink">
-            {place.hoursByDay.map((h) => (
-              <li key={h.day} className="flex justify-between gap-3">
+            {place.hoursByDay.map((h, i) => (
+              <li key={`${h.day}-${i}`} className="flex justify-between gap-3">
                 <span>{h.day}</span>
                 <span className="text-muted">{h.hours}</span>
               </li>

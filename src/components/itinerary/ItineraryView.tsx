@@ -85,8 +85,10 @@ export function ItineraryView({
                     {g.label}
                   </div>
                 )}
-                {g.items.map((item) => (
-                  <TimelineItemCard key={`${item.kind}-${item.id}`} item={item} />
+                {g.items.map((item, i) => (
+                  // Index-qualified: a shared trip loaded from an older payload can still
+                  // contain a repeated id, and a duplicate key breaks the whole list.
+                  <TimelineItemCard key={`${item.kind}-${item.id}-${i}`} item={item} />
                 ))}
                 {g.addSlots.map((slot) => (
                   <div

@@ -145,3 +145,47 @@ describe('itinerary items', () => {
     expect(trip.days[0].items.map((i) => i.placeId)).toEqual(['p2'])
   })
 })
+
+describe('adding the same thing twice', () => {
+  // The traveler can tap "Add to trip" while the agent is also adding it server-side, and the
+  // trip round-trips through both. Adding must be idempotent or totals silently double.
+  it('ignores a second copy of the same flight', () => {
+    const trip = addFlight(addFlight(createTrip('t1'), sampleFlight), sampleFlight)
+    expect(trip.flights).toHaveLength(1)
+    expect(trip.estimatedTotal).toBe(180)
+  })
+
+  it('ignores a second copy of the same stay and does not double the total', () => {
+    const trip = addStay(addStay(createTrip('t1'), sampleStay), sampleStay)
+    expect(trip.stays).toHaveLength(1)
+    expect(trip.estimatedTotal).toBe(330)
+  })
+
+  it('takes the richer version when the same stay is added again', () => {
+    const enriched = { ...sampleStay, amenities: ['Pool'], address: 'Via Roma 1' }
+    const trip = addStay(addStay(createTrip('t1'), sampleStay), enriched)
+    expect(trip.stays).toHaveLength(1)
+    expect(trip.stays[0].amenities).toEqual(['Pool'])
+    expect(trip.stays[0].address).toBe('Via Roma 1')
+  })
+
+  it('ignores a place already on that day', () => {
+    let trip = addItineraryItem(createTrip('t1'), 0, colosseum)
+    trip = addItineraryItem(trip, 0, colosseum)
+    expect(trip.days[0].items).toHaveLength(1)
+  })
+
+  it('still allows the same place on a different day', () => {
+    let trip = addItineraryItem(createTrip('t1'), 0, colosseum)
+    trip = addItineraryItem(trip, 1, colosseum)
+    expect(trip.days[0].items).toHaveLength(1)
+    expect(trip.days[1].items).toHaveLength(1)
+  })
+
+  it('keeps a note added on the second attempt', () => {
+    let trip = addItineraryItem(createTrip('t1'), 0, colosseum)
+    trip = addItineraryItem(trip, 0, { ...colosseum, note: 'Book the arena floor' })
+    expect(trip.days[0].items).toHaveLength(1)
+    expect(trip.days[0].items[0].note).toBe('Book the arena floor')
+  })
+})

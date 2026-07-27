@@ -92,9 +92,9 @@ export function FlightDetail({ flight }: { flight: Flight }) {
                       </div>
                       {s.extensions && s.extensions.length > 0 && (
                         <div className="mt-1 flex flex-wrap gap-1">
-                          {s.extensions.map((e) => (
+                          {s.extensions.map((e, j) => (
                             <span
-                              key={e}
+                              key={`${e}-${j}`}
                               className="rounded-full border border-hairline bg-white/60 px-2 py-0.5 text-[11px] font-medium text-muted"
                             >
                               {e}
@@ -121,8 +121,8 @@ export function FlightDetail({ flight }: { flight: Flight }) {
       {flight.extensions && flight.extensions.length > 0 && (
         <DetailSection title="Good to know">
           <ul className="flex list-disc flex-col gap-1 pl-5 text-sm font-medium text-ink">
-            {flight.extensions.map((e) => (
-              <li key={e}>{e}</li>
+            {flight.extensions.map((e, i) => (
+              <li key={`${e}-${i}`}>{e}</li>
             ))}
           </ul>
         </DetailSection>

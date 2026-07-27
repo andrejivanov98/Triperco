@@ -30,8 +30,21 @@ export function setMeta(trip: TripState, patch: Partial<TripMeta>): TripState {
   return withTotal({ ...trip, meta: { ...trip.meta, ...patch } })
 }
 
+/**
+ * Adding is idempotent: the traveler can tap "Add to trip" while the agent adds the same thing
+ * server-side, and the trip round-trips through both. A second add replaces the existing entry
+ * (the newer copy is usually the enriched one) instead of duplicating it and doubling the total.
+ */
+function upsertById<T extends { id: string }>(list: T[], entry: T): T[] {
+  const index = list.findIndex((existing) => existing.id === entry.id)
+  if (index === -1) return [...list, entry]
+  const next = [...list]
+  next[index] = entry
+  return next
+}
+
 export function addFlight(trip: TripState, flight: Flight): TripState {
-  return withTotal({ ...trip, flights: [...trip.flights, flight] })
+  return withTotal({ ...trip, flights: upsertById(trip.flights, flight) })
 }
 
 export function removeFlight(trip: TripState, flightId: string): TripState {
@@ -42,7 +55,7 @@ export function removeFlight(trip: TripState, flightId: string): TripState {
 }
 
 export function addStay(trip: TripState, stay: Stay): TripState {
-  return withTotal({ ...trip, stays: [...trip.stays, stay] })
+  return withTotal({ ...trip, stays: upsertById(trip.stays, stay) })
 }
 
 export function removeStay(trip: TripState, stayId: string): TripState {
@@ -59,7 +72,13 @@ export function addItineraryItem(
 ): TripState {
   const days = trip.days.map((d) => ({ ...d, items: [...d.items] }))
   while (days.length <= dayIndex) days.push({ items: [] })
-  days[dayIndex].items.push(item)
+
+  // One entry per place per day — the same place on another day is still fine.
+  const items = days[dayIndex].items
+  const existing = items.findIndex((it) => it.placeId === item.placeId)
+  if (existing === -1) items.push(item)
+  else items[existing] = item
+
   return withTotal({ ...trip, days })
 }
 

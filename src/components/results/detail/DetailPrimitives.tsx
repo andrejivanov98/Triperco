@@ -58,9 +58,9 @@ export function PillList({ items, muted = false }: { items: string[]; muted?: bo
   if (items.length === 0) return null
   return (
     <div className="flex flex-wrap gap-1.5">
-      {items.map((item) => (
+      {items.map((item, i) => (
         <span
-          key={item}
+          key={`${item}-${i}`}
           className={
             'rounded-full border px-2.5 py-1 text-xs font-medium ' +
             (muted

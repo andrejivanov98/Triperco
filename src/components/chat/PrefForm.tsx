@@ -24,9 +24,9 @@ export function PrefForm({
 
       {form.mode === 'single' ? (
         <div className="flex flex-col">
-          {form.options.map((o) => (
+          {form.options.map((o, i) => (
             <button
-              key={o}
+              key={`${o}-${i}`}
               type="button"
               onClick={() => onSubmit(o)}
               className="border-t border-hairline py-2.5 text-left text-sm font-medium text-ink first:border-t-0 hover:bg-accent-050"
@@ -37,8 +37,8 @@ export function PrefForm({
         </div>
       ) : (
         <div className="flex flex-col gap-1.5">
-          {form.options.map((o) => (
-            <label key={o} className="flex items-center gap-2 text-sm font-medium text-ink">
+          {form.options.map((o, i) => (
+            <label key={`${o}-${i}`} className="flex items-center gap-2 text-sm font-medium text-ink">
               <input
                 type="checkbox"
                 checked={selected.includes(o)}

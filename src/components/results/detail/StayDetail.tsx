@@ -69,8 +69,8 @@ export function StayDetail({ stay, loading }: { stay: Stay; loading?: boolean })
       {stay.offers && stay.offers.length > 0 && (
         <DetailSection title="Where you can book it">
           <div className="flex flex-col divide-y divide-hairline overflow-hidden rounded-xl border border-hairline bg-white/50">
-            {stay.offers.slice(0, 6).map((offer) => (
-              <div key={offer.source} className="flex items-center gap-3 px-3 py-2">
+            {stay.offers.slice(0, 6).map((offer, i) => (
+              <div key={`${offer.source}-${i}`} className="flex items-center gap-3 px-3 py-2">
                 {offer.logo ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={offer.logo} alt="" className="h-5 w-5 rounded object-contain" />
@@ -177,12 +177,12 @@ export function StayDetail({ stay, loading }: { stay: Stay; loading?: boolean })
       {topics.length > 0 && (
         <DetailSection title="What reviewers talk about">
           <div className="flex flex-col gap-1.5">
-            {topics.slice(0, 8).map((t) => {
+            {topics.slice(0, 8).map((t, ti) => {
               const positive = t.positive ?? 0
               const mentions = t.total ?? positive + (t.negative ?? 0) + (t.neutral ?? 0)
               return (
                 <MeterRow
-                  key={t.name}
+                  key={`${t.name}-${ti}`}
                   label={t.name}
                   value={positive}
                   max={Math.max(1, mentions)}
@@ -199,8 +199,8 @@ export function StayDetail({ stay, loading }: { stay: Stay; loading?: boolean })
       {stay.nearbyPlaces && stay.nearbyPlaces.length > 0 && (
         <DetailSection title="Getting around">
           <ul className="flex flex-col gap-1 text-sm font-medium text-ink">
-            {stay.nearbyPlaces.slice(0, 8).map((n) => (
-              <li key={n.name} className="flex justify-between gap-3">
+            {stay.nearbyPlaces.slice(0, 8).map((n, i) => (
+              <li key={`${n.name}-${i}`} className="flex justify-between gap-3">
                 <span className="truncate">{n.name}</span>
                 {n.transit && <span className="shrink-0 text-muted">{n.transit}</span>}
               </li>
@@ -212,8 +212,8 @@ export function StayDetail({ stay, loading }: { stay: Stay; loading?: boolean })
       {stay.essentialInfo && stay.essentialInfo.length > 0 && (
         <DetailSection title="Good to know">
           <ul className="flex list-disc flex-col gap-1 pl-5 text-sm font-medium text-ink">
-            {stay.essentialInfo.map((info) => (
-              <li key={info}>{info}</li>
+            {stay.essentialInfo.map((info, i) => (
+              <li key={`${info}-${i}`}>{info}</li>
             ))}
           </ul>
         </DetailSection>

@@ -138,9 +138,9 @@ export function ChatPane({
       <div className="flex flex-col gap-2 border-t border-hairline pt-3">
         {suggestions.length > 0 && (
           <div className="flex flex-wrap gap-2">
-            {suggestions.map((s) => (
+            {suggestions.map((s, i) => (
               <button
-                key={s}
+                key={`${s}-${i}`}
                 type="button"
                 onClick={() => submit(s)}
                 disabled={busy}
