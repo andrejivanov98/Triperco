@@ -5,6 +5,7 @@ import type { TriperUIMessage } from '@/lib/ui/messages'
 import type { Flight, Stay, Place } from '@/lib/trip/types'
 import type { ResultSet } from '@/lib/ui/results'
 import { getResultSets } from '@/lib/ui/results'
+import { revisionsFor, setId } from '@/lib/ui/revisions'
 import { getOptionSets, getForms, getSuggestions } from '@/lib/ui/interactions'
 import { ResultCarousel } from '@/components/results/ResultCarousel'
 import { MessageText } from './MessageText'
@@ -49,6 +50,8 @@ export function ChatPane({
   const busy = status !== 'ready' && status !== 'error'
   const endRef = useRef<HTMLDivElement>(null)
   const last = messages[messages.length - 1]
+  // Which carousels have been answered again since, so only the live set stays open.
+  const revisions = revisionsFor(messages)
 
   // What the agent proposed for this exact moment beats anything we can guess from trip state.
   const proposed = last?.role === 'assistant' ? getSuggestions(last) : []
@@ -103,6 +106,7 @@ export function ChatPane({
                     <ResultCarousel
                       key={i}
                       set={set}
+                      revision={revisions.get(setId(m.id, i))}
                       onOpen={(s, item) => onOpenDetail?.(s, item)}
                       onAdd={(s, item) => onAddResult?.(s, item)}
                     />

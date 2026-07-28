@@ -2,6 +2,7 @@ import { tool } from 'ai'
 import { z } from 'zod'
 import type { TripState, Flight, Stay, Place } from '../trip/types'
 import type { ResultSet } from '../ui/results'
+import { makeSetKey } from '../ui/results'
 import type { OptionSet, PrefForm, ReplySuggestions } from '../ui/interactions'
 import { createTrip, setMeta } from '../trip/tripState'
 import { mergeStayDetail } from '../trip/mergeStay'
@@ -103,11 +104,19 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
         withToolError(async () => {
           state.lastFlights = await apiSearchFlights(params, deps)
           const roundTrip = state.lastFlights.some((f) => f.returnLeg)
+          const flightType = roundTrip
+            ? ('round_trip' as const)
+            : params.direction === 'return'
+              ? ('return' as const)
+              : ('one_way' as const)
+          // Same route, same leg means the same question — searching it again revises the set.
+          const route = `${params.departure_id} → ${params.arrival_id}`
           state.pendingResults.push({
             kind: 'flights',
-            query: `${params.departure_id} → ${params.arrival_id}`,
+            query: route,
+            setKey: makeSetKey('flights', route, flightType),
             items: state.lastFlights,
-            flightType: roundTrip ? 'round_trip' : params.direction === 'return' ? 'return' : 'one_way',
+            flightType,
           })
           return state.lastFlights.slice(0, 10).map((f) => ({
             id: f.id,
@@ -148,7 +157,12 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
             check_out_date: params.check_out_date,
             adults: params.adults,
           }
-          state.pendingResults.push({ kind: 'stays', query: params.q, items: state.lastStays })
+          state.pendingResults.push({
+            kind: 'stays',
+            query: params.q,
+            setKey: makeSetKey('stays', params.q),
+            items: state.lastStays,
+          })
           return state.lastStays.slice(0, 10).map((s) => ({
             id: s.id,
             name: s.name,
@@ -219,7 +233,12 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
       execute: async (params) =>
         withToolError(async () => {
           state.lastPlaces = await apiSearchPlaces(params, deps)
-          state.pendingResults.push({ kind: 'places', query: params.q, items: state.lastPlaces })
+          state.pendingResults.push({
+            kind: 'places',
+            query: params.q,
+            setKey: makeSetKey('places', params.q),
+            items: state.lastPlaces,
+          })
           return state.lastPlaces.slice(0, 12).map((p) => ({
             id: p.id,
             name: p.name,

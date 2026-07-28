@@ -1,5 +1,6 @@
 import type { Flight, Stay, Place } from '@/lib/trip/types'
 import type { ResultSet } from './results'
+import { resultSetKey } from './results'
 import { rankResults } from './rank'
 
 /**
@@ -207,18 +208,13 @@ function placeDetail(place: Place) {
   })
 }
 
-/** Flights split by leg: outbound options and ways home are different things on screen. */
-function groupKey(set: ResultSet): string {
-  return set.kind === 'flights' ? `flights:${set.flightType ?? 'one_way'}` : set.kind
-}
-
 /**
- * The newest set per group, in the order the groups first appeared. Older sets for the same
- * search have been replaced on screen, so telling the model about them would be a lie.
+ * The newest set per question, in the order the questions first appeared. An older set answering
+ * the same question has collapsed on screen, so telling the model it is visible would be a lie.
  */
 export function visibleSets(sets: ResultSet[]): ResultSet[] {
   const latest = new Map<string, ResultSet>()
-  for (const set of sets) latest.set(groupKey(set), set)
+  for (const set of sets) latest.set(resultSetKey(set), set)
   return [...latest.values()].slice(-MAX_SETS)
 }
 

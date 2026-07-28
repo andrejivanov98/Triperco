@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Flight, Stay, Place } from '@/lib/trip/types'
 import type { ResultSet } from '@/lib/ui/results'
+import type { SetRevision } from '@/lib/ui/revisions'
 import { rankResults } from '@/lib/ui/rank'
 import { Lightbox } from '@/components/ui/Lightbox'
 import { StayResultCard } from './StayResultCard'
@@ -34,15 +35,19 @@ export function ResultCarousel({
   set,
   onOpen,
   onAdd,
+  revision,
 }: {
   set: ResultSet
   onOpen: (set: ResultSet, item: Flight | Stay | Place) => void
   onAdd: (set: ResultSet, item: Flight | Stay | Place) => void
+  /** Where this set sits among the searches answering the same question. */
+  revision?: SetRevision
 }) {
   const trackRef = useRef<HTMLDivElement>(null)
   const [atStart, setAtStart] = useState(true)
   const [atEnd, setAtEnd] = useState(true)
   const [photos, setPhotos] = useState<{ title: string; list: string[]; index: number } | null>(null)
+  const [reopened, setReopened] = useState(false)
 
   const sync = useCallback(() => {
     const el = trackRef.current
@@ -73,6 +78,26 @@ export function ResultCarousel({
   const ranked = rankResults(set)
   if (ranked.length === 0) return null
 
+  // A newer search answered this same question, so this set is history — collapse it rather than
+  // leaving four dead carousels between the traveler and the live one. Nothing is deleted.
+  if (revision?.superseded && !reopened) {
+    return (
+      <button
+        type="button"
+        data-testid="superseded-set"
+        onClick={() => setReopened(true)}
+        className="mt-1 flex w-full items-center gap-2 rounded-xl border border-hairline bg-sand/40 px-3 py-2 text-left text-xs font-semibold text-muted transition hover:bg-sand"
+      >
+        <span className="text-[10px]">↩</span>
+        <span className="truncate">
+          Earlier search · {setLabel(set)}
+          {set.query ? ` · ${set.query}` : ''}
+        </span>
+        <span className="ml-auto shrink-0 text-accent-600">Show</span>
+      </button>
+    )
+  }
+
   const hidden = set.items.length - ranked.length
   const arrow =
     'hidden h-7 w-7 items-center justify-center rounded-full border border-hairline bg-white/80 text-xs font-bold text-ink transition hover:bg-white disabled:opacity-30 sm:flex'
@@ -84,6 +109,20 @@ export function ResultCarousel({
         <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 text-xs font-semibold text-muted">
           <span className="text-ink">{setLabel(set)}</span>
           {set.query && <span className="truncate">{set.query}</span>}
+          {/* Say that this replaced an earlier search, so a changed list doesn't look like a new one. */}
+          {revision && revision.revision > 1 && !revision.superseded && (
+            <span
+              data-testid="revised-badge"
+              className="rounded-full bg-accent-050 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent-600"
+            >
+              Updated
+            </span>
+          )}
+          {revision?.superseded && reopened && (
+            <span className="text-[10px] font-bold uppercase tracking-wide text-muted">
+              Earlier search
+            </span>
+          )}
           {hidden > 0 && <span>· showing the best {ranked.length}</span>}
         </div>
         <div className="flex shrink-0 gap-1">

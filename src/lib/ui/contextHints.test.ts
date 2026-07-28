@@ -26,6 +26,11 @@ function place(id: string, over: Partial<Place> = {}): Place {
   return { id, name: `Place ${id}`, photos: [], reviewSnippets: [], sourceLinks: {}, ...over }
 }
 
+/** The ids a set carries, for asserting which answer survived. */
+function payloadIds(set: ResultSet): string[] {
+  return set.items.map((i) => i.id)
+}
+
 /** Parse one hint's JSON payload. */
 function payload(content: string) {
   return JSON.parse(content) as {
@@ -128,26 +133,35 @@ describe('buildContextHints — flight legs stay separate', () => {
     expect(hints[1].description).toMatch(/way home/i)
   })
 
-  it('replaces an earlier set of the same kind rather than reporting both', () => {
+  it('reports only the newest answer when the same search ran twice', () => {
     const sets: ResultSet[] = [
-      { kind: 'stays', query: 'first', items: [stay('a')] },
-      { kind: 'stays', query: 'second', items: [stay('b')] },
+      { kind: 'stays', query: 'Rome', items: [stay('a')] },
+      { kind: 'stays', query: 'Rome', items: [stay('b')] },
     ]
     const hints = buildContextHints({ sets, capturedAt: AT })
     expect(hints).toHaveLength(1)
     expect(payload(hints[0].content).items[0].id).toBe('b')
   })
+
+  it('reports both when they are different searches still on screen', () => {
+    const sets: ResultSet[] = [
+      { kind: 'stays', query: 'Rome', items: [stay('a')] },
+      { kind: 'stays', query: 'Naples', items: [stay('b')] },
+    ]
+    expect(buildContextHints({ sets, capturedAt: AT })).toHaveLength(2)
+  })
 })
 
 describe('visibleSets', () => {
-  it('keeps the newest set per group in first-appearance order', () => {
+  it('keeps the newest answer per question in first-appearance order', () => {
     const sets: ResultSet[] = [
-      { kind: 'stays', query: 'old', items: [stay('a')] },
-      { kind: 'places', items: [place('p')] },
-      { kind: 'stays', query: 'new', items: [stay('b')] },
+      { kind: 'stays', query: 'Rome', items: [stay('a')] },
+      { kind: 'places', query: 'things to do in Rome', items: [place('p')] },
+      { kind: 'stays', query: 'Rome', items: [stay('b')] },
     ]
     expect(visibleSets(sets).map((s) => s.kind)).toEqual(['stays', 'places'])
-    expect(visibleSets(sets)[0].query).toBe('new')
+    // The stays slot keeps its position but now holds the newer answer.
+    expect(payloadIds(visibleSets(sets)[0])).toEqual(['b'])
   })
 
   it('keeps at most three sets', () => {
