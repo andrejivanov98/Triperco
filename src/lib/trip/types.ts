@@ -243,6 +243,14 @@ export interface TripMeta {
   rooms?: number
   adults?: number
   children?: number
+  /** Under 2. Priced and seated differently, so they are not just more children. */
+  infants?: number
+  /** Ages change both price and what a place will accept, so they are worth carrying. */
+  childrenAges?: number[]
+  /** Travelling with a dog changes which stays are even possible. */
+  pets?: number
+  /** "Give or take a few days" — how far either side of the dates they will move. */
+  dateFlexDays?: number
 }
 
 export interface TripState {

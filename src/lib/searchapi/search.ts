@@ -43,6 +43,17 @@ function nightsBetween(checkIn: string, checkOut: string): number {
   return Math.max(1, Math.round(ms / 86_400_000))
 }
 
+/** Verified against the live provider — these are the exact values it accepts. */
+export type CabinClass = 'economy' | 'premium_economy' | 'business' | 'first_class'
+export type StopsFilter = 'any' | 'nonstop' | 'one_stop_or_fewer' | 'two_stops_or_fewer'
+
+/** One hop of a multi-city trip. */
+export interface FlightLeg {
+  departure_id: string
+  arrival_id: string
+  outbound_date: string
+}
+
 export interface FlightParams {
   departure_id: string
   arrival_id: string
@@ -52,6 +63,97 @@ export interface FlightParams {
   flight_type?: 'one_way' | 'round_trip'
   /** Mark a search that is deliberately only the way home. */
   direction?: 'outbound' | 'return'
+  travel_class?: CabinClass
+  stops?: StopsFilter
+  adults?: number
+  children?: number
+  infants_in_seat?: number
+  infants_on_lap?: number
+}
+
+/** Shift a YYYY-MM-DD date by whole days, staying in UTC so no timezone can move it. */
+function shiftDate(date: string, days: number): string {
+  const time = Date.parse(`${date}T00:00:00Z`)
+  if (Number.isNaN(time)) return date
+  return new Date(time + days * 86_400_000).toISOString().slice(0, 10)
+}
+
+/** How far either side of the named date we will look. More than this is a different trip. */
+export const MAX_FLEX_DAYS = 3
+
+/**
+ * "Give or take a few days." The provider has no flexible-date parameter, so this is genuinely a
+ * wider search: one call per offset, capped at three, with the whole trip shifted together so the
+ * stay length never changes.
+ *
+ * The results merge into one set, so the existing ranking floats the cheapest date to the front and
+ * each card still shows the day it actually leaves.
+ */
+export async function searchFlightsFlexible(
+  params: FlightParams,
+  flexDays: number,
+  deps?: SearchDeps,
+): Promise<Flight[]> {
+  const flex = Math.min(MAX_FLEX_DAYS, Math.max(0, Math.trunc(flexDays)))
+  if (flex === 0) return searchFlights(params, deps)
+
+  const offsets = [-flex, 0, flex]
+  const runs = await Promise.all(
+    offsets.map((offset) =>
+      searchFlights(
+        {
+          ...params,
+          outbound_date: shiftDate(params.outbound_date, offset),
+          return_date: params.return_date ? shiftDate(params.return_date, offset) : undefined,
+        },
+        deps,
+      ).catch(() => [] as Flight[]),
+    ),
+  )
+
+  // Two offsets can surface the same itinerary; keep the first sighting of each.
+  const seen = new Set<string>()
+  return runs.flat().filter((flight) => {
+    if (seen.has(flight.id)) return false
+    seen.add(flight.id)
+    return true
+  })
+}
+
+/** Three or more hops in one booking. Priced as one journey, so it never pairs return legs. */
+export interface MultiCityParams {
+  legs: FlightLeg[]
+  travel_class?: CabinClass
+  stops?: StopsFilter
+  adults?: number
+  children?: number
+}
+
+/**
+ * A trip with more than two hops. The provider takes the whole journey as one payload and returns
+ * fares for it, so there is no outbound/return pairing to do.
+ */
+export async function searchMultiCity(
+  params: MultiCityParams,
+  deps?: SearchDeps,
+): Promise<Flight[]> {
+  const { search, cache } = resolve(deps)
+  const legs = params.legs.filter((l) => l.departure_id && l.arrival_id && l.outbound_date)
+  if (legs.length < 2) return []
+
+  const shape = legs.map((l) => `${l.departure_id}-${l.arrival_id}-${l.outbound_date}`).join('|')
+  const key = `google_flights:multi:${shape}:${params.travel_class ?? ''}:${params.stops ?? ''}`
+  return withCache(cache, key, TTL.flights, async () => {
+    const raw = await search<RawFlightsResponse>('google_flights', {
+      flight_type: 'multi_city',
+      multi_city_json: JSON.stringify(legs),
+      travel_class: params.travel_class,
+      stops: params.stops,
+      adults: params.adults,
+      children: params.children,
+    })
+    return normalizeFlights(raw, 'outbound')
+  })
 }
 
 /** How many round trips we complete with a return leg. Each one costs an extra provider call. */
@@ -63,7 +165,8 @@ export async function searchFlights(params: FlightParams, deps?: SearchDeps): Pr
   const type = params.flight_type === 'round_trip' && params.return_date ? 'round_trip' : 'one_way'
   const returnDate = type === 'round_trip' ? params.return_date : undefined
   const direction = params.direction ?? 'outbound'
-  const key = `google_flights:${params.departure_id}:${params.arrival_id}:${params.outbound_date}:${returnDate ?? ''}:${type}:${direction}`
+  const filters = `${params.travel_class ?? ''}:${params.stops ?? ''}:${params.adults ?? ''}:${params.children ?? ''}:${params.infants_in_seat ?? ''}:${params.infants_on_lap ?? ''}`
+  const key = `google_flights:${params.departure_id}:${params.arrival_id}:${params.outbound_date}:${returnDate ?? ''}:${type}:${direction}:${filters}`
 
   return withCache(cache, key, TTL.flights, async () => {
     const query = {
@@ -72,6 +175,12 @@ export async function searchFlights(params: FlightParams, deps?: SearchDeps): Pr
       outbound_date: params.outbound_date,
       return_date: returnDate,
       flight_type: type,
+      travel_class: params.travel_class,
+      stops: params.stops,
+      adults: params.adults,
+      children: params.children,
+      infants_in_seat: params.infants_in_seat,
+      infants_on_lap: params.infants_on_lap,
     }
     const raw = await search<RawFlightsResponse>('google_flights', query)
     const outbound = normalizeFlights(raw, direction)

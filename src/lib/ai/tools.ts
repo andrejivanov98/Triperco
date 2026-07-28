@@ -10,6 +10,8 @@ import { stayVerdict } from '../trip/stayVerdict'
 import { classifyActivity, eventOutsideTrip } from '../trip/activityKind'
 import {
   searchFlights as apiSearchFlights,
+  searchFlightsFlexible as apiSearchFlightsFlexible,
+  searchMultiCity as apiSearchMultiCity,
   searchHotels as apiSearchHotels,
   searchPlaces as apiSearchPlaces,
   searchEvents as apiSearchEvents,
@@ -77,6 +79,13 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
         rooms: z.number().optional(),
         adults: z.number().optional(),
         children: z.number().optional(),
+        infants: z.number().optional().describe('Under 2'),
+        childrenAges: z.array(z.number()).optional().describe('Ages of the children, if mentioned'),
+        pets: z.number().optional().describe('Animals travelling with them'),
+        dateFlexDays: z
+          .number()
+          .optional()
+          .describe('How many days either side they can move, if they said their dates are flexible'),
       }),
       execute: async (patch) => {
         state.trip = setMeta(state.trip, patch)
@@ -102,10 +111,30 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
           .describe(
             'Use "return" for a one-way search of just the way home (swap the airports and use the return date). Choosing a round_trip result fills both legs at once.',
           ),
+        travel_class: z
+          .enum(['economy', 'premium_economy', 'business', 'first_class'])
+          .optional()
+          .describe('Only pass this when the traveler asked for a cabin.'),
+        stops: z
+          .enum(['any', 'nonstop', 'one_stop_or_fewer', 'two_stops_or_fewer'])
+          .optional()
+          .describe('Pass "nonstop" when they say direct flights only.'),
+        adults: z.number().optional(),
+        children: z.number().optional().describe('Aged 2-11'),
+        infants_in_seat: z.number().optional().describe('Under 2, with their own seat'),
+        infants_on_lap: z.number().optional().describe('Under 2, on a lap'),
+        flex_days: z
+          .number()
+          .optional()
+          .describe(
+            'Give or take this many days, 1-3. Shifts the whole trip together and merges the results, so the cheapest date wins. Costs one extra search per side — only use it when they say their dates are flexible.',
+          ),
       }),
-      execute: async (params) =>
+      execute: async ({ flex_days, ...params }) =>
         withToolError(async () => {
-          state.lastFlights = await apiSearchFlights(params, deps)
+          state.lastFlights = flex_days
+            ? await apiSearchFlightsFlexible(params, flex_days, deps)
+            : await apiSearchFlights(params, deps)
           const roundTrip = state.lastFlights.some((f) => f.returnLeg)
           const flightType = roundTrip
             ? ('round_trip' as const)
@@ -142,6 +171,50 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
     }),
 
 
+
+    searchMultiCityFlights: tool({
+      description:
+        'Search a journey with three or more hops in one booking, e.g. Skopje → Rome → Barcelona → Skopje. The provider prices the whole journey as one fare, so this is not the same as several one-way searches. Use it when the traveler wants to string cities together.',
+      inputSchema: z.object({
+        legs: z
+          .array(
+            z.object({
+              departure_id: z.string().describe('IATA code'),
+              arrival_id: z.string().describe('IATA code'),
+              outbound_date: z.string().describe('YYYY-MM-DD, today or later'),
+            }),
+          )
+          .min(2)
+          .describe('In travel order.'),
+        travel_class: z.enum(['economy', 'premium_economy', 'business', 'first_class']).optional(),
+        stops: z.enum(['any', 'nonstop', 'one_stop_or_fewer', 'two_stops_or_fewer']).optional(),
+        adults: z.number().optional(),
+        children: z.number().optional(),
+      }),
+      execute: async (params) =>
+        withToolError(async () => {
+          state.lastFlights = await apiSearchMultiCity(params, deps)
+          const route = params.legs.map((l) => l.departure_id).concat(params.legs.at(-1)!.arrival_id).join(' → ')
+          state.pendingResults.push({
+            kind: 'flights',
+            query: route,
+            setKey: makeSetKey('flights', route, 'one_way'),
+            items: state.lastFlights,
+            flightType: 'one_way',
+          })
+          return state.lastFlights.slice(0, 10).map((f) => ({
+            id: f.id,
+            airline: f.airline,
+            from: f.from,
+            to: f.to,
+            departTime: f.departTime,
+            departDate: f.departDate,
+            duration: hours(f.durationMinutes),
+            stops: f.stops,
+            price: f.price,
+          }))
+        }),
+    }),
 
     searchHotels: tool({
       description:
