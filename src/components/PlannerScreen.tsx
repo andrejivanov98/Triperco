@@ -229,6 +229,7 @@ export function PlannerScreen() {
             onSend={(text) => sendMessage({ text })}
             onAddResult={addResult}
             onOpenDetail={openDetail}
+            tripDates={trip.meta}
             emptyState={<ChatEmptyState onPick={(text) => sendMessage({ text })} />}
           />
         </div>

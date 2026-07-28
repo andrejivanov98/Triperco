@@ -1,9 +1,10 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { Flight, Stay, Place } from '@/lib/trip/types'
+import type { Flight, Stay, Place, TripMeta } from '@/lib/trip/types'
 import type { ResultSet } from '@/lib/ui/results'
 import type { SetRevision } from '@/lib/ui/revisions'
+import { activityKindLabel } from '@/lib/trip/activityKind'
 import { rankResults } from '@/lib/ui/rank'
 import { Lightbox } from '@/components/ui/Lightbox'
 import { StayResultCard } from './StayResultCard'
@@ -13,11 +14,14 @@ import { PlaceResultCard } from './PlaceResultCard'
 const KIND_NOUN: Record<ResultSet['kind'], string> = {
   flights: 'flight options',
   stays: 'places to stay',
-  places: 'spots',
+  places: 'things to do',
 }
 
 /** Name the set for what it is, so one-ways, round trips and returns never blur together. */
 function setLabel(set: ResultSet): string {
+  if (set.kind === 'places') {
+    return `${set.items.length} ${activityKindLabel(set.placeKind ?? 'attraction', set.items.length)}`
+  }
   if (set.kind !== 'flights') return `${set.items.length} ${KIND_NOUN[set.kind]}`
   const noun =
     set.flightType === 'round_trip'
@@ -36,12 +40,15 @@ export function ResultCarousel({
   onOpen,
   onAdd,
   revision,
+  tripDates,
 }: {
   set: ResultSet
   onOpen: (set: ResultSet, item: Flight | Stay | Place) => void
   onAdd: (set: ResultSet, item: Flight | Stay | Place) => void
   /** Where this set sits among the searches answering the same question. */
   revision?: SetRevision
+  /** So an event outside the trip window can say so on its card. */
+  tripDates?: Pick<TripMeta, 'startDate' | 'endDate'>
 }) {
   const trackRef = useRef<HTMLDivElement>(null)
   const [atStart, setAtStart] = useState(true)
@@ -176,6 +183,7 @@ export function ResultCarousel({
               key={key}
               place={place}
               badges={entry.badges}
+              tripDates={tripDates}
               onOpen={() => onOpen(set, place)}
               onAdd={() => onAdd(set, place)}
               onOpenPhotos={(index) => setPhotos({ title: place.name, list: place.photos, index })}

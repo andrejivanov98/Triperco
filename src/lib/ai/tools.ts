@@ -7,10 +7,12 @@ import type { OptionSet, PrefForm, ReplySuggestions } from '../ui/interactions'
 import { createTrip, setMeta } from '../trip/tripState'
 import { mergeStayDetail } from '../trip/mergeStay'
 import { stayVerdict } from '../trip/stayVerdict'
+import { classifyActivity, eventOutsideTrip } from '../trip/activityKind'
 import {
   searchFlights as apiSearchFlights,
   searchHotels as apiSearchHotels,
   searchPlaces as apiSearchPlaces,
+  searchEvents as apiSearchEvents,
   getPlaceReviews as apiGetPlaceReviews,
   getPlacePhotos as apiGetPlacePhotos,
   getStayDetails as apiGetStayDetails,
@@ -238,16 +240,24 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
       }),
       execute: async (params) =>
         withToolError(async () => {
-          state.lastPlaces = await apiSearchPlaces(params, deps)
-          state.pendingResults.push({
-            kind: 'places',
-            query: params.q,
-            setKey: makeSetKey('places', params.q),
-            items: state.lastPlaces,
-          })
-          return state.lastPlaces.slice(0, 12).map((p) => ({
+          const found = await apiSearchPlaces(params, deps)
+          state.lastPlaces = found
+          // Tours are booked and attractions are turned up at, so they never share a carousel.
+          for (const kind of ['attraction', 'tour'] as const) {
+            const items = found.filter((p) => classifyActivity(p) === kind)
+            if (items.length === 0) continue
+            state.pendingResults.push({
+              kind: 'places',
+              query: params.q,
+              setKey: makeSetKey('places', params.q, kind),
+              placeKind: kind,
+              items,
+            })
+          }
+          return found.slice(0, 12).map((p) => ({
             id: p.id,
             name: p.name,
+            kind: classifyActivity(p),
             category: p.category,
             rating: p.rating,
             reviewCount: p.reviewCount,
@@ -259,6 +269,37 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
     }),
 
 
+
+    searchEvents: tool({
+      description:
+        'Find concerts, festivals, matches and other one-off events happening at the destination. Use this for "what is on while we are there" — it is a different question from attractions, because an event has a fixed date the traveler can miss. The traveler picks what goes into the plan.',
+      inputSchema: z.object({
+        q: z.string().describe('e.g. "events in Rome" or "concerts in Rome in August"'),
+      }),
+      execute: async (params) =>
+        withToolError(async () => {
+          const events = await apiSearchEvents(params, deps)
+          state.lastPlaces = [...state.lastPlaces, ...events]
+          state.pendingResults.push({
+            kind: 'places',
+            query: params.q,
+            setKey: makeSetKey('places', params.q, 'event'),
+            placeKind: 'event',
+            items: events,
+          })
+          return events.slice(0, 10).map((e) => ({
+            id: e.id,
+            name: e.name,
+            date: e.startDate,
+            when: e.whenLabel,
+            venue: e.venueName,
+            address: e.address,
+            tickets: e.ticketSellers,
+            // Say so plainly: a great event the week after they fly home is no use.
+            outsideTripDates: eventOutsideTrip(e, state.trip.meta) || undefined,
+          }))
+        }),
+    }),
 
     getPlaceDetails: tool({
       description:

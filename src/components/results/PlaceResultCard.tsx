@@ -1,7 +1,8 @@
 'use client'
 
-import type { Place } from '@/lib/trip/types'
+import type { Place, TripMeta } from '@/lib/trip/types'
 import { formatRating } from '@/lib/ui/format'
+import { classifyActivity, eventOutsideTrip, showsOpeningHours } from '@/lib/trip/activityKind'
 import { Badge, badgeTone } from '@/components/ui/Badge'
 import { RemoteImage } from '@/components/ui/RemoteImage'
 
@@ -9,12 +10,15 @@ import { RemoteImage } from '@/components/ui/RemoteImage'
 export function PlaceResultCard({
   place,
   badges = [],
+  tripDates,
   onOpen,
   onAdd,
   onOpenPhotos,
 }: {
   place: Place
   badges?: string[]
+  /** So an event that misses the trip can say so before it is added. */
+  tripDates?: Pick<TripMeta, 'startDate' | 'endDate'>
   onOpen: () => void
   onAdd: () => void
   onOpenPhotos?: (index: number) => void
@@ -23,6 +27,8 @@ export function PlaceResultCard({
   const rating = formatRating(place.rating, place.reviewCount)
   // Somewhere that has shut down can't be planned around, so it is never addable.
   const closedForGood = place.permanentlyClosed === true
+  const kind = classifyActivity(place)
+  const clashes = tripDates ? eventOutsideTrip(place, tripDates) : false
 
   return (
     // A fixed frame: every card is the same size, so the photo and the buttons never shift.
@@ -58,14 +64,30 @@ export function PlaceResultCard({
         <div className="flex flex-wrap gap-x-2 text-[11px] font-medium text-muted">
           {closedForGood ? (
             <span className="font-bold text-red-600">Closed down</span>
+          ) : kind === 'event' ? (
+            <>
+              {/* An event is a date you can miss, so the date leads and a clash is stated. */}
+              {place.whenLabel && <span className="truncate font-bold text-ink">{place.whenLabel}</span>}
+              {!place.whenLabel && place.startDate && (
+                <span className="font-bold text-ink">{place.startDate}</span>
+              )}
+              {clashes && (
+                <span data-testid="event-clash" className="font-bold text-red-600">
+                  Not during your trip
+                </span>
+              )}
+            </>
           ) : (
+            // Opening hours mean nothing for something you book rather than turn up to.
+            showsOpeningHours(kind) &&
             place.openNow !== undefined && (
               <span className={place.openNow ? 'font-bold text-accent-600' : undefined}>
                 {place.openNow ? 'Open now' : 'Closed right now'}
               </span>
             )
           )}
-          {place.hours && <span className="truncate">{place.hours}</span>}
+          {showsOpeningHours(kind) && place.hours && <span className="truncate">{place.hours}</span>}
+          {kind === 'event' && place.venueName && <span className="truncate">{place.venueName}</span>}
           {place.address && <span className="truncate">{place.address.split(',')[0]}</span>}
         </div>
       </button>
@@ -100,14 +122,15 @@ export function PlaceResultCard({
             Add to trip
           </button>
         )}
-        {place.sourceLinks?.maps && (
+        {/* Everything addable carries the place you actually book or check it. */}
+        {(place.ticketUrl ?? place.sourceLinks?.maps) && (
           <a
-            href={place.sourceLinks.maps}
+            href={place.ticketUrl ?? place.sourceLinks?.maps}
             target="_blank"
             rel="noopener noreferrer"
             className="rounded-xl border border-hairline bg-white px-3 py-2 text-xs font-bold text-ink transition hover:bg-sand"
           >
-            Open ↗
+            {place.ticketUrl ? 'Tickets ↗' : 'Open ↗'}
           </a>
         )}
       </div>

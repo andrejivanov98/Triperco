@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { TriperUIMessage } from '@/lib/ui/messages'
-import type { Flight, Stay, Place } from '@/lib/trip/types'
+import type { Flight, Stay, Place, TripMeta } from '@/lib/trip/types'
 import type { ResultSet } from '@/lib/ui/results'
 import { getResultSets } from '@/lib/ui/results'
 import { revisionsFor, setId } from '@/lib/ui/revisions'
@@ -20,6 +20,8 @@ interface ChatPaneProps {
   onSend: (text: string) => void
   onAddResult?: (set: ResultSet, item: Flight | Stay | Place) => void
   onOpenDetail?: (set: ResultSet, item: Flight | Stay | Place) => void
+  /** So an event outside the trip window can say so on its card. */
+  tripDates?: Pick<TripMeta, 'startDate' | 'endDate'>
   /** Rendered above the greeting when the chat is empty (e.g. starter prompts). */
   emptyState?: React.ReactNode
 }
@@ -44,6 +46,7 @@ export function ChatPane({
   onSend,
   onAddResult,
   onOpenDetail,
+  tripDates,
   emptyState,
 }: ChatPaneProps) {
   const [input, setInput] = useState('')
@@ -107,6 +110,7 @@ export function ChatPane({
                       key={i}
                       set={set}
                       revision={revisions.get(setId(m.id, i))}
+                      tripDates={tripDates}
                       onOpen={(s, item) => onOpenDetail?.(s, item)}
                       onAdd={(s, item) => onAddResult?.(s, item)}
                     />

@@ -1,4 +1,4 @@
-import type { Flight, Stay, Place } from '@/lib/trip/types'
+import type { ActivityKind, Flight, Stay, Place } from '@/lib/trip/types'
 import type { TriperUIMessage } from './messages'
 
 /**
@@ -17,7 +17,14 @@ export type ResultSet =
       flightType?: 'one_way' | 'round_trip' | 'return'
     }
   | { kind: 'stays'; query?: string; setKey?: string; items: Stay[] }
-  | { kind: 'places'; query?: string; setKey?: string; items: Place[] }
+  | {
+      kind: 'places'
+      query?: string
+      setKey?: string
+      items: Place[]
+      /** Things to do, tours or events — they are not the same offer and never share a carousel. */
+      placeKind?: ActivityKind
+    }
 
 /** Collapse whitespace and case so "Rome " and "rome" are the same question. */
 function normalizeQuery(query: string | undefined): string {
@@ -32,6 +39,7 @@ export function resultSetKey(set: ResultSet): string {
   if (set.setKey && set.setKey.trim().length > 0) return set.setKey.trim()
   const query = normalizeQuery(set.query)
   if (set.kind === 'flights') return `flights:${query}:${set.flightType ?? 'one_way'}`
+  if (set.kind === 'places') return `places:${query}:${set.placeKind ?? 'attraction'}`
   return `${set.kind}:${query}`
 }
 
@@ -39,10 +47,12 @@ export function resultSetKey(set: ResultSet): string {
 export function makeSetKey(
   kind: ResultSet['kind'],
   query: string,
-  flightType?: 'one_way' | 'round_trip' | 'return',
+  variant?: 'one_way' | 'round_trip' | 'return' | ActivityKind,
 ): string {
   const base = `${kind}:${normalizeQuery(query)}`
-  return kind === 'flights' ? `${base}:${flightType ?? 'one_way'}` : base
+  if (kind === 'flights') return `${base}:${variant ?? 'one_way'}`
+  if (kind === 'places') return `${base}:${variant ?? 'attraction'}`
+  return base
 }
 
 /** All data-results parts on a message, in order. */

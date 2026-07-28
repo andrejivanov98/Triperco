@@ -5,6 +5,7 @@ import { normalizeFlights, departureTokens, type RawFlightsResponse } from './no
 import { normalizeHotels, type RawHotelsResponse } from './normalizeHotels'
 import { normalizeHotelProperty, type RawPropertyResponse } from './normalizeHotelProperty'
 import { normalizePlaces, type RawMapsResponse } from './normalizePlaces'
+import { normalizeEvents, type RawEventsResponse } from './normalizeEvents'
 import { normalizeReviews, type RawReviewsResponse } from './normalizeReviews'
 import { normalizePhotos, type RawPhotosResponse } from './normalizePhotos'
 
@@ -22,6 +23,7 @@ export const TTL = {
   places: 86_400, // 24 h
   reviews: 86_400,
   photos: 86_400,
+  events: 3_600, // 1 h — listings change and dates pass
 } as const
 
 // Module-level default cache so real usage shares one cache across calls.
@@ -163,6 +165,28 @@ export async function searchPlaces(params: PlaceParams, deps?: SearchDeps): Prom
       ll: params.ll,
     })
     return normalizePlaces(raw)
+  })
+}
+
+export interface EventParams {
+  q: string
+  /** e.g. "date:month" to widen past this week. */
+  htichips?: string
+}
+
+/**
+ * What is actually on while they are there. Events are a different thing from attractions: they
+ * happen once, so a date that misses the trip makes one useless however good it is.
+ */
+export async function searchEvents(params: EventParams, deps?: SearchDeps): Promise<Place[]> {
+  const { search, cache } = resolve(deps)
+  const key = `google_events:${params.q}:${params.htichips ?? ''}`
+  return withCache(cache, key, TTL.events, async () => {
+    const raw = await search<RawEventsResponse>('google_events', {
+      q: params.q,
+      htichips: params.htichips,
+    })
+    return normalizeEvents(raw)
   })
 }
 

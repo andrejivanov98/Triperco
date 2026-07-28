@@ -54,12 +54,31 @@ export interface PriceInsight {
   typicalHigh?: string
 }
 
+/**
+ * What sort of thing to do this is. They behave differently and flattening them loses what makes
+ * each actionable: an attraction is somewhere you turn up (hours matter), a tour is something you
+ * book (hours do not), and an event happens once (a date you can miss).
+ */
+export type ActivityKind = 'attraction' | 'tour' | 'event'
+
 export interface Place {
   id: string
   name: string
   coords?: Coords
   category?: string
   types?: string[]
+  /** Absent means "work it out from the category". */
+  activityKind?: ActivityKind
+  /** Events only: the day it happens, YYYY-MM-DD. */
+  startDate?: string
+  /** Events only: the provider's own human range, e.g. "Tue, Jul 28, 9 PM – Wed, Jul 29, 12 AM". */
+  whenLabel?: string
+  /** Events only: where it is being held. */
+  venueName?: string
+  /** Events only: where to buy tickets. */
+  ticketUrl?: string
+  /** Events only: who is selling them. */
+  ticketSellers?: string[]
   rating?: number
   reviewCount?: number
   priceLevel?: number
