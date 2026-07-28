@@ -6,6 +6,7 @@ import { Heading } from '@/components/ui/Heading'
 import { TimelineItemCard } from './TimelineItemCard'
 import { WatchoutBanner } from './WatchoutBanner'
 import { AddSlotRow, slotPrompt } from './AddSlotRow'
+import { ProgressMeter } from './ProgressMeter'
 import { RemoteImage } from '@/components/ui/RemoteImage'
 
 export function ItineraryView({
@@ -50,6 +51,9 @@ export function ItineraryView({
 
       <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-0.5">
         <WatchoutBanner watchouts={watchouts} onFix={onFix} />
+
+        {/* Say what is missing rather than leaving an empty panel to be interpreted. */}
+        <ProgressMeter trip={trip} onAsk={onFix} />
 
         {isEmpty ? (
           <div className="mt-6 flex flex-col items-center gap-1 px-4 text-center">

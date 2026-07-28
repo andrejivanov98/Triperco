@@ -1,4 +1,5 @@
 import type { Flight } from '@/lib/trip/types'
+import { arrivalDayLabel } from '@/lib/trip/flightDay'
 import { formatMoney, formatDuration, formatStops } from '@/lib/ui/format'
 import { Badge, badgeTone } from '@/components/ui/Badge'
 import { RemoteImage } from '@/components/ui/RemoteImage'
@@ -6,6 +7,7 @@ import { RemoteImage } from '@/components/ui/RemoteImage'
 /** One leg as a route line: times at each end, duration and stops in between. */
 function Leg({ flight, label }: { flight: Flight; label?: string }) {
   const stops = formatStops(flight.stops, flight.layovers?.map((l) => l.code))
+  const dayLabel = arrivalDayLabel(flight)
 
   return (
     <div className="flex flex-col gap-1">
@@ -33,7 +35,18 @@ function Leg({ flight, label }: { flight: Flight; label?: string }) {
         </div>
 
         <div className="text-right">
-          <div className="text-base font-bold leading-tight text-ink">{flight.arriveTime ?? '—'}</div>
+          <div className="flex items-baseline justify-end gap-1">
+            <span className="text-base font-bold leading-tight text-ink">{flight.arriveTime ?? '—'}</span>
+            {/* Landing a day later changes which night you need a bed for, so say it. */}
+            {dayLabel && (
+              <span
+                data-testid="arrival-day-offset"
+                className="rounded bg-sand px-1 text-[10px] font-bold text-ink"
+              >
+                {dayLabel}
+              </span>
+            )}
+          </div>
           <div className="text-[11px] font-bold uppercase tracking-wide text-muted">{flight.to}</div>
         </div>
       </div>
