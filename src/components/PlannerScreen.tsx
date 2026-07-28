@@ -30,6 +30,7 @@ import { ChatEmptyState } from './chat/ChatEmptyState'
 import { ItineraryView } from './itinerary/ItineraryView'
 import { MapView } from './plan/MapView'
 import { PlanMapToggle, type PlanView as PlanViewMode } from './plan/PlanMapToggle'
+import { PlanOverlay, PlanButton } from './plan/PlanOverlay'
 import { ShareButton } from './share/ShareButton'
 import { DetailPanel } from './results/DetailPanel'
 import { PlannerHeader } from './PlannerHeader'
@@ -49,6 +50,7 @@ export function PlannerScreen() {
   const [shareUrl, setShareUrl] = useState<string | null>(null)
   const [detail, setDetail] = useState<{ kind: ResultSet['kind']; item: Flight | Stay | Place } | null>(null)
   const [booking, setBooking] = useState(false)
+  const [planOpen, setPlanOpen] = useState(false)
   const tripRef = useRef(trip)
   tripRef.current = trip
   // Read at send time, not render time: the snapshot must describe the screen they just left.
@@ -123,6 +125,7 @@ export function PlannerScreen() {
     setTrip(createTrip('draft'))
     setDetail(null)
     setBooking(false)
+    setPlanOpen(false)
     setShareUrl(null)
     setView('plan')
     router.replace('/plan')
@@ -185,6 +188,44 @@ export function PlannerScreen() {
 
   const markers = useMemo(() => tripToMarkers(trip), [trip])
   const quickReplies = useMemo(() => suggestQuickReplies(trip), [trip])
+  const planCount = useMemo(
+    () =>
+      trip.flights.length +
+      trip.stays.length +
+      trip.days.reduce((sum, day) => sum + day.items.length, 0),
+    [trip],
+  )
+
+  /*
+   * The drawer is addressable: /plan?plan=open deep-links straight to it, and opening or closing it
+   * writes that back so the link can be shared. Local state stays the source of truth for the
+   * current render, so the drawer never flickers while the router catches up.
+   */
+  const planParam = searchParams.get('plan')
+  useEffect(() => {
+    if (planParam === 'open') setPlanOpen(true)
+  }, [planParam])
+
+  const writePlanParam = useCallback(
+    (open: boolean) => {
+      const next = new URLSearchParams(searchParams.toString())
+      if (open) next.set('plan', 'open')
+      else next.delete('plan')
+      const query = next.toString()
+      router.replace(query ? `/plan?${query}` : '/plan')
+    },
+    [router, searchParams],
+  )
+
+  const openPlan = useCallback(() => {
+    setPlanOpen(true)
+    writePlanParam(true)
+  }, [writePlanParam])
+
+  const closePlan = useCallback(() => {
+    setPlanOpen(false)
+    writePlanParam(false)
+  }, [writePlanParam])
 
   const handleShare = useCallback(async () => {
     setSharing(true)
@@ -202,50 +243,46 @@ export function PlannerScreen() {
   }, [])
 
   return (
-    // Locked viewport height on desktop; on narrow screens the panes stack and the page scrolls.
-    <main className="mx-auto flex min-h-screen max-w-[1700px] flex-col gap-2 p-3 sm:p-4 lg:h-screen lg:overflow-hidden">
+    // The conversation now owns the width. The plan is a drawer you summon, not a permanent column.
+    <main className="mx-auto flex min-h-screen max-w-[1100px] flex-col gap-2 p-3 sm:p-4 lg:h-screen lg:overflow-hidden">
       <PlannerHeader
         title={trip.meta.title ?? trip.meta.destination}
         onNewTrip={startNewTrip}
-        right={<ShareButton onShare={handleShare} sharing={sharing} shareUrl={shareUrl} />}
+        right={
+          <div className="flex items-center gap-2">
+            <PlanButton itemCount={planCount} onOpen={openPlan} />
+            <ShareButton onShare={handleShare} sharing={sharing} shareUrl={shareUrl} />
+          </div>
+        }
       />
 
-      {/*
-        A fixed 70/30 split: 7fr/3fr can't be renegotiated by content, and min-w-0 on each pane
-        stops a wide card row from stretching its column (grid children default to min-width:auto).
-      */}
       <div
-        data-testid="planner-grid"
-        className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-hidden lg:grid-cols-[7fr_3fr]"
+        data-testid="chat-pane"
+        className="glass flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-4"
       >
-        <div
-          data-testid="chat-pane"
-          className="glass flex min-h-[60vh] min-w-0 flex-col overflow-hidden p-4 lg:min-h-0"
-        >
-          <ChatPane
-            messages={messages}
-            status={status}
-            suggestions={quickReplies}
-            onSend={(text) => sendMessage({ text })}
-            onAddResult={addResult}
-            onOpenDetail={openDetail}
-            tripDates={trip.meta}
-            emptyState={<ChatEmptyState onPick={(text) => sendMessage({ text })} />}
-          />
-        </div>
+        <ChatPane
+          messages={messages}
+          status={status}
+          suggestions={quickReplies}
+          onSend={(text) => sendMessage({ text })}
+          onAddResult={addResult}
+          onOpenDetail={openDetail}
+          tripDates={trip.meta}
+          emptyState={<ChatEmptyState onPick={(text) => sendMessage({ text })} />}
+        />
+      </div>
 
-        <aside
-          data-testid="plan-pane"
-          className="glass flex min-h-[50vh] min-w-0 flex-col gap-3 overflow-hidden p-3 lg:min-h-0"
-        >
-          <div className="flex items-center justify-between gap-2">
-            <PlanMapToggle view={view} onChange={setView} />
-          </div>
+      <PlanOverlay open={planOpen} itemCount={planCount} onClose={closePlan}>
+        <div className="flex h-full min-h-0 flex-col gap-3">
+          <PlanMapToggle view={view} onChange={setView} />
           <div className="min-h-0 flex-1">
             {view === 'plan' ? (
               <ItineraryView
                 trip={trip}
-                onFix={(prompt) => sendMessage({ text: prompt })}
+                onFix={(prompt) => {
+                  sendMessage({ text: prompt })
+                  closePlan()
+                }}
                 onRemoveItem={removeItem}
                 onViewItem={viewItem}
                 onContinueToBook={() => setBooking(true)}
@@ -254,8 +291,8 @@ export function PlannerScreen() {
               <MapView markers={markers} />
             )}
           </div>
-        </aside>
-      </div>
+        </div>
+      </PlanOverlay>
 
       {booking && <BookingPanel trip={trip} onClose={() => setBooking(false)} />}
 
