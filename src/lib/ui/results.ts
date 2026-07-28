@@ -19,3 +19,8 @@ export function getResultSets(message: TriperUIMessage): ResultSet[] {
     .filter((p): p is { type: 'data-results'; data: ResultSet } => p.type === 'data-results')
     .map((p) => p.data)
 }
+
+/** Every result set in the thread, oldest first — the raw material for a screen snapshot. */
+export function allResultSets(messages: TriperUIMessage[]): ResultSet[] {
+  return messages.flatMap(getResultSets)
+}

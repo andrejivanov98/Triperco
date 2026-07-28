@@ -8,6 +8,8 @@ import type { TripState, Flight, Stay, Place, ItineraryItem } from '@/lib/trip/t
 import type { TriperUIMessage } from '@/lib/ui/messages'
 import type { ResultSet } from '@/lib/ui/results'
 import { getLatestMeta } from '@/lib/ui/messages'
+import { allResultSets } from '@/lib/ui/results'
+import { buildContextHints } from '@/lib/ui/contextHints'
 import { tripToMarkers } from '@/lib/ui/mapMarkers'
 import { suggestQuickReplies } from '@/lib/ui/quickReplies'
 import { readOpeningContext, contextToMeta, buildOpeningMessage } from '@/lib/ui/openingMessage'
@@ -49,6 +51,9 @@ export function PlannerScreen() {
   const [booking, setBooking] = useState(false)
   const tripRef = useRef(trip)
   tripRef.current = trip
+  // Read at send time, not render time: the snapshot must describe the screen they just left.
+  const detailRef = useRef(detail)
+  detailRef.current = detail
 
   const addResult = useCallback((set: ResultSet, item: Flight | Stay | Place) => {
     setTrip((t) => {
@@ -101,7 +106,14 @@ export function PlannerScreen() {
     transport: new DefaultChatTransport({
       api: '/api/chat',
       prepareSendMessagesRequest: ({ messages }) => ({
-        body: { messages, trip: tripRef.current },
+        body: {
+          messages,
+          trip: tripRef.current,
+          hints: buildContextHints({
+            sets: allResultSets(messages as TriperUIMessage[]),
+            open: detailRef.current,
+          }),
+        },
       }),
     }),
   })

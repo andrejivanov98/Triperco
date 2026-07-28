@@ -1,11 +1,15 @@
+import type { ContextHint } from '../ui/contextHints'
+import { formatContextHints } from '../ui/contextHints'
+
 /** YYYY-MM-DD in UTC. */
 function isoDate(date: Date): string {
   return date.toISOString().slice(0, 10)
 }
 
-export function buildSystemPrompt(now: Date = new Date()): string {
+export function buildSystemPrompt(now: Date = new Date(), hints: ContextHint[] = []): string {
   const today = isoDate(now)
   const nextYear = isoDate(new Date(now.getTime() + 365 * 86_400_000))
+  const screen = formatContextHints(hints)
 
   return [
     'You are Triperco, an expert travel concierge. You plan a complete trip inside one chat, fast.',
@@ -79,5 +83,6 @@ export function buildSystemPrompt(now: Date = new Date()): string {
     '- Use these sparingly. Doing the work beats asking about the work.',
     '',
     'End every turn either with your recommendation, or with the single thing you need to continue.',
+    ...(screen ? ['', screen] : []),
   ].join('\n')
 }

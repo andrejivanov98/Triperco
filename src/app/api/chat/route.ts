@@ -7,14 +7,19 @@ import {
 import { createPlannerAgent } from '@/lib/ai/plannerAgent'
 import type { TriperUIMessage } from '@/lib/ui/messages'
 import type { TripState } from '@/lib/trip/types'
+import type { ContextHint } from '@/lib/ui/contextHints'
 
 export const maxDuration = 30
 
 export async function POST(req: Request) {
-  const { messages, trip }: { messages: TriperUIMessage[]; trip?: TripState } =
-    await req.json()
+  const {
+    messages,
+    trip,
+    hints,
+  }: { messages: TriperUIMessage[]; trip?: TripState; hints?: ContextHint[] } = await req.json()
 
-  const { agent, state } = createPlannerAgent({ trip })
+  // The client sends what was on screen, so the agent can resolve "the second one" without asking.
+  const { agent, state } = createPlannerAgent({ trip, hints })
 
   const stream = createUIMessageStream<TriperUIMessage>({
     execute: async ({ writer }) => {
