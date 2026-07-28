@@ -123,13 +123,36 @@ Additive fields, each with its own tests:
 - **Reviewer names and any personal data** from provider payloads.
 - **Bulk LLM-generated destination guides.** Their scale advantage; our liability if wrong.
 
-## Open — needs your call
+## Reversals — decided
 
-These two would reverse instructions you gave deliberately, so they're not in the phases above:
+1. **Plan as a summonable overlay** — **adopted**, shipped as 9G. The fixed 70/30 split is gone;
+   the chat owns the width and the plan is a deep-linkable drawer with a count on its button.
+2. **Rich place mentions in chat prose** — **declined**. Chat stays markdown-free and
+   conversation-only, as originally specified.
 
-1. **Plan as a summonable overlay** instead of the fixed 70/30 split. Theirs implies the
-   conversation is the main event; yours implies the plan is a constant companion. Yours costs
-   30% of the viewport and pays for it in reassurance.
-2. **Rich place mentions in chat prose** instead of stripping markdown. Richer, and it fails
-   visibly when a named place doesn't resolve. You asked for conversation-only chat; this
-   softens that.
+## Status — all phases shipped
+
+| Phase | Commit | Notes |
+| --- | --- | --- |
+| 9A | `718343d` | Context hints |
+| 9B | `736f820` | Sets revise; superseded ones collapse |
+| 9C | `b2aa4a8` | Cons and watch-outs; reviewer names removed |
+| 9D | `eabdc9a` | Attractions / tours / events, `google_events` verified live |
+| 9E | `72e85e6` | Cabin, stops, multi-city, flexible dates, real party |
+| 9F | `65e3fb2` | `+1 day` arrivals, progress meter |
+| 9G | `32cc049` | Plan overlay |
+
+410 → 530 tests. Typecheck and production build clean.
+
+### Deviations worth knowing
+
+- **9B "replace in place"** became *collapse the superseded set*. Teleporting new results into an
+  older message's position would be disorienting; the new set lands where the eye already is and
+  the old one collapses to one reopenable line. Same goal — no sediment — without the jump.
+- **9C** grounds findings in provider counts plus a verbatim quote rather than writing prose. We
+  have no way to characterise a hotel without inventing, and inventing is the one thing that would
+  destroy the value of a cons section.
+- **9E flexible dates** are a genuinely wider search (up to 3 provider calls), because the provider
+  has no flexible-date flag. Capped, and the tool description tells the agent it costs extra.
+- **9G** back-button does not close the drawer. Local state stays authoritative so the drawer never
+  flickers while the router catches up; deep links in still work.
