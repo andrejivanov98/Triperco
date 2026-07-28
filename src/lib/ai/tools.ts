@@ -6,6 +6,7 @@ import { makeSetKey } from '../ui/results'
 import type { OptionSet, PrefForm, ReplySuggestions } from '../ui/interactions'
 import { createTrip, setMeta } from '../trip/tripState'
 import { mergeStayDetail } from '../trip/mergeStay'
+import { stayVerdict } from '../trip/stayVerdict'
 import {
   searchFlights as apiSearchFlights,
   searchHotels as apiSearchHotels,
@@ -200,7 +201,12 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
           // Keep the enriched stay in place so later emits and add-to-trip carry it.
           const enriched = mergeStayDetail(stay, full)
           state.lastStays[index] = enriched
+          // Real trade-offs, derived from the provider's own breakdown — never your own guess.
+          const verdict = stayVerdict(enriched)
           return {
+            loved: verdict.loved.map((f) => f.topic),
+            watchOuts: verdict.watchOuts.map((f) => f.topic),
+            notAvailable: verdict.missing,
             amenities: enriched.amenities?.slice(0, 12),
             missing: enriched.excludedAmenities?.slice(0, 6),
             checkIn: enriched.checkInTime,

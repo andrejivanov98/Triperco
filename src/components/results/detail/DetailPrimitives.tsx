@@ -148,8 +148,11 @@ export function ReviewList({
       <div className="flex flex-col gap-2">
         {reviews.slice(0, 6).map((r, i) => (
           <blockquote key={i} className="rounded-xl border border-hairline bg-white/50 p-3">
+            {/*
+              The reviewer's name is deliberately not shown. It is a real person's name, it adds
+              nothing to the decision, and the score and date carry the credibility on their own.
+            */}
             <div className="flex items-center gap-2 text-[11px] font-semibold text-muted">
-              {r.author && <span className="text-ink">{r.author}</span>}
               {r.rating !== undefined && <span>{r.rating} ★</span>}
               {r.date && <span>{r.date}</span>}
             </div>

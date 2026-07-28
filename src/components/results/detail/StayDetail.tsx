@@ -1,4 +1,6 @@
 import type { Stay } from '@/lib/trip/types'
+import type { StayFinding } from '@/lib/trip/stayVerdict'
+import { stayVerdict, hasVerdict, findingEvidence } from '@/lib/trip/stayVerdict'
 import { formatMoney, formatRating } from '@/lib/ui/format'
 import { Heading } from '@/components/ui/Heading'
 import { RemoteImage } from '@/components/ui/RemoteImage'
@@ -10,6 +12,39 @@ import {
   PillList,
   ReviewList,
 } from './DetailPrimitives'
+
+/**
+ * A finding reviewers agree on. The heading and counts come from the provider's own breakdown and
+ * the line beneath is a reviewer's words — so we characterise nothing ourselves.
+ */
+function FindingList({ findings, tone }: { findings: StayFinding[]; tone: 'good' | 'bad' }) {
+  return (
+    <ul className="flex flex-col gap-2.5">
+      {findings.map((finding, i) => {
+        const evidence = findingEvidence(finding)
+        return (
+          <li key={`${finding.topic}-${i}`} className="flex flex-col gap-0.5">
+            <span className="flex flex-wrap items-baseline gap-x-2">
+              <span
+                className={
+                  'text-sm font-bold ' + (tone === 'bad' ? 'text-red-700' : 'text-accent-600')
+                }
+              >
+                {finding.topic}
+              </span>
+              {evidence && <span className="text-[11px] font-medium text-muted">{evidence}</span>}
+            </span>
+            {finding.quote && (
+              <span className="text-xs font-medium italic leading-relaxed text-muted">
+                “{finding.quote}”
+              </span>
+            )}
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
 
 export function StayDetail({
   stay,
@@ -24,6 +59,8 @@ export function StayDetail({
   const ratingBuckets = stay.ratingsBreakdown ?? []
   const maxBucket = Math.max(1, ...ratingBuckets.map((b) => b.count))
   const topics = stay.reviewTopics ?? []
+  // Grounded pros and cons: the differentiator is telling them what is wrong with the place.
+  const verdict = stayVerdict(stay)
 
   return (
     <div className="flex flex-col gap-5">
@@ -182,6 +219,26 @@ export function StayDetail({
               ))}
           </div>
         </DetailSection>
+      )}
+
+      {hasVerdict(verdict) && (
+        <div data-testid="stay-verdict" className="flex flex-col gap-5">
+          {verdict.loved.length > 0 && (
+            <DetailSection title="What guests love">
+              <FindingList findings={verdict.loved} tone="good" />
+            </DetailSection>
+          )}
+          {verdict.watchOuts.length > 0 && (
+            <DetailSection title="Cons and watch-outs">
+              <FindingList findings={verdict.watchOuts} tone="bad" />
+            </DetailSection>
+          )}
+          {verdict.missing.length > 0 && (
+            <DetailSection title="Not available here">
+              <PillList items={verdict.missing} muted />
+            </DetailSection>
+          )}
+        </div>
       )}
 
       {topics.length > 0 && (
