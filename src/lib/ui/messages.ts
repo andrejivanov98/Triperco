@@ -1,21 +1,33 @@
 import type { UIMessage } from 'ai'
-import type { TripState } from '../trip/types'
+import type { TripMeta } from '../trip/types'
 import type { ResultSet } from './results'
-import type { OptionSet, PrefForm } from './interactions'
+import type { OptionSet, PrefForm, ReplySuggestions } from './interactions'
 
-/** Standard parts + custom data parts (trip sync, search results, guided menus, forms). */
+/**
+ * Standard parts + custom data parts.
+ *
+ * Note what is NOT here: the plan itself. Flights, stays and days belong to the client, because the
+ * traveler is the only one who puts things in the plan. The server may only report trip *context*
+ * it learned during the turn (destination, dates, party, title) via `meta`.
+ */
 export type TriperUIMessage = UIMessage<
   never,
-  { trip: TripState; results: ResultSet; options: OptionSet; form: PrefForm }
+  {
+    meta: TripMeta
+    results: ResultSet
+    options: OptionSet
+    form: PrefForm
+    suggestions: ReplySuggestions
+  }
 >
 
-/** Scan messages newest-first and return the most recent TripState, or null. */
-export function getLatestTrip(messages: TriperUIMessage[]): TripState | null {
+/** Scan messages newest-first and return the most recent trip context, or null. */
+export function getLatestMeta(messages: TriperUIMessage[]): TripMeta | null {
   for (let i = messages.length - 1; i >= 0; i--) {
     const parts = messages[i].parts
     for (let j = parts.length - 1; j >= 0; j--) {
       const part = parts[j]
-      if (part.type === 'data-trip') return part.data
+      if (part.type === 'data-meta') return part.data
     }
   }
   return null

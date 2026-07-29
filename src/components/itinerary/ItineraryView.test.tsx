@@ -18,12 +18,83 @@ describe('ItineraryView', () => {
     render(<ItineraryView trip={trip()} />)
     expect(screen.getByRole('heading', { name: 'Tenerife Escape' })).toBeInTheDocument()
     expect(screen.getByText('$1,462')).toBeInTheDocument() // trip total (distinct from the $1,400 stay)
-    expect(screen.getByText(/search flights/i)).toBeInTheDocument()
+    expect(screen.getByText(/find the way there/i)).toBeInTheDocument()
+  })
+
+  it('offers a slot for every gap and sends a prompt when one is tapped', () => {
+    const onFix = vi.fn()
+    render(<ItineraryView trip={trip()} onFix={onFix} />)
+    // The fixture has a stay but no flights and nothing to do.
+    expect(screen.getByText(/find the way there/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/find things to do/i).length).toBeGreaterThan(0)
+    fireEvent.click(screen.getByText(/find the way there/i))
+    expect(onFix).toHaveBeenCalledWith(expect.stringMatching(/find flights to Tenerife/i))
+  })
+
+  it('asks for a return flight only once the outbound one is picked', () => {
+    const t = trip()
+    t.flights = [{ id: 'f1', from: 'SKP', to: 'TFS', stops: 0, price: 200, bookUrl: 'x' }]
+    render(<ItineraryView trip={t} onFix={() => {}} />)
+    // The slot's own heading, which the progress meter's prompt does not duplicate.
+    expect(screen.getByText(/one way only/i)).toBeInTheDocument()
+  })
+
+  it('opens the booking panel from the footer', () => {
+    const onContinueToBook = vi.fn()
+    render(<ItineraryView trip={trip()} onContinueToBook={onContinueToBook} />)
+    fireEvent.click(screen.getByRole('button', { name: /continue to book/i }))
+    expect(onContinueToBook).toHaveBeenCalled()
+  })
+
+  it('removes an item from the plan', () => {
+    const onRemoveItem = vi.fn()
+    render(<ItineraryView trip={trip()} onRemoveItem={onRemoveItem} />)
+    fireEvent.click(screen.getByRole('button', { name: /show options for Apt/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^remove$/i }))
+    expect(onRemoveItem).toHaveBeenCalledWith(expect.objectContaining({ kind: 'stay', id: 's1' }))
+  })
+
+  it('breaks the total down by flights and stays', () => {
+    const t = trip()
+    t.flights = [{ id: 'f1', from: 'SKP', to: 'TFS', stops: 0, price: 200, bookUrl: 'x' }]
+    render(<ItineraryView trip={t} />)
+    // 200 per traveler × 2 travelers
+    expect(screen.getByText(/Flights × 2/)).toBeInTheDocument()
+    expect(screen.getByText('$400')).toBeInTheDocument()
+    expect(screen.getByText('Stays')).toBeInTheDocument()
+  })
+
+  it('renders a repeated id without breaking the list', () => {
+    const t = trip()
+    // A shared trip saved before adds were deduped can still carry a repeat.
+    t.days = [
+      {
+        items: [
+          { placeId: 'dup', name: 'Colosseum' },
+          { placeId: 'dup', name: 'Colosseum' },
+        ],
+      },
+    ]
+    const errors: unknown[] = []
+    const spy = vi.spyOn(console, 'error').mockImplementation((...args) => errors.push(args))
+    render(<ItineraryView trip={t} />)
+    spy.mockRestore()
+    expect(screen.getAllByText('Colosseum')).toHaveLength(2)
+    expect(JSON.stringify(errors)).not.toMatch(/same key/i)
   })
 
   it('shows the empty state when nothing is added', () => {
     render(<ItineraryView trip={createTrip('empty')} />)
-    expect(screen.getByText(/your trip will appear here/i)).toBeInTheDocument()
+    expect(screen.getByText(/your plan builds here/i)).toBeInTheDocument()
+  })
+
+  it('keeps the trip paperwork out of the plan', () => {
+    render(<ItineraryView trip={trip()} />)
+    // The plan is the planning: no destination field, no date pickers, no traveler stepper.
+    expect(screen.queryByRole('button', { name: /add traveler/i })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/start date/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/14 nights/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/2 travelers/i)).not.toBeInTheDocument()
   })
 
   it('surfaces a watch-out (stay nights vs trip length)', () => {

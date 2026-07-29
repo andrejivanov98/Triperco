@@ -1,6 +1,7 @@
 import { ToolLoopAgent, type LanguageModel } from 'ai'
 import type { TripState } from '../trip/types'
 import type { SearchDeps } from '../searchapi/search'
+import type { ContextHint } from '../ui/contextHints'
 import { buildSystemPrompt } from './systemPrompt'
 import { buildPlannerTools, createPlannerState, type PlannerState } from './tools'
 import { plannerModel } from './model'
@@ -9,6 +10,8 @@ export interface CreatePlannerAgentOptions {
   trip?: TripState
   deps?: SearchDeps
   model?: LanguageModel
+  /** What the traveler could see when they sent the message. */
+  hints?: ContextHint[]
 }
 
 /**
@@ -19,7 +22,7 @@ export function createPlannerAgent(opts: CreatePlannerAgentOptions = {}) {
   const state = createPlannerState(opts.trip)
   const agent = new ToolLoopAgent({
     model: opts.model ?? plannerModel(),
-    instructions: buildSystemPrompt(),
+    instructions: buildSystemPrompt(new Date(), opts.hints ?? []),
     tools: buildPlannerTools(state, opts.deps),
   })
   return { agent, state }

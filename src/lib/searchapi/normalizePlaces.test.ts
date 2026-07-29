@@ -39,4 +39,115 @@ describe('normalizePlaces', () => {
   it('returns [] with no local_results', () => {
     expect(normalizePlaces({})).toEqual([])
   })
+
+  it('keeps contact details, description and types', () => {
+    const [place] = normalizePlaces({
+      local_results: [
+        {
+          title: 'Roscioli',
+          place_id: 'PID2',
+          phone: '+39 06 687 5287',
+          website: 'https://roscioli.com',
+          description: 'Deli-restaurant famous for carbonara.',
+          types: ['Italian restaurant', 'Deli'],
+          price: '$$$',
+        },
+      ],
+    })
+    expect(place.phone).toBe('+39 06 687 5287')
+    expect(place.website).toBe('https://roscioli.com')
+    expect(place.description).toContain('carbonara')
+    expect(place.types).toEqual(['Italian restaurant', 'Deli'])
+    expect(place.priceRange).toBe('$$$')
+  })
+
+  it('flattens the provider extension groups into service options', () => {
+    const [place] = normalizePlaces({
+      local_results: [
+        {
+          title: 'Tonnarello',
+          place_id: 'PID4',
+          extensions: [
+            {
+              title: 'Service options',
+              items: [
+                { title: 'Outdoor seating', value: 'Has outdoor seating' },
+                { title: 'Delivery', value: 'Offers delivery' },
+              ],
+            },
+            {
+              title: 'Accessibility',
+              items: [{ title: 'Wheelchair accessible entrance' }],
+            },
+          ],
+        },
+      ],
+    })
+    expect(place.serviceOptions).toEqual([
+      'Outdoor seating',
+      'Delivery',
+      'Wheelchair accessible entrance',
+    ])
+  })
+
+  it('reads open-now and per-day hours from open_hours', () => {
+    const [place] = normalizePlaces({
+      local_results: [
+        {
+          title: 'Vatican Museums',
+          place_id: 'PID3',
+          open_state: 'Open',
+          hours: 'Open · Closes 6 PM',
+          open_hours: { monday: '9 AM–6 PM', tuesday: 'Closed' },
+        },
+      ],
+    })
+    expect(place.openNow).toBe(true)
+    expect(place.hours).toBe('Open · Closes 6 PM')
+    expect(place.hoursByDay).toEqual([
+      { day: 'Monday', hours: '9 AM–6 PM' },
+      { day: 'Tuesday', hours: 'Closed' },
+    ])
+  })
+
+  it('reads closed state as open-now false', () => {
+    const [place] = normalizePlaces({
+      local_results: [{ title: 'X', place_id: 'P', open_state: 'Closed' }],
+    })
+    expect(place.openNow).toBe(false)
+  })
+
+  it('keeps the provider review quote as a first snippet', () => {
+    const [place] = normalizePlaces({
+      local_results: [
+        { title: 'X', place_id: 'P', review_text: '"Excellent timing on the food!"' },
+      ],
+    })
+    expect(place.reviewSnippets).toEqual([{ text: '"Excellent timing on the food!"' }])
+  })
+})
+
+describe('normalizePlaces — closed state', () => {
+  it('flags a permanently closed place', () => {
+    const [place] = normalizePlaces({
+      local_results: [{ title: 'Old Bar', place_id: 'P', open_state: 'Permanently closed' }],
+    })
+    expect(place.permanentlyClosed).toBe(true)
+    expect(place.openNow).toBe(false)
+  })
+
+  it('flags a temporarily closed place too', () => {
+    const [place] = normalizePlaces({
+      local_results: [{ title: 'Museum', place_id: 'P', open_state: 'Temporarily closed' }],
+    })
+    expect(place.permanentlyClosed).toBe(true)
+  })
+
+  it('leaves a place that is only shut right now open for planning', () => {
+    const [place] = normalizePlaces({
+      local_results: [{ title: 'Bar', place_id: 'P', open_state: 'Closed ⋅ Opens 6 PM' }],
+    })
+    expect(place.permanentlyClosed).toBeUndefined()
+    expect(place.openNow).toBe(false)
+  })
 })

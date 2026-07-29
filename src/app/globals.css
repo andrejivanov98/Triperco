@@ -16,6 +16,7 @@
   /* next/font exposes these CSS variables (see layout.tsx) */
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-fraunces), ui-serif, Georgia, "Times New Roman", serif;
+  --font-brand: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
 }
 
 :root {
@@ -40,4 +41,45 @@ body {
   border: 1px solid var(--glass-border);
   border-radius: 20px;
   box-shadow: var(--glass-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+/*
+ * Printing used to put the whole page on paper — the conversation included — because window.print()
+ * has no idea a modal is open. Only the summary sheet goes to the printer.
+ */
+
+/*
+ * The printable summary lives in its own element directly under <body>, because the on-screen one
+ * sits in a fixed, clipped dialog that a browser cannot paginate — that is what produced a blank
+ * PDF. Here it is hidden on screen and is the only thing that reaches the printer.
+ */
+.print-sheet {
+  display: none;
+}
+
+@media print {
+  body > *:not(.print-sheet) {
+    display: none !important;
+  }
+  .print-sheet {
+    display: block;
+    padding: 0;
+    color: #1b2430;
+    background: #fff;
+  }
+  .no-print {
+    display: none !important;
+  }
+  @page {
+    margin: 16mm;
+  }
+}
+
+/* A scrolling row should read as content that continues, not as a widget with a track under it. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }

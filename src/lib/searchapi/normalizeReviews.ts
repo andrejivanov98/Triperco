@@ -7,6 +7,7 @@ interface RawReview {
   snippet?: string
   text?: string
   date?: string
+  likes?: number
 }
 
 export interface RawReviewsResponse {
@@ -18,7 +19,7 @@ export function normalizeReviews(raw: RawReviewsResponse): ReviewSnippet[] {
     .map((r): ReviewSnippet | null => {
       const text = r.snippet ?? r.text
       if (!text) return null
-      return { author: r.user?.name, rating: r.rating, text }
+      return { author: r.user?.name, rating: r.rating, text, date: r.date, likes: r.likes }
     })
     .filter((r): r is ReviewSnippet => r !== null)
 }

@@ -33,7 +33,8 @@ export function MapView({ markers }: { markers: MapMarker[] }) {
 
       const bounds = new maplibregl.LngLatBounds()
       for (const m of markers) {
-        new maplibregl.Marker()
+        // Stays read as the base you return to; everything you plan to do shares the accent.
+        new maplibregl.Marker({ color: m.kind === 'stay' ? '#14213A' : '#0EA5E9' })
           .setLngLat([m.lng, m.lat])
           .setPopup(new maplibregl.Popup({ offset: 24 }).setText(m.name))
           .addTo(map)
@@ -53,9 +54,18 @@ export function MapView({ markers }: { markers: MapMarker[] }) {
   return (
     <div className="relative h-full w-full overflow-hidden rounded-2xl">
       <div ref={containerRef} className="h-full w-full" />
-      {markers.length === 0 && (
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm font-medium text-muted">
-          Add places to your plan to see them on the map.
+      {markers.length === 0 ? (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-6 text-center text-sm font-medium text-muted">
+          Everything you add to the plan is pinned here.
+        </div>
+      ) : (
+        <div className="pointer-events-none absolute left-2 top-2 flex flex-col gap-1 rounded-xl border border-hairline bg-white/85 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide text-muted">
+          <span className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-deep" /> Stay
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-accent" /> To do
+          </span>
         </div>
       )}
     </div>

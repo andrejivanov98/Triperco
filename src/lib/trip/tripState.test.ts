@@ -145,3 +145,96 @@ describe('itinerary items', () => {
     expect(trip.days[0].items.map((i) => i.placeId)).toEqual(['p2'])
   })
 })
+
+describe('adding the same thing twice', () => {
+  // The traveler can tap "Add to trip" while the agent is also adding it server-side, and the
+  // trip round-trips through both. Adding must be idempotent or totals silently double.
+  it('ignores a second copy of the same flight', () => {
+    const trip = addFlight(addFlight(createTrip('t1'), sampleFlight), sampleFlight)
+    expect(trip.flights).toHaveLength(1)
+    expect(trip.estimatedTotal).toBe(180)
+  })
+
+  it('ignores a second copy of the same stay and does not double the total', () => {
+    const trip = addStay(addStay(createTrip('t1'), sampleStay), sampleStay)
+    expect(trip.stays).toHaveLength(1)
+    expect(trip.estimatedTotal).toBe(330)
+  })
+
+  it('takes the richer version when the same stay is added again', () => {
+    const enriched = { ...sampleStay, amenities: ['Pool'], address: 'Via Roma 1' }
+    const trip = addStay(addStay(createTrip('t1'), sampleStay), enriched)
+    expect(trip.stays).toHaveLength(1)
+    expect(trip.stays[0].amenities).toEqual(['Pool'])
+    expect(trip.stays[0].address).toBe('Via Roma 1')
+  })
+
+  it('ignores a place already on that day', () => {
+    let trip = addItineraryItem(createTrip('t1'), 0, colosseum)
+    trip = addItineraryItem(trip, 0, colosseum)
+    expect(trip.days[0].items).toHaveLength(1)
+  })
+
+  it('still allows the same place on a different day', () => {
+    let trip = addItineraryItem(createTrip('t1'), 0, colosseum)
+    trip = addItineraryItem(trip, 1, colosseum)
+    expect(trip.days[0].items).toHaveLength(1)
+    expect(trip.days[1].items).toHaveLength(1)
+  })
+
+  it('keeps a note added on the second attempt', () => {
+    let trip = addItineraryItem(createTrip('t1'), 0, colosseum)
+    trip = addItineraryItem(trip, 0, { ...colosseum, note: 'Book the arena floor' })
+    expect(trip.days[0].items).toHaveLength(1)
+    expect(trip.days[0].items[0].note).toBe('Book the arena floor')
+  })
+})
+
+describe('flight legs', () => {
+  const outbound: Flight = { id: 'out', from: 'SKP', to: 'FCO', stops: 0, price: 140, bookUrl: 'x', direction: 'outbound' }
+  const inbound: Flight = { id: 'back', from: 'FCO', to: 'SKP', stops: 0, price: 110, bookUrl: 'y', direction: 'return' }
+
+  it('keeps the outbound first and the return second', () => {
+    let trip = addFlight(createTrip('t1'), outbound)
+    trip = addFlight(trip, inbound)
+    expect(trip.flights.map((f) => f.id)).toEqual(['out', 'back'])
+  })
+
+  it('still reads as the way home when the return is added first', () => {
+    let trip = addFlight(createTrip('t1'), inbound)
+    expect(trip.flights[0].direction).toBe('return')
+    // Adding the outbound afterwards sorts it ahead of the return.
+    trip = addFlight(trip, outbound)
+    expect(trip.flights.map((f) => f.id)).toEqual(['out', 'back'])
+  })
+
+  it('fills both legs when a round trip is chosen', () => {
+    const roundTrip: Flight = { ...outbound, tripType: 'round_trip', returnLeg: inbound }
+    const trip = addFlight(createTrip('t1'), roundTrip)
+    expect(trip.flights).toHaveLength(2)
+    expect(trip.flights[0].id).toBe('out')
+    expect(trip.flights[1].id).toBe('back')
+    expect(trip.flights[1].direction).toBe('return')
+  })
+
+  it('charges a round trip once, since the pair is one fare', () => {
+    const roundTrip: Flight = { ...outbound, tripType: 'round_trip', returnLeg: inbound }
+    const trip = addFlight(createTrip('t1'), roundTrip)
+    // 140 for the pair × 1 traveler — not 140 + 110.
+    expect(trip.estimatedTotal).toBe(140)
+    expect(trip.flights[1].price).toBe(0)
+  })
+
+  it('does not nest the return leg inside the stored outbound', () => {
+    const roundTrip: Flight = { ...outbound, tripType: 'round_trip', returnLeg: inbound }
+    const trip = addFlight(createTrip('t1'), roundTrip)
+    expect(trip.flights[0].returnLeg).toBeUndefined()
+  })
+
+  it('replaces a leg when the same flight is added again', () => {
+    let trip = addFlight(createTrip('t1'), outbound)
+    trip = addFlight(trip, { ...outbound, price: 155 })
+    expect(trip.flights).toHaveLength(1)
+    expect(trip.estimatedTotal).toBe(155)
+  })
+})

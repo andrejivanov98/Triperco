@@ -1,8 +1,9 @@
 import type { TripState, Flight, Stay } from './types'
 import { enumerateDates, formatDayLabel, formatDateRange } from './dates'
+import { formatDuration } from '../ui/format'
 
 export type TimelineItemKind = 'flight' | 'stay' | 'activity'
-export type AddSlot = 'flights' | 'activities'
+export type AddSlot = 'flights' | 'return-flight' | 'stays' | 'activities'
 
 export interface TimelineItem {
   kind: TimelineItemKind
@@ -17,6 +18,12 @@ export interface TimelineItem {
   bookUrl?: string
   bookLabel?: string
   bookingStatus: 'not_booked' | 'booked'
+  /** Which day an activity sits on, so it can be removed from the right one. */
+  dayIndex?: number
+  /** Longer text for the expanded card. */
+  description?: string
+  rating?: number
+  reviewCount?: number
 }
 
 export interface TimelineGroup {
@@ -53,13 +60,16 @@ function stayItem(s: Stay): TimelineItem {
     kind: 'stay',
     id: s.id,
     title: s.name,
-    subtitle: s.source === 'airbnb' ? 'Home' : 'Hotel',
-    price: s.pricePerNight * s.nights,
+    subtitle: s.kind === 'vacation_rental' ? 'Home' : s.hotelClass ?? (s.source === 'airbnb' ? 'Home' : 'Hotel'),
+    price: s.totalPrice ?? s.pricePerNight * s.nights,
     priceUnit: 'total',
     thumbnail: s.photos[0],
     bookUrl: s.bookUrl,
     bookLabel: s.source === 'airbnb' ? 'Book on Airbnb' : 'Book stay',
     bookingStatus: s.bookingStatus ?? 'not_booked',
+    description: s.description,
+    rating: s.rating,
+    reviewCount: s.reviewCount,
   }
 }
 
@@ -72,45 +82,73 @@ export function buildTimeline(trip: TripState): Timeline {
     ? `${meta.destination ?? 'Your trip'} · ${range}`
     : meta.destination ?? 'Your trip'
 
-  const hasActivities = days.some((d) => d.items.length > 0)
+  // Prefer the leg the provider told us about; fall back to position for trips saved before that.
+  const outboundFlight = flights.find((f) => f.direction !== 'return') ?? undefined
+  const returnFlight =
+    flights.find((f) => f.direction === 'return') ??
+    (flights.length > 1 && flights[1] !== outboundFlight ? flights[1] : undefined)
+
   const groups: TimelineGroup[] = []
 
-  // --- Arrival group ---
+  const activityItems = (dayIndex: number): TimelineItem[] =>
+    (days[dayIndex]?.items ?? []).map((it) => ({
+      kind: 'activity' as const,
+      id: it.placeId,
+      title: it.name,
+      subtitle: it.note ?? it.category,
+      timeLabel: formatDuration(it.durationMinutes),
+      price: it.price,
+      priceUnit: it.price !== undefined ? ('total' as const) : undefined,
+      thumbnail: it.thumbnail,
+      rating: it.rating,
+      reviewCount: it.reviewCount,
+      bookUrl: it.bookUrl,
+      bookLabel: 'Open in Maps',
+      bookingStatus: 'not_booked' as const,
+      dayIndex,
+    }))
+
+  // --- Arrival day: getting there, where you sleep, then what you do ---
   const arrival: TimelineGroup = {
     label: dates.length ? formatDayLabel(dates[0]) : undefined,
     items: [],
     addSlots: [],
   }
-  if (flights[0]) arrival.items.push(flightItem(flights[0]))
+  if (outboundFlight) arrival.items.push(flightItem(outboundFlight))
   else arrival.addSlots.push('flights')
-  for (const s of stays) arrival.items.push(stayItem(s))
-  if (!hasActivities) arrival.addSlots.push('activities')
+
+  if (stays.length > 0) for (const s of stays) arrival.items.push(stayItem(s))
+  else arrival.addSlots.push('stays')
+
+  arrival.items.push(...activityItems(0))
+  // One flexible invitation to add things to do — not one per day. The traveler decides how full
+  // each day gets, so we never pre-carve the trip into slots to fill.
+  arrival.addSlots.push('activities')
   groups.push(arrival)
 
-  // --- Activity day groups ---
-  days.forEach((d, i) => {
-    if (d.items.length === 0) return
-    groups.push({
-      label: d.date ? formatDayLabel(d.date) : `Day ${i + 1}`,
-      items: d.items.map((it) => ({
-        kind: 'activity' as const,
-        id: it.placeId,
-        title: it.name,
-        subtitle: it.note,
-        bookingStatus: 'not_booked' as const,
-      })),
-      addSlots: [],
-    })
-  })
-
-  // --- Return group (only when a second flight exists) ---
-  if (flights[1]) {
-    groups.push({
-      label: dates.length ? formatDayLabel(dates[dates.length - 1]) : 'Return',
-      items: [flightItem(flights[1])],
-      addSlots: [],
-    })
+  // --- A group per day that actually holds something ---
+  for (let i = 1; i < days.length; i++) {
+    const items = activityItems(i)
+    if (items.length === 0) continue
+    const label = dates[i]
+      ? formatDayLabel(dates[i])
+      : days[i].date
+        ? formatDayLabel(days[i].date!)
+        : `Day ${i + 1}`
+    groups.push({ label, items, addSlots: [] })
   }
+
+  // --- Getting home ---
+  const returnGroup: TimelineGroup = {
+    label: dates.length ? formatDayLabel(dates[dates.length - 1]) : 'Return',
+    items: [],
+    addSlots: [],
+  }
+  if (returnFlight) returnGroup.items.push(flightItem(returnFlight))
+  // Only ask for a return once there's an outbound flight to return from.
+  else if (outboundFlight) returnGroup.addSlots.push('return-flight')
+
+  if (returnGroup.items.length > 0 || returnGroup.addSlots.length > 0) groups.push(returnGroup)
 
   return { headerLabel, groups }
 }

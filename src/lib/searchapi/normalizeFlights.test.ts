@@ -44,6 +44,53 @@ const raw: RawFlightsResponse = {
   ],
 }
 
+const rich: RawFlightsResponse = {
+  best_flights: [
+    {
+      price: 240,
+      total_duration: 320,
+      booking_token: 'tok_rich',
+      carbon_emissions: { this_flight: 184000, difference_percent: -12 },
+      extensions: ['Checked bag for a fee'],
+      flights: [
+        {
+          airline: 'Lufthansa',
+          airline_logo: 'https://logo/lh',
+          flight_number: 'LH 1706',
+          airplane: 'Airbus A320',
+          travel_class: 'Economy',
+          // Real responses report legroom inside detected_extensions.
+          detected_extensions: { legroom: '30 in', carbon_emission: 61 },
+          extensions: ['Wi-Fi for a fee'],
+          duration: 85,
+          departure_airport: {
+            id: 'SKP',
+            name: 'Skopje International Airport',
+            time: '06:15',
+            date: '2026-05-01',
+          },
+          arrival_airport: {
+            id: 'MUC',
+            name: 'Munich International Airport',
+            time: '07:40',
+            date: '2026-05-01',
+          },
+        },
+        {
+          airline: 'Lufthansa',
+          flight_number: 'LH 1846',
+          duration: 140,
+          departure_airport: { id: 'MUC', time: '09:15', date: '2026-05-01' },
+          arrival_airport: { id: 'FCO', name: 'Rome Fiumicino', time: '00:35', date: '2026-05-02' },
+        },
+      ],
+      layovers: [
+        { id: 'MUC', name: 'Munich International Airport', duration: 95, overnight: true },
+      ],
+    },
+  ],
+}
+
 describe('normalizeFlights', () => {
   it('flattens best_flights + other_flights into Flight[]', () => {
     const flights = normalizeFlights(raw)
@@ -74,5 +121,47 @@ describe('normalizeFlights', () => {
 
   it('returns [] when there are no flights', () => {
     expect(normalizeFlights({})).toEqual([])
+  })
+
+  it('keeps every segment with its airline, aircraft, cabin and airport names', () => {
+    const f = normalizeFlights(rich)[0]
+    expect(f.segments).toHaveLength(2)
+    const [first, second] = f.segments!
+    expect(first).toMatchObject({
+      airline: 'Lufthansa',
+      airlineLogo: 'https://logo/lh',
+      flightNumber: 'LH 1706',
+      aircraft: 'Airbus A320',
+      cabin: 'Economy',
+      legroom: '30 in',
+      fromCode: 'SKP',
+      fromName: 'Skopje International Airport',
+      toCode: 'MUC',
+      toName: 'Munich International Airport',
+      departTime: '06:15',
+      departDate: '2026-05-01',
+      arriveTime: '07:40',
+      durationMinutes: 85,
+    })
+    expect(first.extensions).toEqual(['Wi-Fi for a fee'])
+    expect(second.flightNumber).toBe('LH 1846')
+  })
+
+  it('keeps layovers with duration and overnight flag', () => {
+    const f = normalizeFlights(rich)[0]
+    expect(f.layovers).toEqual([
+      { code: 'MUC', name: 'Munich International Airport', durationMinutes: 95, overnight: true },
+    ])
+  })
+
+  it('keeps carbon, booking token, dates and itinerary extensions', () => {
+    const f = normalizeFlights(rich)[0]
+    expect(f.carbonGrams).toBe(184000)
+    expect(f.carbonVsTypical).toBe(-12)
+    expect(f.bookingToken).toBe('tok_rich')
+    expect(f.departDate).toBe('2026-05-01')
+    expect(f.arriveDate).toBe('2026-05-02')
+    expect(f.airlineLogo).toBe('https://logo/lh')
+    expect(f.extensions).toEqual(['Checked bag for a fee'])
   })
 })

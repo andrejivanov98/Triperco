@@ -14,6 +14,14 @@ interface RawLocalResult {
   thumbnail?: string
   images?: string[]
   hours?: string
+  open_state?: string
+  open_hours?: Record<string, string>
+  phone?: string
+  website?: string
+  description?: string
+  review_text?: string
+  /** Grouped feature lists, e.g. { title: 'Service options', items: [{ title: 'Delivery' }] }. */
+  extensions?: { title?: string; items?: { title?: string; value?: string }[] }[]
 }
 
 export interface RawMapsResponse {
@@ -24,6 +32,45 @@ function priceLevel(price?: string): number | undefined {
   if (!price) return undefined
   const dollars = (price.match(/\$/g) ?? []).length
   return dollars > 0 ? dollars : undefined
+}
+
+/** "Open" / "Open ⋅ Closes 6 PM" → true; "Closed …" → false; anything else → undefined. */
+function openNow(state?: string): boolean | undefined {
+  if (!state) return undefined
+  const first = state.trim().toLowerCase()
+  if (first.startsWith('open')) return true
+  if (first.startsWith('closed') || first.includes('closed')) return false
+  return undefined
+}
+
+/**
+ * Shut for good, as opposed to shut right now. A bar that closes at 2am is still worth planning
+ * around; one that has closed down is not.
+ */
+function permanentlyClosed(state?: string): boolean | undefined {
+  if (!state) return undefined
+  const text = state.toLowerCase()
+  return text.includes('permanently closed') || text.includes('temporarily closed') ? true : undefined
+}
+
+function titleCase(key: string): string {
+  const words = key.replace(/_/g, ' ')
+  return words.charAt(0).toUpperCase() + words.slice(1)
+}
+
+function hoursByDay(raw?: Record<string, string>): { day: string; hours: string }[] | undefined {
+  if (!raw) return undefined
+  const entries = Object.entries(raw).map(([day, hours]) => ({ day: titleCase(day), hours }))
+  return entries.length ? entries : undefined
+}
+
+/** Flatten the provider's grouped feature lists into one list of item titles. */
+function serviceOptions(raw?: RawLocalResult['extensions']): string[] | undefined {
+  const items = (raw ?? [])
+    .flatMap((group) => group.items ?? [])
+    .map((item) => item.title)
+    .filter((t): t is string => Boolean(t))
+  return items.length ? items : undefined
 }
 
 export function normalizePlaces(raw: RawMapsResponse): Place[] {
@@ -37,14 +84,24 @@ export function normalizePlaces(raw: RawMapsResponse): Place[] {
       coords: r.gps_coordinates
         ? { lat: r.gps_coordinates.latitude, lng: r.gps_coordinates.longitude }
         : undefined,
-      category: r.type,
+      category: r.type ?? r.types?.[0],
+      types: r.types,
       rating: r.rating,
       reviewCount: r.reviews,
       priceLevel: priceLevel(r.price),
+      priceRange: r.price,
       photos,
-      reviewSnippets: [],
-      hours: r.hours,
+      // The search result carries at most one quote; the reviews engine fills the rest on demand.
+      reviewSnippets: r.review_text ? [{ text: r.review_text }] : [],
+      hours: r.hours ?? r.open_state,
+      hoursByDay: hoursByDay(r.open_hours),
+      openNow: openNow(r.open_state),
+      permanentlyClosed: permanentlyClosed(r.open_state),
       address: r.address,
+      phone: r.phone,
+      website: r.website,
+      description: r.description,
+      serviceOptions: serviceOptions(r.extensions),
       sourceLinks: {
         maps: `https://www.google.com/maps/place/?q=place_id:${r.place_id}`,
       },

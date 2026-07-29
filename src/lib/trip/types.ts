@@ -7,21 +7,126 @@ export interface ReviewSnippet {
   author?: string
   rating?: number
   text: string
+  date?: string
+  likes?: number
 }
+
+/** A star bucket from a property's rating histogram. */
+export interface RatingBucket {
+  stars: number
+  count: number
+}
+
+/** What reviewers say about one topic, e.g. "location: 240 positive / 12 negative". */
+export interface ReviewTopic {
+  name: string
+  positive?: number
+  negative?: number
+  neutral?: number
+  total?: number
+}
+
+export interface NearbyPlace {
+  name: string
+  /** e.g. "12 min · Walking" */
+  transit?: string
+  category?: string
+  rating?: number
+}
+
+/** One place you can actually book this stay, as offered by the provider. */
+export interface StayOffer {
+  source: string
+  logo?: string
+  url?: string
+  pricePerNight?: number
+  totalPrice?: number
+  /** True when the offer is the property's own site. */
+  official?: boolean
+}
+
+/** How this price compares to the norm for the property. */
+export interface PriceInsight {
+  /** e.g. "typical", "low", "high". */
+  level?: string
+  lowest?: string
+  typicalLow?: string
+  typicalHigh?: string
+}
+
+/**
+ * What sort of thing to do this is. They behave differently and flattening them loses what makes
+ * each actionable: an attraction is somewhere you turn up (hours matter), a tour is something you
+ * book (hours do not), and an event happens once (a date you can miss).
+ */
+export type ActivityKind = 'attraction' | 'tour' | 'event'
 
 export interface Place {
   id: string
   name: string
   coords?: Coords
   category?: string
+  types?: string[]
+  /** Absent means "work it out from the category". */
+  activityKind?: ActivityKind
+  /** Events only: the day it happens, YYYY-MM-DD. */
+  startDate?: string
+  /** Events only: the provider's own human range, e.g. "Tue, Jul 28, 9 PM – Wed, Jul 29, 12 AM". */
+  whenLabel?: string
+  /** Events only: where it is being held. */
+  venueName?: string
+  /** Events only: where to buy tickets. */
+  ticketUrl?: string
+  /** Events only: who is selling them. */
+  ticketSellers?: string[]
   rating?: number
   reviewCount?: number
   priceLevel?: number
+  /** Raw range string when the provider gives one, e.g. "$10–20". */
+  priceRange?: string
   photos: string[]
   reviewSnippets: ReviewSnippet[]
   hours?: string
+  /** Per-day opening hours, when available. */
+  hoursByDay?: { day: string; hours: string }[]
+  openNow?: boolean
+  /** Shut for good (or indefinitely) — there is nothing to plan around. */
+  permanentlyClosed?: boolean
   address?: string
+  phone?: string
+  website?: string
+  description?: string
+  /** e.g. "Dine-in", "Takeaway", "Wheelchair accessible entrance". */
+  serviceOptions?: string[]
   sourceLinks: { maps?: string; tripadvisor?: string }
+}
+
+/** One leg of a flight itinerary. */
+export interface FlightSegment {
+  airline?: string
+  airlineLogo?: string
+  flightNumber?: string
+  aircraft?: string
+  cabin?: string
+  legroom?: string
+  fromCode: string
+  fromName?: string
+  toCode: string
+  toName?: string
+  departTime?: string
+  departDate?: string
+  arriveTime?: string
+  arriveDate?: string
+  durationMinutes?: number
+  /** Provider notes, e.g. "Wi-Fi for a fee", "Above average legroom". */
+  extensions?: string[]
+}
+
+export interface Layover {
+  code?: string
+  name?: string
+  durationMinutes?: number
+  overnight?: boolean
 }
 
 export interface Flight {
@@ -29,28 +134,78 @@ export interface Flight {
   from: string
   to: string
   airline?: string
+  airlineLogo?: string
   departTime?: string
+  departDate?: string
   arriveTime?: string
+  arriveDate?: string
   durationMinutes?: number
   stops: number
   /** Price per traveler, in the trip's base currency. */
   price: number
   bookUrl: string
   bookingStatus?: 'not_booked' | 'booked'
+  segments?: FlightSegment[]
+  layovers?: Layover[]
+  /** Grams of CO2e for this itinerary, as reported by the provider. */
+  carbonGrams?: number
+  /** Percent difference vs. the typical route emissions. */
+  carbonVsTypical?: number
+  bookingToken?: string
+  /** Itinerary-level notes from the provider. */
+  extensions?: string[]
+  /** Which leg of the journey this is. */
+  direction?: 'outbound' | 'return'
+  /** One way, or half of a round trip whose price covers both legs. */
+  tripType?: 'one_way' | 'round_trip'
+  /**
+   * For a round trip, the paired return leg. The provider prices the pair as one fare, so `price`
+   * on the outbound already covers both — adding the flight puts both legs in the plan.
+   */
+  returnLeg?: Flight
 }
 
 export interface Stay {
   id: string
   name: string
   source: 'hotel' | 'airbnb'
+  /** Finer-grained provider type: a hotel room vs. a whole place. */
+  kind?: 'hotel' | 'vacation_rental'
   coords?: Coords
   rating?: number
   reviewCount?: number
   pricePerNight: number
   nights: number
+  /** Provider total for the whole stay, when given (may include taxes/fees). */
+  totalPrice?: number
   photos: string[]
   bookUrl: string
   bookingStatus?: 'not_booked' | 'booked'
+  propertyToken?: string
+  /** Star class, e.g. "4-star hotel". */
+  hotelClass?: string
+  description?: string
+  address?: string
+  checkInTime?: string
+  checkOutTime?: string
+  amenities?: string[]
+  excludedAmenities?: string[]
+  ratingsBreakdown?: RatingBucket[]
+  reviewTopics?: ReviewTopic[]
+  reviewSnippets?: ReviewSnippet[]
+  nearbyPlaces?: NearbyPlace[]
+  /** e.g. "24% less than usual". */
+  dealBadge?: string
+  essentialInfo?: string[]
+  ecoCertified?: boolean
+  phone?: string
+  /** Every provider selling this stay, so the traveler can compare without leaving. */
+  offers?: StayOffer[]
+  priceInsight?: PriceInsight
+  locationRating?: number
+  thingsToDoRating?: number
+  transitRating?: number
+  airportRating?: number
 }
 
 export interface ItineraryItem {
@@ -58,6 +213,16 @@ export interface ItineraryItem {
   name: string
   coords?: Coords
   note?: string
+  /** Kept so the plan can show the thing you picked, not a placeholder. */
+  thumbnail?: string
+  category?: string
+  rating?: number
+  reviewCount?: number
+  address?: string
+  bookUrl?: string
+  /** Set once a tours provider supplies them. */
+  price?: number
+  durationMinutes?: number
 }
 
 export interface Day {
@@ -73,6 +238,19 @@ export interface TripMeta {
   budget?: number
   title?: string
   coverImage?: string
+  /** Where the traveler is flying from, once known (IATA code or city). */
+  origin?: string
+  rooms?: number
+  adults?: number
+  children?: number
+  /** Under 2. Priced and seated differently, so they are not just more children. */
+  infants?: number
+  /** Ages change both price and what a place will accept, so they are worth carrying. */
+  childrenAges?: number[]
+  /** Travelling with a dog changes which stays are even possible. */
+  pets?: number
+  /** "Give or take a few days" — how far either side of the dates they will move. */
+  dateFlexDays?: number
 }
 
 export interface TripState {
@@ -82,4 +260,11 @@ export interface TripState {
   stays: Stay[]
   days: Day[]
   estimatedTotal: number
+  /**
+   * What the traveler has recorded about booking each part, keyed by the bookable item's key.
+   *
+   * It lives on the trip rather than inside the booking screen so it survives closing that screen —
+   * marking something booked and losing it on the next open is worse than not offering it.
+   */
+  bookings?: Record<string, 'not_booked' | 'booked' | 'confirmed'>
 }
