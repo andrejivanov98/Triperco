@@ -14,8 +14,16 @@ import { formatMoney } from '@/lib/ui/format'
 import { formatDateRange } from '@/lib/trip/dates'
 import { Heading } from '@/components/ui/Heading'
 import { RemoteImage } from '@/components/ui/RemoteImage'
+import { TripSummarySheet } from './TripSummarySheet'
 
 const STATUSES: BookingStatus[] = ['not_booked', 'booked', 'confirmed']
+
+/** Each state gets its own colour, so a glance down the list tells you what is left to do. */
+const STATUS_STYLE: Record<BookingStatus, { dot: string; pill: string }> = {
+  not_booked: { dot: 'bg-muted', pill: 'border-hairline bg-white/70 text-muted' },
+  booked: { dot: 'bg-accent', pill: 'border-accent/40 bg-accent-050 text-accent-600' },
+  confirmed: { dot: 'bg-green-600', pill: 'border-green-600/30 bg-green-50 text-green-800' },
+}
 
 function StatusControl({
   status,
@@ -26,19 +34,24 @@ function StatusControl({
   onChange: (status: BookingStatus) => void
   label: string
 }) {
-  const dot =
-    status === 'confirmed' ? 'text-green-700' : status === 'booked' ? 'text-accent-600' : 'text-muted'
+  const style = STATUS_STYLE[status]
   return (
-    <label className="flex items-center justify-center gap-2 rounded-full border border-hairline bg-white/70 px-4 py-2.5">
-      <span aria-hidden="true" className={dot}>
-        ●
+    <div
+      className={
+        'relative flex items-center gap-2 rounded-full border px-3.5 py-2 transition ' + style.pill
+      }
+    >
+      <span aria-hidden="true" className={'h-2 w-2 shrink-0 rounded-full ' + style.dot} />
+      <span className="text-[11px] font-bold uppercase tracking-wide">{BOOKING_LABEL[status]}</span>
+      <span aria-hidden="true" className="text-[10px] opacity-60">
+        ▾
       </span>
-      <span className="sr-only">{`Booking status for ${label}`}</span>
+      {/* The native select sits invisibly on top so the menu is the platform's own. */}
       <select
         aria-label={`Booking status for ${label}`}
         value={status}
         onChange={(e) => onChange(e.target.value as BookingStatus)}
-        className="bg-transparent text-xs font-bold uppercase tracking-wide text-ink outline-none"
+        className="absolute inset-0 cursor-pointer opacity-0"
       >
         {STATUSES.map((s) => (
           <option key={s} value={s}>
@@ -46,7 +59,7 @@ function StatusControl({
           </option>
         ))}
       </select>
-    </label>
+    </div>
   )
 }
 
@@ -128,7 +141,7 @@ export function BookingPanel({ trip, onClose }: { trip: TripState; onClose: () =
         aria-label={view === 'partners' ? 'Where to book each part' : 'Trip summary'}
         className="relative flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-hairline bg-canvas shadow-2xl sm:rounded-3xl"
       >
-        <div className="flex items-center justify-between border-b border-hairline px-5 py-3">
+        <div className="no-print flex items-center justify-between border-b border-hairline px-5 py-3">
           <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-muted">
             {view === 'summary' && (
               <span aria-hidden="true" className="text-green-700">
@@ -157,20 +170,19 @@ export function BookingPanel({ trip, onClose }: { trip: TripState; onClose: () =
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-5">
-          <Heading level={2} className="text-3xl">
-            {view === 'partners' ? 'Where to book each part' : title}
-          </Heading>
-          {view === 'summary' && range && (
-            <p className="mt-1 text-sm font-medium text-muted">
-              {range} · {trip.meta.travelers} traveler{trip.meta.travelers === 1 ? '' : 's'}
-            </p>
+        <div className="print-area min-h-0 flex-1 overflow-y-auto p-5">
+          {view === 'summary' ? (
+            <TripSummarySheet trip={trip} />
+          ) : (
+            <Heading level={2} className="text-3xl">
+              Where to book each part
+            </Heading>
           )}
-          <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-muted">
+          <p className="no-print mt-2 text-xs font-semibold uppercase tracking-wide text-muted">
             {progress.done} of {progress.total} booked
           </p>
 
-          {items.length === 0 ? (
+          {view === 'summary' ? null : items.length === 0 ? (
             <p className="mt-6 text-sm font-medium text-muted">
               Nothing to book yet — add a flight, a stay or something to do first.
             </p>
@@ -208,14 +220,14 @@ export function BookingPanel({ trip, onClose }: { trip: TripState; onClose: () =
             <button
               type="button"
               onClick={() => setView('partners')}
-              className="mt-5 text-sm font-bold text-accent"
+              className="no-print mt-5 text-sm font-bold text-accent"
             >
               ← Back to booking links
             </button>
           )}
         </div>
 
-        <div className="flex items-center justify-between gap-3 border-t border-hairline bg-white/50 px-5 py-4">
+        <div className="no-print flex items-center justify-between gap-3 border-t border-hairline bg-white/50 px-5 py-4">
           <div>
             <div className="text-[10px] font-bold uppercase tracking-wide text-muted">Trip total</div>
             <div className="text-xl font-bold text-ink">{formatMoney(total)}</div>

@@ -15,6 +15,7 @@ import {
   searchHotels as apiSearchHotels,
   searchPlaces as apiSearchPlaces,
   searchEvents as apiSearchEvents,
+  getTransferOptions as apiGetTransferOptions,
   getPlaceReviews as apiGetPlaceReviews,
   getPlacePhotos as apiGetPlacePhotos,
   getStayDetails as apiGetStayDetails,
@@ -223,7 +224,15 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
         q: z.string().describe('Location or hotel name, e.g. "Rome"'),
         check_in_date: z.string().describe('YYYY-MM-DD, today or later'),
         check_out_date: z.string().describe('YYYY-MM-DD, after check_in_date'),
-        adults: z.number().optional(),
+        adults: z.number().optional().describe('Pass the real count from the trip, not a default'),
+        sort_by: z
+          .enum(['relevance', 'lowest_price', 'highest_rating', 'most_reviewed'])
+          .optional()
+          .describe('Leave unset for the best overall mix; use lowest_price only when asked for cheap'),
+        property_type: z
+          .enum(['hotel', 'vacation_rental'])
+          .optional()
+          .describe('Set when the traveler asked specifically for a hotel or for an apartment/home'),
       }),
       execute: async (params) =>
         withToolError(async () => {
@@ -390,6 +399,20 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
         }
         return { reviews: reviews.slice(0, 5), photos: photos.slice(0, 5) }
       },
+    }),
+
+    getTransferOptions: tool({
+      description:
+        'How to get between two places — normally the airport and where they are staying. Returns driving, transit, walking and cycling times. Ask whether they want airport transfers once a stay is in the plan, and use this to answer with real numbers rather than a guess.',
+      inputSchema: z.object({
+        from: z.string().describe('e.g. "Turin Airport" or a full address'),
+        to: z.string().describe('The accommodation name and city, or a full address'),
+      }),
+      execute: async ({ from, to }) =>
+        withToolError(async () => {
+          const options = await apiGetTransferOptions(from, to, deps)
+          return { from, to, options }
+        }),
     }),
 
     presentOptions: tool({

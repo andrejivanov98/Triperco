@@ -41,3 +41,29 @@ body {
   border-radius: 20px;
   box-shadow: var(--glass-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
+
+/*
+ * Printing used to put the whole page on paper — the conversation included — because window.print()
+ * has no idea a modal is open. Only the summary sheet goes to the printer.
+ */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+  .print-area {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    max-height: none;
+    overflow: visible;
+    padding: 0;
+    background: #fff;
+  }
+  .no-print {
+    display: none !important;
+  }
+}

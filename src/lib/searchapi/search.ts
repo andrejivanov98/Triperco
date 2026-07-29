@@ -267,16 +267,25 @@ export async function searchFlights(params: FlightParams, deps?: SearchDeps): Pr
   })
 }
 
+/**
+ * Only what the provider actually honours. It silently ignores `children` and `rooms` — passing
+ * them would look like we asked when we did not.
+ */
+export type HotelSort = 'relevance' | 'lowest_price' | 'highest_rating' | 'most_reviewed'
+export type PropertyType = 'hotel' | 'vacation_rental'
+
 export interface HotelParams {
   q: string
   check_in_date: string
   check_out_date: string
   adults?: number
+  sort_by?: HotelSort
+  property_type?: PropertyType
 }
 
 export async function searchHotels(params: HotelParams, deps?: SearchDeps): Promise<Stay[]> {
   const { search, cache } = resolve(deps)
-  const key = `google_hotels:${params.q}:${params.check_in_date}:${params.check_out_date}:${params.adults ?? 2}`
+  const key = `google_hotels:${params.q}:${params.check_in_date}:${params.check_out_date}:${params.adults ?? 2}:${params.sort_by ?? ''}:${params.property_type ?? ''}`
   const nights = nightsBetween(params.check_in_date, params.check_out_date)
   return withCache(cache, key, TTL.hotels, async () => {
     const raw = await search<RawHotelsResponse>('google_hotels', {
@@ -284,8 +293,70 @@ export async function searchHotels(params: HotelParams, deps?: SearchDeps): Prom
       check_in_date: params.check_in_date,
       check_out_date: params.check_out_date,
       adults: params.adults ?? 2,
+      sort_by: params.sort_by,
+      property_type: params.property_type,
     })
     return normalizeHotels(raw, nights)
+  })
+}
+
+/** One way of covering the same ground. */
+export interface TransferOption {
+  mode: string
+  /** e.g. "27 min" */
+  duration?: string
+  durationSeconds?: number
+  /** e.g. "17.5 km" — present on the routed mode only. */
+  distance?: string
+  /** The road or line it takes. */
+  via?: string
+}
+
+interface RawDirections {
+  travel_modes?: { travel_mode?: string; formatted_duration?: string; duration?: number }[]
+  directions?: {
+    travel_mode?: string
+    formatted_duration?: string
+    duration?: number
+    formatted_distance?: string
+    via?: string
+  }[]
+}
+
+/**
+ * How to get between two places — typically the airport and where they are sleeping.
+ *
+ * A trip is not planned until someone knows whether it is a 27-minute taxi or a 53-minute train
+ * with a change, so this is worth asking about rather than leaving to the traveler to discover.
+ */
+export async function getTransferOptions(
+  from: string,
+  to: string,
+  deps?: SearchDeps,
+): Promise<TransferOption[]> {
+  const { search, cache } = resolve(deps)
+  const key = `google_maps_directions:${from}:${to}`
+  return withCache(cache, key, TTL.places, async () => {
+    const raw = await search<RawDirections>('google_maps_directions', { from, to })
+    // Detail from the routed directions where we have it, falling back to the mode summary.
+    const detail = new Map(
+      (raw.directions ?? [])
+        .filter((d) => d.travel_mode)
+        .map((d) => [d.travel_mode as string, d]),
+    )
+    return (raw.travel_modes ?? [])
+      .filter((m) => m.travel_mode)
+      .map((m) => {
+        const mode = m.travel_mode as string
+        const routed = detail.get(mode)
+        const option: TransferOption = { mode }
+        const duration = m.formatted_duration ?? routed?.formatted_duration
+        if (duration) option.duration = duration
+        if (typeof m.duration === 'number') option.durationSeconds = m.duration
+        if (routed?.formatted_distance) option.distance = routed.formatted_distance
+        if (routed?.via) option.via = routed.via
+        return option
+      })
   })
 }
 

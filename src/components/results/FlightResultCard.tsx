@@ -1,5 +1,9 @@
+'use client'
+
+import { useState } from 'react'
 import type { Flight } from '@/lib/trip/types'
 import { arrivalDayLabel } from '@/lib/trip/flightDay'
+import { FlightSegments } from './FlightSegments'
 import { formatMoney, formatDuration, formatStops } from '@/lib/ui/format'
 import { Badge, badgeTone } from '@/components/ui/Badge'
 import { RemoteImage } from '@/components/ui/RemoteImage'
@@ -75,6 +79,7 @@ export function FlightResultCard({
   onOpen: () => void
   onAdd: () => void
 }) {
+  const [expanded, setExpanded] = useState(false)
   const cabin = flight.segments?.find((s) => s.cabin)?.cabin
   const featured = badges.includes('Best value')
   const roundTrip = Boolean(flight.returnLeg)
@@ -83,7 +88,8 @@ export function FlightResultCard({
   return (
     <div
       className={
-        'flex h-[22rem] w-[20rem] shrink-0 snap-start flex-col gap-3 overflow-hidden rounded-[20px] border bg-white/60 p-4 transition hover:shadow-md ' +
+        'flex w-[21rem] shrink-0 snap-start flex-col gap-3 overflow-hidden rounded-[20px] border bg-white/60 p-4 transition hover:shadow-md ' +
+        (expanded ? 'max-h-[36rem] ' : 'h-[23rem] ') +
         (featured ? 'border-accent/40 ring-1 ring-accent/25' : 'border-hairline')
       }
     >
@@ -110,12 +116,7 @@ export function FlightResultCard({
         )}
       </div>
 
-      <button
-        type="button"
-        onClick={onOpen}
-        aria-label={`View details for ${flight.from} to ${flight.to}`}
-        className="flex flex-col gap-3 text-left"
-      >
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
         <Leg flight={flight} label={roundTrip ? 'Outbound' : undefined} />
         {flight.returnLeg && (
           <>
@@ -124,22 +125,58 @@ export function FlightResultCard({
           </>
         )}
         {cabin && <span className="text-[11px] font-medium text-muted">{cabin}</span>}
-      </button>
 
-      <div className="mt-auto flex items-end justify-between gap-2 border-t border-hairline pt-3">
+        {/* The whole journey, hop by hop — where you stop, for how long, on what. */}
+        {expanded && (
+          <div className="flex flex-col gap-4 border-t border-hairline pt-3">
+            <FlightSegments flight={flight} />
+            {flight.returnLeg && (
+              <div className="border-t border-hairline pt-3">
+                <span className="mb-2 block text-[10px] font-bold uppercase tracking-wide text-muted">
+                  Return
+                </span>
+                <FlightSegments flight={flight.returnLeg} />
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {(flight.segments?.length ?? 0) > 0 && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+          className="shrink-0 self-start text-[11px] font-bold text-accent-600 transition hover:text-accent"
+        >
+          {expanded ? 'Hide the journey ▲' : 'See the journey ▼'}
+        </button>
+      )}
+
+      <div className="mt-auto flex shrink-0 items-end justify-between gap-2 border-t border-hairline pt-3">
         <div>
           <div className="text-base font-bold text-ink">{formatMoney(flight.price)}</div>
           <div className="text-[10px] font-medium text-muted">
             {roundTrip ? 'both legs, per traveler' : 'per traveler'}
           </div>
         </div>
-        <button
-          type="button"
-          onClick={onAdd}
-          className="rounded-xl bg-accent px-3.5 py-2 text-xs font-bold text-white shadow-sm shadow-accent/25 transition hover:bg-accent-600"
-        >
-          {roundTrip ? 'Add both' : 'Add to trip'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onOpen}
+            aria-label={`View details for ${flight.from} to ${flight.to}`}
+            className="rounded-xl border border-hairline bg-white px-3 py-2 text-xs font-bold text-ink transition hover:bg-sand"
+          >
+            Details
+          </button>
+          <button
+            type="button"
+            onClick={onAdd}
+            className="rounded-xl bg-deep px-3.5 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-ink"
+          >
+            {roundTrip ? 'Select both' : 'Select flight'}
+          </button>
+        </div>
       </div>
     </div>
   )

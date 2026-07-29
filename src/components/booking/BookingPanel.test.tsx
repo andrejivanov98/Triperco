@@ -97,13 +97,31 @@ describe('BookingPanel — summary', () => {
     expect(screen.getByRole('button', { name: /print \/ save pdf/i })).toBeInTheDocument()
   })
 
-  it('keeps recorded statuses when switching views', () => {
+  it('keeps recorded statuses when you go to the summary and back', () => {
+    // The summary is a document you print, so it carries no controls — the statuses live here.
     render(<BookingPanel trip={trip()} onClose={() => {}} />)
     fireEvent.change(screen.getByLabelText(/booking status for City residence apartment/i), {
       target: { value: 'booked' },
     })
     fireEvent.click(screen.getByRole('button', { name: /view trip summary/i }))
+    fireEvent.click(screen.getByRole('button', { name: /back to booking links/i }))
     expect(screen.getByLabelText(/booking status for City residence apartment/i)).toHaveValue('booked')
+  })
+
+  it('prints the plan rather than the conversation behind it', () => {
+    render(<BookingPanel trip={trip()} onClose={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: /view trip summary/i }))
+
+    // Everything on the printed sheet, and nothing else on the page, is inside .print-area.
+    const sheet = document.querySelector('.print-area')
+    expect(sheet).not.toBeNull()
+    expect(sheet?.textContent).toContain('Ljubljana Weekend Getaway')
+    expect(sheet?.textContent).toContain('City residence apartment')
+    expect(sheet?.textContent).toMatch(/SKP → LJU/)
+    expect(sheet?.textContent).toMatch(/total/i)
+
+    // The chrome is excluded from the print.
+    expect(screen.getByRole('button', { name: /print \/ save pdf/i }).closest('.no-print')).not.toBeNull()
   })
 
   it('goes back to the booking links', () => {

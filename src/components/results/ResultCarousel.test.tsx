@@ -75,16 +75,23 @@ describe('ResultCarousel', () => {
     expect(container.firstChild).toBeNull()
   })
 
-  it('opens details and adds from a stay card', () => {
+  it('opens the details when the stay card is tapped anywhere', () => {
+    // The card carries no controls of its own: it is one object, and adding happens in the detail.
     const onOpen = vi.fn()
     const onAdd = vi.fn()
     render(
       <ResultCarousel set={{ kind: 'stays', items: [items[0]] }} onOpen={onOpen} onAdd={onAdd} />,
     )
-    fireEvent.click(screen.getByRole('button', { name: /^details$/i }))
+    fireEvent.click(screen.getByTestId('stay-card'))
     expect(onOpen).toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: /^add to trip$/i }))
-    expect(onAdd).toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: /^add to trip$/i })).not.toBeInTheDocument()
+  })
+
+  it('opens the stay details from the keyboard too', () => {
+    const onOpen = vi.fn()
+    render(<ResultCarousel set={{ kind: 'stays', items: [items[0]] }} onOpen={onOpen} onAdd={() => {}} />)
+    fireEvent.keyDown(screen.getByTestId('stay-card'), { key: 'Enter' })
+    expect(onOpen).toHaveBeenCalled()
   })
 
   it('renders flights as itinerary cards with times and route', () => {
@@ -138,10 +145,13 @@ describe('ResultCarousel', () => {
     expect(screen.getByText(/4\.7 ★ · 181 reviews/)).toBeInTheDocument()
     expect(screen.getByText(/Entire place · Trnovo/)).toBeInTheDocument()
     expect(screen.getByText(/Sleeps 4/)).toBeInTheDocument()
-    expect(screen.getByText('$165/night')).toBeInTheDocument()
-    expect(screen.getByText(/\$494 total · 3 nights/)).toBeInTheDocument()
-    expect(screen.getByText(/Check-in 3:00 PM/)).toBeInTheDocument()
+    expect(screen.getByText('$165')).toBeInTheDocument()
+    expect(screen.getByText('/ night')).toBeInTheDocument()
+    expect(screen.getByText(/\$494 · 3 nights/)).toBeInTheDocument()
+    // Amenities read as icon chips now, so the decisive ones are named.
     expect(screen.getByText('Kitchen')).toBeInTheDocument()
+    expect(screen.getByText('Wi-Fi')).toBeInTheDocument()
+    expect(screen.getByText('A/C')).toBeInTheDocument()
   })
 
   it('will not offer to add a place that has closed down', () => {
@@ -168,11 +178,17 @@ describe('ResultCarousel', () => {
     expect(screen.queryByText('Old Bar')).not.toBeInTheDocument()
   })
 
-  it('opens the full gallery from a stay photo', () => {
+  it('flips between a stay photos without leaving the card', () => {
+    // The gallery itself lives in the detail panel now; the card just previews.
     const withPhotos: Stay[] = [{ ...stay('a', 90), photos: ['https://p/1', 'https://p/2'] }]
-    render(<ResultCarousel set={{ kind: 'stays', items: withPhotos }} onOpen={() => {}} onAdd={() => {}} />)
-    fireEvent.click(screen.getByRole('button', { name: /open photos of Hotel a/i }))
-    expect(screen.getByRole('dialog', { name: /Hotel a photos/i })).toBeInTheDocument()
-    expect(screen.getByText('1 / 2')).toBeInTheDocument()
+    const onOpen = vi.fn()
+    render(<ResultCarousel set={{ kind: 'stays', items: withPhotos }} onOpen={onOpen} onAdd={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: /photo 2 of Hotel a/i }))
+    expect(screen.getByRole('button', { name: /photo 2 of Hotel a/i })).toHaveAttribute(
+      'aria-current',
+      'true',
+    )
+    // Flipping a photo must not open the detail panel by accident.
+    expect(onOpen).not.toHaveBeenCalled()
   })
 })
