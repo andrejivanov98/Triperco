@@ -42,14 +42,42 @@ describe('LogoMark', () => {
   })
 })
 
-describe('Logo', () => {
-  it('sets the name in the display face', () => {
+describe('Logo — the mark inside the name', () => {
+  it('reads as the name, however it is drawn', () => {
     render(<Logo />)
-    expect(screen.getByText('Triperco').className).toContain('font-display')
+    expect(screen.getByRole('img', { name: 'Triperco' })).toBeInTheDocument()
   })
 
-  it('can be the mark alone', () => {
-    render(<Logo showWordmark={false} />)
-    expect(screen.queryByText('Triperco')).not.toBeInTheDocument()
+  it('sets the word in the display face', () => {
+    const { container } = render(<Logo />)
+    const word = container.querySelector('text')!
+    expect(word.textContent).toBe('Triperc')
+    expect(word.getAttribute('class')).toContain('font-display')
+  })
+
+  it('pins the word’s width so the o always lands where it belongs', () => {
+    // Without this the pin drifts off the end of the word whenever the display face is slow.
+    const { container } = render(<Logo />)
+    expect(container.querySelector('text')).toHaveAttribute('textLength', '150')
+  })
+
+  it('ends the word with a pin rather than a letter', () => {
+    const { container } = render(<Logo />)
+    const pin = [...container.querySelectorAll('path')].find((p) => p.getAttribute('fill-rule'))
+    expect(pin).toHaveAttribute('fill-rule', 'evenodd')
+  })
+
+  it('flies a path from the T to that pin', () => {
+    const { container } = render(<Logo />)
+    const trail = container.querySelector('path[stroke][fill="none"]')!
+    // Starts at the T on the left and finishes beside the o on the right.
+    expect(trail.getAttribute('d')).toMatch(/^M5 13/)
+    expect(trail.getAttribute('d')).toMatch(/136\.5 7\.6$/)
+  })
+
+  it('falls back to the square mark for a favicon or a tight corner', () => {
+    const { container } = render(<Logo showWordmark={false} />)
+    expect(container.querySelector('text')).toBeNull()
+    expect(container.querySelector('svg')).toHaveAttribute('viewBox', '0 0 32 32')
   })
 })

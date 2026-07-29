@@ -58,26 +58,76 @@ export function LogoMark({ className = 'h-7 w-7', ...rest }: SVGProps<SVGSVGElem
 }
 
 /**
- * The full lockup. The wordmark uses the display serif at a tight track so it reads as a name
- * rather than as UI text.
+ * The lockup: the mark lives inside the name.
+ *
+ * "Triperc" is set in the display serif and the final o is a location pin, so the word ends
+ * somewhere rather than just ending. A flight path lifts off the T, arcs over the whole name and
+ * comes down onto that pin with the plane at the arrival end — the journey the product describes,
+ * drawn across its own name.
+ *
+ * It is one SVG rather than text with decoration on top, so the curve, the plane and the pin stay
+ * in the same coordinate space and cannot drift apart at any size. `textLength` pins the word's
+ * advance width, so even if the display face fails to load the pin still lands where the o belongs.
  */
 export function Logo({
   className = '',
-  markClassName = 'h-7 w-7',
+  markClassName = 'h-7',
   showWordmark = true,
 }: {
   className?: string
+  /** Sizes the lockup by height; the width follows. */
   markClassName?: string
+  /** False renders the standalone mark, for favicons and tight corners. */
   showWordmark?: boolean
 }) {
+  if (!showWordmark) {
+    return <LogoMark className={`h-7 w-7 text-deep ${className}`} />
+  }
+
   return (
-    <span className={`inline-flex items-center gap-2 text-deep ${className}`}>
-      <LogoMark className={markClassName} />
-      {showWordmark && (
-        <span className="font-display text-[1.35rem] font-semibold leading-none tracking-[-0.02em]">
-          Triperco
-        </span>
-      )}
-    </span>
+    <svg
+      viewBox="0 0 176 54"
+      role="img"
+      aria-label="Triperco"
+      fill="currentColor"
+      className={`w-auto text-deep ${markClassName} ${className}`}
+    >
+      {/* The flight path, lifting off the T and arcing over the name. */}
+      <path
+        d="M5 13C45 1 105 1 136.5 7.6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+      />
+      {/* The plane at the arrival end, nose down toward the pin. */}
+      <path
+        d="M151.6 12.5L146.7 11.8L138.2 14.3L137.8 13.6L142.3 10.2L138.7 8.9L137 10.3L136.6 9.8L137.5 7.4L138.4 5L139 4.8L139.3 7L143 8.3L141.7 2.9L142.4 2.6L147.4 9.9Z"
+        stroke="currentColor"
+        strokeWidth="1"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+
+      <text
+        x="0"
+        y="40"
+        textLength="150"
+        lengthAdjust="spacing"
+        fontSize="40"
+        className="font-display"
+        /* No letter-spacing here: textLength already distributes the fit, and the two fight. */
+        style={{ fontWeight: 600 }}
+      >
+        Triperc
+      </text>
+
+      {/* The final o: a pin whose bowl sits on the x-height and whose point drops below the line. */}
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M160 18a10 10 0 0 0-10 10c0 7.3 10 18 10 18s10-10.7 10-18a10 10 0 0 0-10-10zm0 14.2a4.2 4.2 0 1 1 0-8.4 4.2 4.2 0 0 1 0 8.4z"
+      />
+    </svg>
   )
 }
