@@ -52,7 +52,7 @@ export function PlannerScreen() {
   const [sharing, setSharing] = useState(false)
   const [shareUrl, setShareUrl] = useState<string | null>(null)
   const [detail, setDetail] = useState<{ kind: ResultSet['kind']; item: Flight | Stay | Place } | null>(null)
-  const [booking, setBooking] = useState(false)
+  const [booking, setBooking] = useState<false | 'partners' | 'summary'>(false)
   const [planOpen, setPlanOpen] = useState(false)
   const tripRef = useRef(trip)
   tripRef.current = trip
@@ -309,7 +309,8 @@ export function PlannerScreen() {
                 }}
                 onRemoveItem={removeItem}
                 onViewItem={viewItem}
-                onContinueToBook={() => setBooking(true)}
+                onContinueToBook={() => setBooking('partners')}
+                onViewSummary={() => setBooking('summary')}
               />
             ) : (
               <MapView markers={markers} />
@@ -321,6 +322,7 @@ export function PlannerScreen() {
       {booking && (
         <BookingPanel
           trip={trip}
+          initialView={booking}
           onClose={() => setBooking(false)}
           onStatusChange={(key, status) =>
             setTrip((t) => ({ ...t, bookings: { ...(t.bookings ?? {}), [key]: status } }))

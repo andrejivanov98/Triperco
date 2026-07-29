@@ -16,12 +16,15 @@ export function ItineraryView({
   onRemoveItem,
   onViewItem,
   onContinueToBook,
+  onViewSummary,
 }: {
   trip: TripState
   onFix?: (prompt: string) => void
   onRemoveItem?: (item: TimelineItem) => void
   onViewItem?: (item: TimelineItem) => void
   onContinueToBook?: () => void
+  /** Opens the same panel straight on the summary, skipping the booking links. */
+  onViewSummary?: () => void
 }) {
   const timeline = buildTimeline(trip)
   const watchouts = computeWatchouts(trip)
@@ -127,14 +130,28 @@ export function ItineraryView({
             </div>
             <div className="text-lg font-bold text-ink">{formatMoney(trip.estimatedTotal)}</div>
           </div>
-          <button
-            type="button"
-            onClick={onContinueToBook}
-            className="rounded-2xl bg-deep px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-deep/20 transition hover:opacity-90 disabled:opacity-40"
-            disabled={isEmpty || !onContinueToBook}
-          >
-            Continue to book →
-          </button>
+          {/*
+            Two ways out of the plan: read it, or go and book it. The summary is the finished
+            article, so it deserves reaching without going through the booking screen first.
+          */}
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={onViewSummary}
+              className="rounded-2xl border border-hairline bg-white px-3 py-2.5 text-xs font-bold text-ink transition active:scale-[0.97] hover:bg-sand disabled:opacity-40"
+              disabled={isEmpty || !onViewSummary}
+            >
+              Trip summary
+            </button>
+            <button
+              type="button"
+              onClick={onContinueToBook}
+              className="rounded-2xl bg-deep px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-deep/20 transition active:scale-[0.97] hover:opacity-90 disabled:opacity-40"
+              disabled={isEmpty || !onContinueToBook}
+            >
+              Continue to book →
+            </button>
+          </div>
         </div>
       </div>
     </div>

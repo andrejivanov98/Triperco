@@ -153,3 +153,23 @@ describe('BookingPanel — summary', () => {
     expect(screen.getByRole('heading', { name: /where to book each part/i })).toBeInTheDocument()
   })
 })
+
+describe('BookingPanel — opened from the plan', () => {
+  it('lands on the booking links by default', () => {
+    render(<BookingPanel trip={trip()} onClose={() => {}} />)
+    expect(screen.getByRole('heading', { name: /where to book each part/i })).toBeInTheDocument()
+  })
+
+  it('lands straight on the summary when asked for it', () => {
+    // "Trip summary" in the plan should not make you pass through the booking links first.
+    render(<BookingPanel trip={trip()} onClose={() => {}} initialView="summary" />)
+    expect(screen.getAllByRole('heading', { name: /Ljubljana Weekend Getaway/i }).length).toBeGreaterThan(0)
+    expect(screen.queryByRole('heading', { name: /where to book each part/i })).not.toBeInTheDocument()
+  })
+
+  it('can still get back to the links from there', () => {
+    render(<BookingPanel trip={trip()} onClose={() => {}} initialView="summary" />)
+    fireEvent.click(screen.getByRole('button', { name: /back to booking links/i }))
+    expect(screen.getByRole('heading', { name: /where to book each part/i })).toBeInTheDocument()
+  })
+})

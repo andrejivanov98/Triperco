@@ -74,16 +74,19 @@ export function BookingPanel({
   trip,
   onClose,
   onStatusChange,
+  initialView = 'partners',
 }: {
   trip: TripState
   onClose: () => void
   /** Records the change on the trip, so closing this screen does not forget it. */
   onStatusChange?: (key: string, status: BookingStatus) => void
+  /** Opened from "Trip summary" rather than "Continue to book", so skip the links. */
+  initialView?: 'partners' | 'summary'
 }) {
   const items = useMemo(() => bookableItems(trip), [trip])
   // Local echo so the pill updates instantly; the trip is the record that survives.
   const [statuses, setStatuses] = useState<Record<string, BookingStatus>>({})
-  const [view, setView] = useState<'partners' | 'summary'>('partners')
+  const [view, setView] = useState<'partners' | 'summary'>(initialView)
 
   const withStatus = items.map((item) => ({
     ...item,
