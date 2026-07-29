@@ -6,7 +6,6 @@ import {
   bookableItems,
   bookingProgress,
   bookingTotal,
-  BOOKING_LABEL,
   type BookableItem,
   type BookingStatus,
 } from '@/lib/trip/booking'
@@ -14,54 +13,10 @@ import { formatMoney } from '@/lib/ui/format'
 import { formatDateRange } from '@/lib/trip/dates'
 import { Heading } from '@/components/ui/Heading'
 import { RemoteImage } from '@/components/ui/RemoteImage'
+import { Icon } from '@/components/ui/Icon'
 import { TripSummarySheet } from './TripSummarySheet'
-
-const STATUSES: BookingStatus[] = ['not_booked', 'booked', 'confirmed']
-
-/** Each state gets its own colour, so a glance down the list tells you what is left to do. */
-const STATUS_STYLE: Record<BookingStatus, { dot: string; pill: string }> = {
-  not_booked: { dot: 'bg-muted', pill: 'border-hairline bg-white/70 text-muted' },
-  booked: { dot: 'bg-accent', pill: 'border-accent/40 bg-accent-050 text-accent-600' },
-  confirmed: { dot: 'bg-green-600', pill: 'border-green-600/30 bg-green-50 text-green-800' },
-}
-
-function StatusControl({
-  status,
-  onChange,
-  label,
-}: {
-  status: BookingStatus
-  onChange: (status: BookingStatus) => void
-  label: string
-}) {
-  const style = STATUS_STYLE[status]
-  return (
-    <div
-      className={
-        'relative flex items-center gap-2 rounded-full border px-3.5 py-2 transition ' + style.pill
-      }
-    >
-      <span aria-hidden="true" className={'h-2 w-2 shrink-0 rounded-full ' + style.dot} />
-      <span className="text-[11px] font-bold uppercase tracking-wide">{BOOKING_LABEL[status]}</span>
-      <span aria-hidden="true" className="text-[10px] opacity-60">
-        ▾
-      </span>
-      {/* The native select sits invisibly on top so the menu is the platform's own. */}
-      <select
-        aria-label={`Booking status for ${label}`}
-        value={status}
-        onChange={(e) => onChange(e.target.value as BookingStatus)}
-        className="absolute inset-0 cursor-pointer opacity-0"
-      >
-        {STATUSES.map((s) => (
-          <option key={s} value={s}>
-            {BOOKING_LABEL[s]}
-          </option>
-        ))}
-      </select>
-    </div>
-  )
-}
+import { StatusControl } from './StatusControl'
+import { PrintSheet } from './PrintSheet'
 
 function PartnerCard({
   item,
@@ -78,7 +33,7 @@ function PartnerCard({
         <RemoteImage
           src={item.thumbnail}
           alt={item.title}
-          fallbackGlyph={item.kind === 'flight' ? '✈' : item.kind === 'stay' ? '🏨' : '🎫'}
+          fallbackGlyph={<Icon name={item.kind === 'flight' ? 'plane' : item.kind === 'stay' ? 'bed' : 'ticket'} className="h-5 w-5" />}
           className="h-14 w-14 shrink-0 rounded-xl object-cover"
           fallbackClassName="text-lg"
         />
@@ -114,13 +69,25 @@ function PartnerCard({
  * Triperco is not affiliated with any of them and never books anything — the traveler finishes on
  * the provider's own site and records here what they have done.
  */
-export function BookingPanel({ trip, onClose }: { trip: TripState; onClose: () => void }) {
+export function BookingPanel({
+  trip,
+  onClose,
+  onStatusChange,
+}: {
+  trip: TripState
+  onClose: () => void
+  /** Records the change on the trip, so closing this screen does not forget it. */
+  onStatusChange?: (key: string, status: BookingStatus) => void
+}) {
   const items = useMemo(() => bookableItems(trip), [trip])
-  // Status lives here: it's the traveler's own record of what they've done off-site.
+  // Local echo so the pill updates instantly; the trip is the record that survives.
   const [statuses, setStatuses] = useState<Record<string, BookingStatus>>({})
   const [view, setView] = useState<'partners' | 'summary'>('partners')
 
-  const withStatus = items.map((item) => ({ ...item, status: statuses[item.key] ?? item.status }))
+  const withStatus = items.map((item) => ({
+    ...item,
+    status: statuses[item.key] ?? trip.bookings?.[item.key] ?? item.status,
+  }))
   const progress = bookingProgress(withStatus)
   const total = bookingTotal(withStatus)
   const title = trip.meta.title ?? `${trip.meta.destination ?? 'Your'} trip`
@@ -170,7 +137,14 @@ export function BookingPanel({ trip, onClose }: { trip: TripState; onClose: () =
           </div>
         </div>
 
-        <div className="print-area min-h-0 flex-1 overflow-y-auto p-5">
+        {/*
+          Printed separately, at the top level of the document. Inside this modal the sheet sits in
+          a fixed, clipped, max-height box, and no amount of print CSS can coax a full multi-page
+          document out of that — which is why the PDF came out blank.
+        */}
+        {view === 'summary' && <PrintSheet trip={trip} />}
+
+        <div className="no-print min-h-0 flex-1 overflow-y-auto p-5">
           {view === 'summary' ? (
             <TripSummarySheet trip={trip} />
           ) : (
@@ -193,7 +167,10 @@ export function BookingPanel({ trip, onClose }: { trip: TripState; onClose: () =
                   key={item.key}
                   item={item}
                   status={item.status}
-                  onStatus={(status) => setStatuses((s) => ({ ...s, [item.key]: status }))}
+                  onStatus={(status) => {
+                    setStatuses((s) => ({ ...s, [item.key]: status }))
+                    onStatusChange?.(item.key, status)
+                  }}
                 />
               ))}
             </div>

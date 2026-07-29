@@ -260,4 +260,11 @@ export interface TripState {
   stays: Stay[]
   days: Day[]
   estimatedTotal: number
+  /**
+   * What the traveler has recorded about booking each part, keyed by the bookable item's key.
+   *
+   * It lives on the trip rather than inside the booking screen so it survives closing that screen —
+   * marking something booked and losing it on the next open is worse than not offering it.
+   */
+  bookings?: Record<string, 'not_booked' | 'booked' | 'confirmed'>
 }

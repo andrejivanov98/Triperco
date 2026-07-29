@@ -5,6 +5,7 @@ import type { Stay } from '@/lib/trip/types'
 import { formatMoney, formatRating } from '@/lib/ui/format'
 import { Badge, badgeTone } from '@/components/ui/Badge'
 import { RemoteImage } from '@/components/ui/RemoteImage'
+import { Icon, type IconName } from '@/components/ui/Icon'
 
 /** "Entire place · 2 bedrooms · Sleeps 4" — whatever the provider actually told us. */
 function layoutLine(stay: Stay): string | undefined {
@@ -21,18 +22,18 @@ function typeLine(stay: Stay): string {
 }
 
 /** The handful of amenities travelers actually decide on, with a glyph each. */
-const AMENITY_ICONS: { pattern: RegExp; icon: string; label: string }[] = [
-  { pattern: /wi-?fi/i, icon: '📶', label: 'Wi-Fi' },
-  { pattern: /kitchen/i, icon: '🍳', label: 'Kitchen' },
-  { pattern: /air condition/i, icon: '❄️', label: 'A/C' },
-  { pattern: /pool/i, icon: '🏊', label: 'Pool' },
-  { pattern: /parking/i, icon: '🅿️', label: 'Parking' },
-  { pattern: /breakfast/i, icon: '🥐', label: 'Breakfast' },
-  { pattern: /washer|laundry/i, icon: '🧺', label: 'Washer' },
-  { pattern: /pet/i, icon: '🐾', label: 'Pets' },
+const AMENITY_ICONS: { pattern: RegExp; icon: IconName; label: string }[] = [
+  { pattern: /wi-?fi/i, icon: 'wifi', label: 'Wi-Fi' },
+  { pattern: /kitchen/i, icon: 'kitchen', label: 'Kitchen' },
+  { pattern: /air condition/i, icon: 'snowflake', label: 'A/C' },
+  { pattern: /pool/i, icon: 'pool', label: 'Pool' },
+  { pattern: /parking/i, icon: 'parking', label: 'Parking' },
+  { pattern: /breakfast/i, icon: 'coffee', label: 'Breakfast' },
+  { pattern: /washer|laundry/i, icon: 'washer', label: 'Washer' },
+  { pattern: /pet/i, icon: 'paw', label: 'Pets' },
 ]
 
-function amenityChips(stay: Stay): { icon: string; label: string }[] {
+function amenityChips(stay: Stay): { icon: IconName; label: string }[] {
   const all = stay.amenities ?? []
   return AMENITY_ICONS.filter(({ pattern }) => all.some((a) => pattern.test(a)))
     .slice(0, 4)
@@ -134,9 +135,9 @@ export function StayResultCard({
             {amenities.map((a) => (
               <span
                 key={a.label}
-                className="flex items-center gap-1 rounded-full border border-hairline bg-white px-2 py-0.5 text-[10px] font-semibold text-muted"
+                className="flex items-center gap-1 rounded-full border border-hairline bg-white px-2 py-1 text-[10px] font-semibold text-muted"
               >
-                <span aria-hidden>{a.icon}</span>
+                <Icon name={a.icon} className="h-3 w-3" />
                 {a.label}
               </span>
             ))}

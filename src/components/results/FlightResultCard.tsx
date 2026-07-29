@@ -7,6 +7,7 @@ import { FlightSegments } from './FlightSegments'
 import { formatMoney, formatDuration, formatStops } from '@/lib/ui/format'
 import { Badge, badgeTone } from '@/components/ui/Badge'
 import { RemoteImage } from '@/components/ui/RemoteImage'
+import { Icon } from '@/components/ui/Icon'
 
 /** One leg as a route line: times at each end, duration and stops in between. */
 function Leg({ flight, label }: { flight: Flight; label?: string }) {
@@ -31,7 +32,7 @@ function Leg({ flight, label }: { flight: Flight; label?: string }) {
           <span className="flex w-full items-center gap-1">
             <span className="h-1.5 w-1.5 rounded-full bg-accent" />
             <span className="h-px flex-1 bg-hairline" />
-            <span className="text-[10px] text-muted">✈</span>
+            <Icon name="plane" className="h-3 w-3 text-muted" />
             <span className="h-px flex-1 bg-hairline" />
             <span className="h-1.5 w-1.5 rounded-full bg-accent" />
           </span>
@@ -98,7 +99,7 @@ export function FlightResultCard({
           <RemoteImage
             src={flight.airlineLogo}
             alt={flight.airline ?? 'Airline'}
-            fallbackGlyph="✈"
+            fallbackGlyph={<Icon name="plane" className="h-4 w-4" />}
             className="h-6 w-6 rounded object-contain"
             fallbackClassName="text-xs"
           />

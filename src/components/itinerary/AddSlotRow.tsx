@@ -1,6 +1,7 @@
 'use client'
 
 import type { AddSlot } from '@/lib/trip/timeline'
+import { Icon, type IconName } from '@/components/ui/Icon'
 
 /**
  * Each empty slot says what is missing and what tapping it will do, instead of a flat line of grey
@@ -8,16 +9,20 @@ import type { AddSlot } from '@/lib/trip/timeline'
  */
 const SLOT: Record<
   AddSlot,
-  { glyph: string; title: (where: string) => string; action: string }
+  { icon: IconName; title: (where: string) => string; action: string }
 > = {
-  flights: { glyph: '✈', title: () => 'No flights yet', action: 'Find the way there' },
-  'return-flight': { glyph: '✈', title: () => 'One way only', action: 'Find the flight home' },
+  flights: { icon: 'plane', title: () => 'No flights yet', action: 'Find the way there' },
+  'return-flight': {
+    icon: 'plane-return',
+    title: () => 'One way only',
+    action: 'Find the flight home',
+  },
   stays: {
-    glyph: '🛏',
+    icon: 'bed',
     title: (where) => `Nowhere to sleep${where ? ` in ${where}` : ''}`,
     action: 'Find a place to stay',
   },
-  activities: { glyph: '🎫', title: () => 'Nothing planned yet', action: 'Find things to do' },
+  activities: { icon: 'ticket', title: () => 'Nothing planned yet', action: 'Find things to do' },
 }
 
 /** An empty slot in the plan. Clicking it asks the chat to fill it. */
@@ -32,7 +37,7 @@ export function AddSlotRow({
   dayLabel?: string
   onClick?: (slot: AddSlot, dayLabel?: string) => void
 }) {
-  const { glyph, title, action } = SLOT[slot]
+  const { icon, title, action } = SLOT[slot]
 
   return (
     <button
@@ -41,11 +46,8 @@ export function AddSlotRow({
       disabled={!onClick}
       className="group flex w-full items-center gap-3 rounded-2xl border border-dashed border-hairline bg-white/40 px-3 py-3 text-left transition hover:border-accent/50 hover:bg-accent-050/60 disabled:cursor-default disabled:hover:border-hairline disabled:hover:bg-white/40"
     >
-      <span
-        aria-hidden="true"
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sand text-base transition group-hover:bg-white"
-      >
-        {glyph}
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sand text-muted transition group-hover:bg-white group-hover:text-accent">
+        <Icon name={icon} className="h-[18px] w-[18px]" />
       </span>
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="truncate text-xs font-bold text-ink">{title(destination ?? '')}</span>

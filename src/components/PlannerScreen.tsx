@@ -248,12 +248,8 @@ export function PlannerScreen() {
       <PlannerHeader
         title={trip.meta.title ?? trip.meta.destination}
         onNewTrip={startNewTrip}
-        right={
-          <div className="flex items-center gap-2">
-            <PlanButton itemCount={planCount} onOpen={openPlan} />
-            <ShareButton onShare={handleShare} sharing={sharing} shareUrl={shareUrl} />
-          </div>
-        }
+        left={<ShareButton onShare={handleShare} sharing={sharing} shareUrl={shareUrl} />}
+        right={<PlanButton itemCount={planCount} onOpen={openPlan} />}
       />
 
       <div
@@ -299,7 +295,15 @@ export function PlannerScreen() {
         </div>
       </PlanOverlay>
 
-      {booking && <BookingPanel trip={trip} onClose={() => setBooking(false)} />}
+      {booking && (
+        <BookingPanel
+          trip={trip}
+          onClose={() => setBooking(false)}
+          onStatusChange={(key, status) =>
+            setTrip((t) => ({ ...t, bookings: { ...(t.bookings ?? {}), [key]: status } }))
+          }
+        />
+      )}
 
       {detail && (
         <DetailPanel

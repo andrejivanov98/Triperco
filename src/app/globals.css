@@ -46,24 +46,30 @@ body {
  * Printing used to put the whole page on paper — the conversation included — because window.print()
  * has no idea a modal is open. Only the summary sheet goes to the printer.
  */
+
+/*
+ * The printable summary lives in its own element directly under <body>, because the on-screen one
+ * sits in a fixed, clipped dialog that a browser cannot paginate — that is what produced a blank
+ * PDF. Here it is hidden on screen and is the only thing that reaches the printer.
+ */
+.print-sheet {
+  display: none;
+}
+
 @media print {
-  body * {
-    visibility: hidden;
+  body > *:not(.print-sheet) {
+    display: none !important;
   }
-  .print-area,
-  .print-area * {
-    visibility: visible;
-  }
-  .print-area {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    max-height: none;
-    overflow: visible;
+  .print-sheet {
+    display: block;
     padding: 0;
+    color: #1b2430;
     background: #fff;
   }
   .no-print {
     display: none !important;
+  }
+  @page {
+    margin: 16mm;
   }
 }

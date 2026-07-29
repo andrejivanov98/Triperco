@@ -4,11 +4,12 @@ import { useState } from 'react'
 import type { TimelineItem } from '@/lib/trip/timeline'
 import { formatMoney, formatRating } from '@/lib/ui/format'
 import { RemoteImage } from '@/components/ui/RemoteImage'
+import { Icon, type IconName } from '@/components/ui/Icon'
 
-const KIND_GLYPH: Record<TimelineItem['kind'], string> = {
-  flight: '✈',
-  stay: '🏨',
-  activity: '🎫',
+const KIND_ICON: Record<TimelineItem['kind'], IconName> = {
+  flight: 'plane',
+  stay: 'bed',
+  activity: 'ticket',
 }
 
 /**
@@ -45,7 +46,7 @@ export function TimelineItemCard({
         <RemoteImage
           src={item.thumbnail}
           alt={item.title}
-          fallbackGlyph={KIND_GLYPH[item.kind]}
+          fallbackGlyph={<Icon name={KIND_ICON[item.kind]} className="h-4 w-4" />}
           className="h-11 w-11 shrink-0 rounded-lg object-cover"
           fallbackClassName="text-base"
         />

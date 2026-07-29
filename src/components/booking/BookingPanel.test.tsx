@@ -64,9 +64,26 @@ describe('BookingPanel — booking links', () => {
 
   it('lets the traveler record that they booked something', () => {
     render(<BookingPanel trip={trip()} onClose={() => {}} />)
-    const control = screen.getByLabelText(/booking status for City residence apartment/i)
-    fireEvent.change(control, { target: { value: 'confirmed' } })
+    fireEvent.click(screen.getByRole('button', { name: /booking status for City residence apartment/i }))
+    fireEvent.click(screen.getByRole('option', { name: /confirmed/i }))
     expect(screen.getByText(/1 of 2 booked/i)).toBeInTheDocument()
+  })
+
+  it('reports the change so the plan can remember it', () => {
+    const onStatusChange = vi.fn()
+    render(<BookingPanel trip={trip()} onClose={() => {}} onStatusChange={onStatusChange} />)
+    fireEvent.click(screen.getByRole('button', { name: /booking status for City residence apartment/i }))
+    fireEvent.click(screen.getByRole('option', { name: /^booked$/i }))
+    expect(onStatusChange).toHaveBeenCalledWith('stay:s1', 'booked')
+  })
+
+  it('starts from what the plan already recorded', () => {
+    render(
+      <BookingPanel trip={{ ...trip(), bookings: { 'stay:s1': 'confirmed' } }} onClose={() => {}} />,
+    )
+    expect(
+      screen.getByRole('button', { name: /booking status for City residence apartment/i }),
+    ).toHaveTextContent(/confirmed/i)
   })
 
   it('says so when there is nothing to book', () => {
@@ -92,36 +109,41 @@ describe('BookingPanel — summary', () => {
   it('opens a trip summary with the trip name and dates', () => {
     render(<BookingPanel trip={trip()} onClose={() => {}} />)
     fireEvent.click(screen.getByRole('button', { name: /view trip summary/i }))
-    expect(screen.getByRole('heading', { name: /Ljubljana Weekend Getaway/i })).toBeInTheDocument()
-    expect(screen.getByText(/Aug 7 – 10 · 2 travelers/i)).toBeInTheDocument()
+    // Two copies exist on purpose: the one on screen, and the one queued for the printer.
+    expect(screen.getAllByRole('heading', { name: /Ljubljana Weekend Getaway/i })).toHaveLength(2)
+    expect(screen.getAllByText(/Aug 7 – 10 · 2 travelers/i).length).toBeGreaterThan(0)
     expect(screen.getByRole('button', { name: /print \/ save pdf/i })).toBeInTheDocument()
   })
 
   it('keeps recorded statuses when you go to the summary and back', () => {
     // The summary is a document you print, so it carries no controls — the statuses live here.
     render(<BookingPanel trip={trip()} onClose={() => {}} />)
-    fireEvent.change(screen.getByLabelText(/booking status for City residence apartment/i), {
-      target: { value: 'booked' },
-    })
+    fireEvent.click(screen.getByRole('button', { name: /booking status for City residence apartment/i }))
+    fireEvent.click(screen.getByRole('option', { name: /^booked$/i }))
     fireEvent.click(screen.getByRole('button', { name: /view trip summary/i }))
     fireEvent.click(screen.getByRole('button', { name: /back to booking links/i }))
-    expect(screen.getByLabelText(/booking status for City residence apartment/i)).toHaveValue('booked')
+    expect(
+      screen.getByRole('button', { name: /booking status for City residence apartment/i }),
+    ).toHaveTextContent(/booked/i)
   })
 
-  it('prints the plan rather than the conversation behind it', () => {
+  it('puts a real printable copy of the plan outside the dialog', () => {
     render(<BookingPanel trip={trip()} onClose={() => {}} />)
     fireEvent.click(screen.getByRole('button', { name: /view trip summary/i }))
 
-    // Everything on the printed sheet, and nothing else on the page, is inside .print-area.
-    const sheet = document.querySelector('.print-area')
+    // The dialog is clipped and fixed, so the printed copy lives directly under <body>.
+    const sheet = document.querySelector('.print-sheet')
     expect(sheet).not.toBeNull()
+    expect(sheet?.closest('[role="dialog"]')).toBeNull()
     expect(sheet?.textContent).toContain('Ljubljana Weekend Getaway')
     expect(sheet?.textContent).toContain('City residence apartment')
     expect(sheet?.textContent).toMatch(/SKP → LJU/)
     expect(sheet?.textContent).toMatch(/total/i)
+  })
 
-    // The chrome is excluded from the print.
-    expect(screen.getByRole('button', { name: /print \/ save pdf/i }).closest('.no-print')).not.toBeNull()
+  it('keeps the printable copy away from the printer until there is a summary', () => {
+    render(<BookingPanel trip={trip()} onClose={() => {}} />)
+    expect(document.querySelector('.print-sheet')).toBeNull()
   })
 
   it('goes back to the booking links', () => {

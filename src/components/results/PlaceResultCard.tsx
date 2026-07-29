@@ -5,6 +5,7 @@ import { formatRating } from '@/lib/ui/format'
 import { classifyActivity, eventOutsideTrip, showsOpeningHours } from '@/lib/trip/activityKind'
 import { Badge, badgeTone } from '@/components/ui/Badge'
 import { RemoteImage } from '@/components/ui/RemoteImage'
+import { Icon } from '@/components/ui/Icon'
 
 /** A thing to do: what it is and how it rates, then the photo. */
 export function PlaceResultCard({
@@ -102,7 +103,7 @@ export function PlaceResultCard({
           <RemoteImage
             src={photo}
             alt={place.name}
-            fallbackGlyph="🎫"
+            fallbackGlyph={<Icon name="ticket" className="h-6 w-6" />}
             className="h-full w-full object-cover transition group-hover:scale-[1.03]"
           />
         </button>

@@ -19,7 +19,7 @@ export function RemoteImage({
   src?: string
   alt: string
   className?: string
-  fallbackGlyph?: string
+  fallbackGlyph?: React.ReactNode
   fallbackClassName?: string
 }) {
   const [failed, setFailed] = useState(false)

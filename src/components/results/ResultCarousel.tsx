@@ -10,6 +10,7 @@ import { Lightbox } from '@/components/ui/Lightbox'
 import { StayResultCard } from './StayResultCard'
 import { FlightResultCard } from './FlightResultCard'
 import { PlaceResultCard } from './PlaceResultCard'
+import { ProviderCheckNote } from './ProviderCheckNote'
 
 const KIND_NOUN: Record<ResultSet['kind'], string> = {
   flights: 'flight options',
@@ -191,6 +192,9 @@ export function ResultCarousel({
           )
         })}
       </div>
+
+      {/* Said where the choice is made, not buried at checkout. */}
+      {(set.kind === 'flights' || set.kind === 'stays') && <ProviderCheckNote kind={set.kind} />}
 
       {photos && (
         <Lightbox

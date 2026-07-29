@@ -8,6 +8,7 @@ import { WatchoutBanner } from './WatchoutBanner'
 import { AddSlotRow, slotPrompt } from './AddSlotRow'
 import { ProgressMeter } from './ProgressMeter'
 import { RemoteImage } from '@/components/ui/RemoteImage'
+import { Icon } from '@/components/ui/Icon'
 
 export function ItineraryView({
   trip,
@@ -38,7 +39,7 @@ export function ItineraryView({
         <RemoteImage
           src={trip.meta.coverImage}
           alt={trip.meta.destination ? `${trip.meta.destination} cover photo` : 'Trip cover'}
-          fallbackGlyph="🧭"
+          fallbackGlyph={<Icon name="compass" className="h-6 w-6" />}
           className="h-full w-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-deep/75 to-transparent" />
@@ -57,7 +58,7 @@ export function ItineraryView({
 
         {isEmpty ? (
           <div className="mt-6 flex flex-col items-center gap-1 px-4 text-center">
-            <span className="text-2xl">🧭</span>
+            <Icon name="compass" className="h-7 w-7 text-muted" />
             <p className="text-sm font-semibold text-ink">Your plan builds here</p>
             <p className="text-xs font-medium leading-relaxed text-muted">
               Everything you add in the chat lands in this panel — flights, stays and each day.

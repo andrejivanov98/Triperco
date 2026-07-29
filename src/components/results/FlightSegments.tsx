@@ -1,5 +1,6 @@
 import type { Flight } from '@/lib/trip/types'
 import { formatDuration } from '@/lib/ui/format'
+import { Icon } from '@/components/ui/Icon'
 
 /** "1h 35" style, for the small label sitting on the connector line. */
 function legDuration(minutes?: number): string | undefined {
@@ -48,7 +49,7 @@ export function FlightSegments({ flight }: { flight: Flight }) {
                 </div>
 
                 <span className="flex items-center gap-1.5 py-0.5 text-[11px] font-semibold text-muted">
-                  <span aria-hidden>✈</span>
+                  <Icon name="plane" className="h-3 w-3" />
                   {legDuration(segment.durationMinutes) ?? '—'}
                 </span>
 
