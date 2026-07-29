@@ -37,13 +37,28 @@ export function createRedisTripStore(redis: RedisLike): TripStore {
 let memoryStore: TripStore | null = null
 
 /**
- * Returns the Upstash-backed store when its env vars are present, otherwise a
- * process-memoized in-memory store (non-persistent across restarts).
+ * The REST credentials, under whichever names the platform happened to use.
+ *
+ * Upstash's own docs say UPSTASH_REDIS_REST_URL/TOKEN, but provisioning it through the Vercel
+ * Marketplace writes KV_REST_API_URL/TOKEN instead. Reading both is the difference between shared
+ * links working and silently falling back to memory — a failure that looks fine until someone opens
+ * a link an hour later and gets a 404.
+ */
+function redisCredentials(): { url: string; token: string } | null {
+  const url = process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN
+  return url && token ? { url, token } : null
+}
+
+/**
+ * Returns the Redis-backed store when credentials are present, otherwise a process-memoized
+ * in-memory store (non-persistent across restarts).
  */
 export function getTripStore(): TripStore {
-  if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-    // Redis.fromEnv() is only constructed when the env vars are present.
-    return createRedisTripStore(Redis.fromEnv() as unknown as RedisLike)
+  const credentials = redisCredentials()
+  if (credentials) {
+    // Constructed explicitly rather than via fromEnv(), which only knows the UPSTASH_ names.
+    return createRedisTripStore(new Redis(credentials) as unknown as RedisLike)
   }
   if (!memoryStore) memoryStore = createInMemoryTripStore()
   return memoryStore
