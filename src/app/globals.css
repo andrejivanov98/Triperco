@@ -73,3 +73,12 @@ body {
     margin: 16mm;
   }
 }
+
+/* A scrolling row should read as content that continues, not as a widget with a track under it. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

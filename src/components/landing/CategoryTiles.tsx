@@ -42,14 +42,14 @@ const CATEGORIES: Category[] = [
 
 export function CategoryTiles() {
   return (
-    <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
+    <div className="mx-auto grid max-w-4xl grid-cols-2 gap-5 sm:grid-cols-4">
       {CATEGORIES.map(({ label, description, prompt, Illustration }) => (
         <Link
           key={label}
           href={`/plan?q=${encodeURIComponent(prompt)}`}
           className="group flex flex-col gap-3"
         >
-          <div className="aspect-square w-full overflow-hidden rounded-3xl bg-sand/60 p-5 transition group-hover:bg-sand">
+          <div className="aspect-square w-full overflow-hidden rounded-3xl bg-sand/60 p-7 transition group-hover:bg-sand">
             <div className="h-full w-full transition group-hover:scale-[1.04]">
               <Illustration />
             </div>

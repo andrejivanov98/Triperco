@@ -9,20 +9,20 @@ const messages: TriperUIMessage[] = [
 ]
 
 describe('ChatPane', () => {
-  it('renders message text and suggestion chips', () => {
+  it('renders the conversation', () => {
     render(
       <ChatPane messages={messages} status="ready" suggestions={['More food']} onSend={() => {}} />,
     )
     expect(screen.getByText('Rome for 4 days')).toBeInTheDocument()
     expect(screen.getByText('Great choice!')).toBeInTheDocument()
-    expect(screen.getByText('More food')).toBeInTheDocument()
   })
 
-  it('calls onSend when a chip is clicked', () => {
-    const onSend = vi.fn()
-    render(<ChatPane messages={[]} status="ready" suggestions={['Hidden gems']} onSend={onSend} />)
-    fireEvent.click(screen.getByText('Hidden gems'))
-    expect(onSend).toHaveBeenCalledWith('Hidden gems')
+  it('puts no suggestion chips above the composer', () => {
+    // Suggestions belong in the thread as guided cards; two competing sets only added noise.
+    render(
+      <ChatPane messages={messages} status="ready" suggestions={['More food']} onSend={() => {}} />,
+    )
+    expect(screen.queryByText('More food')).not.toBeInTheDocument()
   })
 
   it('calls onSend with the typed text on submit', () => {
@@ -50,31 +50,37 @@ describe('ChatPane', () => {
     expect(screen.getByText(/1 places to stay/i)).toBeInTheDocument()
   })
 
-  it('prefers the suggestions the agent proposed for this moment', () => {
+  it('anchors each set of results so the navigator can jump to it', () => {
     const msgs: TriperUIMessage[] = [
       {
-        id: 's',
+        id: 'm9',
         role: 'assistant',
         parts: [
-          { type: 'text', text: '14 stays in Trastevere.' },
-          { type: 'data-suggestions', data: { replies: ['Somewhere quieter', 'Only with a kitchen'] } },
+          {
+            type: 'data-results',
+            data: {
+              kind: 'stays',
+              query: 'Rome',
+              items: [
+                {
+                  id: 'a',
+                  name: 'Hotel A',
+                  source: 'hotel',
+                  pricePerNight: 100,
+                  nights: 2,
+                  photos: [],
+                  bookUrl: 'x',
+                },
+              ],
+            },
+          },
         ],
       },
     ]
-    render(
-      <ChatPane messages={msgs} status="ready" suggestions={['Make it cheaper']} onSend={() => {}} />,
+    const { container } = render(
+      <ChatPane messages={msgs} status="ready" suggestions={[]} onSend={() => {}} />,
     )
-    expect(screen.getByText('Somewhere quieter')).toBeInTheDocument()
-    expect(screen.getByText('Only with a kitchen')).toBeInTheDocument()
-    // The generic fallback steps aside.
-    expect(screen.queryByText('Make it cheaper')).not.toBeInTheDocument()
-  })
-
-  it('falls back to trip-derived suggestions when the agent proposed none', () => {
-    render(
-      <ChatPane messages={messages} status="ready" suggestions={['Make it cheaper']} onSend={() => {}} />,
-    )
-    expect(screen.getByText('Make it cheaper')).toBeInTheDocument()
+    expect(container.querySelector('#m9\\:0')).not.toBeNull()
   })
 
   it('shows a thinking indicator while a turn is in flight', () => {

@@ -56,7 +56,7 @@ export function PlanOverlay({
         aria-modal="true"
         aria-label={title ?? 'Your plan'}
         data-testid="plan-pane"
-        className="glass relative flex h-full w-full min-w-0 flex-col gap-3 overflow-hidden rounded-none p-3 shadow-2xl sm:max-w-md sm:rounded-l-3xl"
+        className="glass relative flex h-full w-full min-w-0 flex-col gap-3 overflow-hidden rounded-none p-3 shadow-2xl sm:max-w-2xl sm:rounded-l-3xl"
       >
         <div className="flex shrink-0 items-center justify-between gap-2">
           <span

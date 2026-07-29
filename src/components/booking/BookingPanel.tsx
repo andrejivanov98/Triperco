@@ -17,6 +17,7 @@ import { Icon } from '@/components/ui/Icon'
 import { TripSummarySheet } from './TripSummarySheet'
 import { StatusControl } from './StatusControl'
 import { PrintSheet } from './PrintSheet'
+import { SummaryShareButton } from './SummaryShareButton'
 
 function PartnerCard({
   item,
@@ -119,13 +120,16 @@ export function BookingPanel({
           </span>
           <div className="flex items-center gap-2">
             {view === 'summary' && (
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="rounded-full border border-hairline bg-white px-3 py-1.5 text-xs font-bold text-ink transition hover:bg-sand"
-              >
-                Print / Save PDF
-              </button>
+              <>
+                <SummaryShareButton title={title} />
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="rounded-full border border-hairline bg-white px-3 py-1.5 text-xs font-bold text-ink transition hover:bg-sand"
+                >
+                  Print / Save PDF
+                </button>
+              </>
             )}
             <button
               type="button"
@@ -178,12 +182,14 @@ export function BookingPanel({
 
           {view === 'partners' && items.length > 0 && (
             <>
+              {/* The end product of the whole conversation, so it leads rather than blends in. */}
               <button
                 type="button"
                 onClick={() => setView('summary')}
-                className="mt-5 w-full rounded-2xl border border-hairline bg-white px-4 py-3.5 text-sm font-bold text-ink transition hover:bg-sand"
+                className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-deep px-4 py-4 text-base font-bold text-white shadow-lg shadow-deep/25 transition hover:bg-ink hover:shadow-xl"
               >
                 View trip summary
+                <span aria-hidden>→</span>
               </button>
               <p className="mt-3 text-xs font-medium leading-relaxed text-muted">
                 Triperco keeps the itinerary together. Each booking is completed on the provider&apos;s

@@ -106,14 +106,16 @@ export function ChatPane({
               {sets.length > 0 && (
                 <div className="w-full min-w-0">
                   {sets.map((set, i) => (
-                    <ResultCarousel
-                      key={i}
-                      set={set}
-                      revision={revisions.get(setId(m.id, i))}
-                      tripDates={tripDates}
-                      onOpen={(s, item) => onOpenDetail?.(s, item)}
-                      onAdd={(s, item) => onAddResult?.(s, item)}
-                    />
+                    // Anchored so the section navigator can jump straight back here.
+                    <div key={i} id={setId(m.id, i)} className="scroll-mt-4">
+                      <ResultCarousel
+                        set={set}
+                        revision={revisions.get(setId(m.id, i))}
+                        tripDates={tripDates}
+                        onOpen={(s, item) => onOpenDetail?.(s, item)}
+                        onAdd={(s, item) => onAddResult?.(s, item)}
+                      />
+                    </div>
                   ))}
                 </div>
               )}
@@ -147,23 +149,11 @@ export function ChatPane({
         <div ref={endRef} />
       </div>
 
+      {/*
+        No chips above the composer. Suggestions belong in the thread, as the guided cards the agent
+        writes for the moment they apply — two competing sets of them just made the screen noisier.
+      */}
       <div className="flex flex-col gap-2 border-t border-hairline pt-3">
-        {chips.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {chips.map((s, i) => (
-              <button
-                key={`${s}-${i}`}
-                type="button"
-                onClick={() => submit(s)}
-                disabled={busy}
-                className="rounded-full border border-accent/30 bg-accent-050 px-3 py-1.5 text-xs font-semibold text-accent-600 transition hover:bg-accent/10 disabled:opacity-50"
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        )}
-
         <form
           role="form"
           className="flex items-end gap-2"

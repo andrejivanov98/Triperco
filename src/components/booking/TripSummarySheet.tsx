@@ -1,8 +1,8 @@
 import type { TripState } from '@/lib/trip/types'
-import { buildTimeline } from '@/lib/trip/timeline'
 import { arrivalDayLabel } from '@/lib/trip/flightDay'
 import { formatMoney, formatDuration, formatStops } from '@/lib/ui/format'
 import { formatDateRange } from '@/lib/trip/dates'
+import { Icon } from '@/components/ui/Icon'
 
 /**
  * The trip as a document: every part of the plan, in order, with the detail someone would want
@@ -14,10 +14,8 @@ import { formatDateRange } from '@/lib/trip/dates'
 export function TripSummarySheet({ trip }: { trip: TripState }) {
   const title = trip.meta.title ?? `${trip.meta.destination ?? 'Your'} trip`
   const range = formatDateRange(trip.meta.startDate, trip.meta.endDate)
-  // The plan's own activity rows, flattened out of their day groups for a printed list.
-  const activities = buildTimeline(trip)
-    .groups.flatMap((group) => group.items)
-    .filter((item) => item.kind === 'activity')
+  // Straight from the plan rather than the timeline, because these carry the address.
+  const activities = trip.days.flatMap((day) => day.items)
 
   const flightTotal = trip.flights.reduce((sum, f) => sum + f.price, 0) * trip.meta.travelers
   const stayTotal = trip.stays.reduce((sum, s) => sum + (s.totalPrice ?? s.pricePerNight * s.nights), 0)
@@ -105,12 +103,18 @@ export function TripSummarySheet({ trip }: { trip: TripState }) {
       {activities.length > 0 && (
         <section className="flex flex-col gap-2">
           <h2 className="text-xs font-bold uppercase tracking-wide text-muted">Things to do</h2>
-          <ul className="flex flex-col gap-1.5">
+          <ul className="flex flex-col gap-2">
             {activities.map((item, i) => (
-              <li key={`${item.id}-${i}`} className="flex items-baseline justify-between gap-3">
-                <span className="text-sm font-medium">{item.title}</span>
-                {item.subtitle && (
-                  <span className="shrink-0 text-xs font-medium text-muted">{item.subtitle}</span>
+              <li key={`${item.placeId}-${i}`} className="flex flex-col">
+                <span className="flex items-baseline justify-between gap-3">
+                  <span className="text-sm font-medium">{item.name}</span>
+                  {item.category && (
+                    <span className="shrink-0 text-xs font-medium text-muted">{item.category}</span>
+                  )}
+                </span>
+                {/* The address is what makes this useful once they are actually there. */}
+                {item.address && (
+                  <span className="text-[11px] font-medium text-muted">{item.address}</span>
                 )}
               </li>
             ))}
@@ -138,11 +142,17 @@ export function TripSummarySheet({ trip }: { trip: TripState }) {
           <span>Total</span>
           <span>{formatMoney(flightTotal + stayTotal)}</span>
         </div>
-        <p className="mt-1 text-[11px] font-medium text-muted">
-          Prices are as of search. Bookings are completed on each provider&apos;s own site; Triperco
-          is not affiliated with any of them.
-        </p>
       </section>
+
+      {/* Set apart and marked, so it reads as a notice rather than as another line of the bill. */}
+      <aside className="mt-2 flex items-start gap-2.5 rounded-xl border border-hairline bg-sand/50 px-3.5 py-3">
+        <Icon name="info" className="mt-0.5 h-4 w-4 shrink-0 text-muted" />
+        <p className="text-[11px] italic leading-relaxed text-muted">
+          Prices are as of search and can change. Every booking is completed on the provider&apos;s
+          own site and your confirmation comes from them — Triperco is not affiliated with any
+          provider and takes no commission for ranking anything higher.
+        </p>
+      </aside>
     </div>
   )
 }

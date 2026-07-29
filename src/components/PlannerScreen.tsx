@@ -33,7 +33,9 @@ import { PlanMapToggle, type PlanView as PlanViewMode } from './plan/PlanMapTogg
 import { PlanOverlay, PlanButton } from './plan/PlanOverlay'
 import { ShareButton } from './share/ShareButton'
 import { DetailPanel } from './results/DetailPanel'
-import { PlannerHeader } from './PlannerHeader'
+import { SiteHeader } from './SiteHeader'
+import { SectionNavigator } from './chat/SectionNavigator'
+import { chatSections } from '@/lib/ui/chatSections'
 
 export function PlannerScreen() {
   const router = useRouter()
@@ -187,6 +189,10 @@ export function PlannerScreen() {
   }, [messages])
 
   const markers = useMemo(() => tripToMarkers(trip), [trip])
+  const sections = useMemo(
+    () => chatSections(messages, trip.meta.destination),
+    [messages, trip.meta.destination],
+  )
   const quickReplies = useMemo(() => suggestQuickReplies(trip), [trip])
   const planCount = useMemo(
     () =>
@@ -244,14 +250,22 @@ export function PlannerScreen() {
 
   return (
     // The conversation now owns the width. The plan is a drawer you summon, not a permanent column.
-    <main className="mx-auto flex min-h-screen max-w-[1100px] flex-col gap-2 p-3 sm:p-4 lg:h-screen lg:overflow-hidden">
-      <PlannerHeader
-        title={trip.meta.title ?? trip.meta.destination}
-        onNewTrip={startNewTrip}
+    <main className="flex min-h-screen flex-col lg:h-screen lg:overflow-hidden">
+      <SiteHeader
+        onNewChat={startNewTrip}
         left={<ShareButton onShare={handleShare} sharing={sharing} shareUrl={shareUrl} />}
+        center={
+          <SectionNavigator
+            sections={sections}
+            onJump={(id) =>
+              document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            }
+          />
+        }
         right={<PlanButton itemCount={planCount} onOpen={openPlan} />}
       />
 
+      <div className="mx-auto flex w-full max-w-[1400px] min-h-0 flex-1 flex-col gap-2 px-2 py-2 sm:px-4">
       <div
         data-testid="chat-pane"
         className="glass flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-4"
@@ -266,6 +280,7 @@ export function PlannerScreen() {
           tripDates={trip.meta}
           emptyState={<ChatEmptyState onPick={(text) => sendMessage({ text })} />}
         />
+      </div>
       </div>
 
       <PlanOverlay
