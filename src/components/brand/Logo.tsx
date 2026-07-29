@@ -13,7 +13,7 @@ import type { SVGProps } from 'react'
  *
  * It says the two things the product is about at once — somewhere to go, and getting there.
  */
-export function LogoMark({ className = 'h-8 w-8', ...rest }: SVGProps<SVGSVGElement>) {
+export function LogoMark({ className = 'h-9 w-9', ...rest }: SVGProps<SVGSVGElement>) {
   return (
     <svg
       viewBox="0 0 32 32"
@@ -26,7 +26,7 @@ export function LogoMark({ className = 'h-8 w-8', ...rest }: SVGProps<SVGSVGElem
       <path
         fillRule="evenodd"
         clipRule="evenodd"
-        d="M16 2C10.2 2 5.5 6.7 5.5 12.5c0 7.9 10.5 17.5 10.5 17.5s10.5-9.6 10.5-17.5C26.5 6.7 21.8 2 16 2ZM22 7 9.4 13.6l5.3 1.7.6 5.2ZM20.9 7.3 14.8 14.6l.7.6L21.6 7.9Z"
+        d="M16 2C10.2 2 5.5 6.7 5.5 12.5c0 7.9 10.5 17.5 10.5 17.5s10.5-9.6 10.5-17.5C26.5 6.7 21.8 2 16 2ZM23.6 9.3 8.1 14l6 1.9.6 5.7ZM22.5 9.4 14.2 15.1l.6.9 8.3-5.7Z"
       />
     </svg>
   )
@@ -40,7 +40,7 @@ export function LogoMark({ className = 'h-8 w-8', ...rest }: SVGProps<SVGSVGElem
  */
 export function Logo({
   className = '',
-  markClassName = 'h-8 w-8',
+  markClassName = 'h-9 w-9',
   showWordmark = true,
 }: {
   className?: string
@@ -52,7 +52,7 @@ export function Logo({
     <span className={`inline-flex items-center gap-2 text-deep ${className}`}>
       <LogoMark className={markClassName} />
       {showWordmark && (
-        <span className="font-brand text-[1.4rem] font-extrabold leading-none tracking-[-0.035em]">
+        <span className="font-brand text-[1.6rem] font-extrabold leading-none tracking-[-0.035em]">
           triperco
         </span>
       )}
