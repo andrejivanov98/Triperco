@@ -30,6 +30,7 @@ const COLUMNS: { heading: string; links: { label: string; href: string }[] }[] =
     links: [
       { label: 'Terms of Service', href: '/legal/terms' },
       { label: 'Privacy Policy', href: '/legal/privacy' },
+      { label: 'Website Terms of Use', href: '/legal/website-terms' },
     ],
   },
 ]
@@ -42,9 +43,7 @@ export function SiteFooter() {
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_repeat(4,1fr)]">
           <div className="flex flex-col gap-2">
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted">Triperco</p>
-            <p className="font-display text-xl leading-snug text-ink">
-              Plan the whole trip in one conversation.
-            </p>
+            <p className="font-display text-xl leading-snug text-ink">Where your trip starts.</p>
             <p className="mt-1 text-xs font-medium text-muted">
               © {new Date().getFullYear()} Triperco.
             </p>
@@ -76,9 +75,9 @@ export function SiteFooter() {
         </p>
       </div>
 
-      {/* The mark, oversized and cropped, as a closing flourish. */}
-      <div className="overflow-hidden" aria-hidden="true">
-        <LogoMark className="mx-auto -mb-10 h-40 w-40 text-deep/10" />
+      {/* The mark in full, as a closing flourish — cropping your own logo is a strange thing to do. */}
+      <div className="flex justify-center pb-12" aria-hidden="true">
+        <LogoMark className="h-28 w-28 text-deep/15" />
       </div>
     </footer>
   )

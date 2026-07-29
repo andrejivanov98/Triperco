@@ -87,17 +87,19 @@ export function SectionRow({
       </div>
 
       {/*
-        The first card starts level with the heading, not at the window edge: the left pad matches
-        the centred gutter on wide screens and falls back to the page gutter on narrow ones. Cards
-        still bleed off to the right, so the row reads as continuing past the fold.
+        The track sits in the same centred container as the heading, so the first card starts level
+        with it — no computed gutter to get wrong. The negative right margin lets the cards run past
+        the container edge, so the row still reads as continuing past the fold.
       */}
-      <div
-        ref={trackRef}
-        data-testid={`row-track-${title}`}
-        onScroll={sync}
-        className="no-scrollbar flex snap-x gap-5 overflow-x-auto scroll-smooth pb-2 pl-[max(1.25rem,calc((100vw-1500px)/2+1.25rem))] pr-5 sm:pl-[max(2rem,calc((100vw-1500px)/2+2rem))] sm:pr-8"
-      >
-        {children}
+      <div className="mx-auto w-full max-w-[1500px] px-5 sm:px-8">
+        <div
+          ref={trackRef}
+          data-testid={`row-track-${title}`}
+          onScroll={sync}
+          className="no-scrollbar -mr-5 flex snap-x gap-5 overflow-x-auto scroll-smooth pb-2 pr-5 sm:-mr-8 sm:pr-8"
+        >
+          {children}
+        </div>
       </div>
 
       {cta && (

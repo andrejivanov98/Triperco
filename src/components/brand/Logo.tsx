@@ -19,15 +19,33 @@ export function LogoMark({ className = 'h-7 w-7', ...rest }: SVGProps<SVGSVGElem
       className={className}
       {...rest}
     >
-      {/* Swept wing, raked back from the fuselage. */}
-      <path d="M12.2 7.1h5.6L9.9 1.5H6.4z" />
-      {/* Fuselage: the crossbar of the T, tapering to a nose on the right. */}
-      <path d="M5.1 7.1h19.2l5.3 1.75-5.3 1.75H5.1a1.75 1.75 0 0 1 0-3.5z" />
+      {/*
+        The vapour trail: one round-capped stroke lifting left to right, so the eye travels the way
+        the plane is going. Together with the plane it forms the crossbar of the T.
+      */}
+      <path
+        d="M3.1 12.4C7.4 10.8 11.7 9.8 16 9.4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.3"
+        strokeLinecap="round"
+      />
+      {/*
+        The plane as a folded paper dart, stroked with round joins so every corner is blunted.
+        Sharp swept angles read as military; blunt ones read as paper.
+      */}
+      <path
+        d="M29.2 3.8 17.6 9.9l4.4 1 1.1 3.6z"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
       {/* Pin: the stem of the T, with its eye cut out rather than filled over. */}
       <path
         fillRule="evenodd"
         clipRule="evenodd"
-        d="M16 12.7a6.6 6.6 0 0 0-6.6 6.6c0 4.7 6.6 10.2 6.6 10.2s6.6-5.5 6.6-10.2A6.6 6.6 0 0 0 16 12.7zm0 9.1a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"
+        d="M16 14a6.3 6.3 0 0 0-6.3 6.3c0 4.5 6.3 9.7 6.3 9.7s6.3-5.2 6.3-9.7A6.3 6.3 0 0 0 16 14zm0 8.8a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"
       />
     </svg>
   )

@@ -48,7 +48,8 @@ export function SiteHeader({
       data-testid="site-header"
       className="sticky top-0 z-40 border-b border-hairline/70 bg-canvas/85 backdrop-blur-md"
     >
-      <div className="mx-auto flex h-14 max-w-[1500px] items-center justify-between gap-3 px-4 sm:px-6">
+      {/* Full width, small gutters: the identity belongs at the edge, not floating in a column. */}
+      <div className="flex h-16 w-full items-center justify-between gap-3 px-4 sm:px-6">
         <div className="flex shrink-0 items-center gap-3">
           <Link href="/" aria-label="Triperco — home" className="transition hover:opacity-80">
             <Logo />
