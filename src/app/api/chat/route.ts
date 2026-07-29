@@ -8,6 +8,7 @@ import { createPlannerAgent } from '@/lib/ai/plannerAgent'
 import type { TriperUIMessage } from '@/lib/ui/messages'
 import type { TripState } from '@/lib/trip/types'
 import type { ContextHint } from '@/lib/ui/contextHints'
+import { checkRateLimit, tooManyRequests } from '@/lib/rate/limit'
 
 /**
  * A planning turn can chain several provider searches, and a long-haul round trip fans out to
@@ -16,6 +17,9 @@ import type { ContextHint } from '@/lib/ui/contextHints'
 export const maxDuration = 60
 
 export async function POST(req: Request) {
+  const limit = await checkRateLimit(req, 'chat')
+  if (!limit.ok) return tooManyRequests(limit.retryAfter)
+
   const {
     messages,
     trip,

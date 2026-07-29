@@ -11,7 +11,8 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
   const doc = legalDocument(slug)
-  return doc ? { title: `${doc.title} · Triperco`, description: doc.summary } : {}
+  // The root layout appends "· Triperco" via its title template.
+  return doc ? { title: doc.title, description: doc.summary } : {}
 }
 
 export default async function LegalPage({ params }: { params: Promise<{ slug: string }> }) {

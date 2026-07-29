@@ -9,13 +9,40 @@ import { Heading } from '@/components/ui/Heading'
 import { Icon } from '@/components/ui/Icon'
 import { formatDateRange } from '@/lib/trip/dates'
 
+/**
+ * This is the link people actually paste into a chat, so the preview has to carry the trip rather
+ * than the product: its name, where and when, and the destination photo if we have one. The root
+ * layout's title template appends "· Triperco", so the title here is just the trip.
+ */
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const trip = await getTripStore().load(id)
-  const title = trip?.meta.title ?? trip?.meta.destination ?? 'A trip'
+  if (!trip) return { title: 'Trip not found' }
+
+  const title = trip.meta.title ?? `${trip.meta.destination ?? 'A'} trip`
+  const range = formatDateRange(trip.meta.startDate, trip.meta.endDate)
+  const description = [
+    range,
+    `${trip.meta.travelers} traveler${trip.meta.travelers === 1 ? '' : 's'}`,
+    'planned with Triperco.',
+  ]
+    .filter(Boolean)
+    .join(' · ')
+
   return {
-    title: `${title} · Triperco`,
-    description: 'A trip planned with Triperco — flights, somewhere to stay, and what to do.',
+    title,
+    description,
+    openGraph: {
+      title: `${title} · Triperco`,
+      description,
+      type: 'article' as const,
+      ...(trip.meta.coverImage ? { images: [{ url: trip.meta.coverImage }] } : {}),
+    },
+    twitter: {
+      card: trip.meta.coverImage ? ('summary_large_image' as const) : ('summary' as const),
+      title: `${title} · Triperco`,
+      description,
+    },
   }
 }
 
