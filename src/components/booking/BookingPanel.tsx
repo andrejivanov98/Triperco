@@ -54,7 +54,7 @@ function PartnerCard({
           href={item.bookUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="rounded-full bg-deep px-4 py-3 text-center text-sm font-bold text-white transition hover:opacity-90"
+          className="rounded-full bg-deep px-4 py-3 text-center text-sm font-bold text-white transition active:scale-[0.97] hover:opacity-90"
         >
           Book on {item.partner} ↗
         </a>
@@ -125,7 +125,7 @@ export function BookingPanel({
                 <button
                   type="button"
                   onClick={() => window.print()}
-                  className="rounded-full border border-hairline bg-white px-3 py-1.5 text-xs font-bold text-ink transition hover:bg-sand"
+                  className="rounded-full border border-hairline bg-white px-3 py-1.5 text-xs font-bold text-ink transition active:scale-[0.97] hover:bg-sand"
                 >
                   Print / Save PDF
                 </button>
@@ -134,7 +134,7 @@ export function BookingPanel({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-full px-2 py-1 text-sm font-bold text-muted transition hover:bg-sand hover:text-ink"
+              className="rounded-full px-2 py-1 text-sm font-bold text-muted transition active:scale-[0.97] hover:bg-sand hover:text-ink"
             >
               Close ✕
             </button>
@@ -186,7 +186,7 @@ export function BookingPanel({
               <button
                 type="button"
                 onClick={() => setView('summary')}
-                className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-deep px-4 py-4 text-base font-bold text-white shadow-lg shadow-deep/25 transition hover:bg-ink hover:shadow-xl"
+                className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-deep px-4 py-4 text-base font-bold text-white shadow-lg shadow-deep/25 transition active:scale-[0.97] hover:bg-ink hover:shadow-xl"
               >
                 View trip summary
                 <span aria-hidden>→</span>

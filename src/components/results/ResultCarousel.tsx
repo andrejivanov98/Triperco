@@ -42,12 +42,15 @@ export function ResultCarousel({
   onAdd,
   revision,
   tripDates,
+  plannedIds,
 }: {
   set: ResultSet
   onOpen: (set: ResultSet, item: Flight | Stay | Place) => void
   onAdd: (set: ResultSet, item: Flight | Stay | Place) => void
   /** Where this set sits among the searches answering the same question. */
   revision?: SetRevision
+  /** Ids already in the plan, so a card can say so instead of inviting a second press. */
+  plannedIds?: Set<string>
   /** So an event outside the trip window can say so on its card. */
   tripDates?: Pick<TripMeta, 'startDate' | 'endDate'>
 }) {
@@ -173,6 +176,7 @@ export function ResultCarousel({
                 key={key}
                 flight={flight}
                 badges={entry.badges}
+                added={plannedIds?.has(flight.id) ?? false}
                 onOpen={() => onOpen(set, flight)}
                 onAdd={() => onAdd(set, flight)}
               />
@@ -184,6 +188,7 @@ export function ResultCarousel({
               key={key}
               place={place}
               badges={entry.badges}
+              added={plannedIds?.has(place.id) ?? false}
               tripDates={tripDates}
               onOpen={() => onOpen(set, place)}
               onAdd={() => onAdd(set, place)}

@@ -70,7 +70,7 @@ export function PlanOverlay({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl border border-hairline bg-white px-3 py-1.5 text-xs font-bold text-ink transition hover:bg-sand"
+            className="rounded-xl border border-hairline bg-white px-3 py-1.5 text-xs font-bold text-ink transition active:scale-[0.97] hover:bg-sand"
           >
             Close ✕
           </button>
@@ -108,7 +108,7 @@ export function PlanButton({ itemCount, onOpen }: { itemCount: number; onOpen: (
       onClick={onOpen}
       aria-label={itemCount > 0 ? `Open your plan, ${itemCount} items` : 'Open your plan'}
       className={
-        'flex items-center gap-2 rounded-2xl bg-deep px-3 py-2.5 text-sm font-bold text-white shadow-lg shadow-deep/25 transition hover:bg-ink hover:shadow-xl sm:pl-4 sm:pr-3 ' +
+        'flex items-center gap-2 rounded-2xl bg-deep px-3 py-2.5 text-sm font-bold text-white shadow-lg shadow-deep/25 transition active:scale-[0.97] hover:bg-ink hover:shadow-xl sm:pl-4 sm:pr-3 ' +
         (pulse ? 'scale-105 ring-4 ring-accent/40' : 'scale-100')
       }
     >

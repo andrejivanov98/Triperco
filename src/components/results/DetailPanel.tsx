@@ -5,6 +5,8 @@ import type { Flight, Stay, Place, TripMeta, ReviewSnippet } from '@/lib/trip/ty
 import type { ResultSet } from '@/lib/ui/results'
 import { mergeStayDetail } from '@/lib/trip/mergeStay'
 import { Lightbox } from '@/components/ui/Lightbox'
+import { Icon } from '@/components/ui/Icon'
+import { PRESSABLE } from '@/components/ui/AddButton'
 import { FlightDetail } from './detail/FlightDetail'
 import { StayDetail } from './detail/StayDetail'
 import { PlaceDetail } from './detail/PlaceDetail'
@@ -36,12 +38,15 @@ export function DetailPanel({
   meta,
   onClose,
   onAdd,
+  added = false,
 }: {
   kind: ResultSet['kind']
   item: Item
   meta: TripMeta
   onClose: () => void
   onAdd: () => void
+  /** Already in the plan, so the action becomes a state. */
+  added?: boolean
 }) {
   const [stay, setStay] = useState<Stay>(kind === 'stays' ? (item as Stay) : ({} as Stay))
   const [place, setPlace] = useState<Place>(kind === 'places' ? (item as Place) : ({} as Place))
@@ -168,13 +173,27 @@ export function DetailPanel({
         </div>
 
         <div className="flex items-center gap-2 border-t border-hairline bg-white/40 px-5 py-3">
-          <button
-            type="button"
-            onClick={onAdd}
-            className="flex-1 rounded-2xl bg-accent px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-accent/25 transition hover:bg-accent-600"
-          >
-            Add to trip
-          </button>
+          {added ? (
+            <span
+              data-testid="added-state"
+              aria-live="polite"
+              className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-green-600/30 bg-green-50 px-4 py-2.5 text-sm font-bold text-green-800"
+            >
+              <Icon name="check" className="h-4 w-4" />
+              In your plan
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={onAdd}
+              className={
+                'flex-1 rounded-2xl bg-accent px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-accent/25 hover:bg-accent-600 ' +
+                PRESSABLE
+              }
+            >
+              Add to trip
+            </button>
+          )}
           {url && (
             <a
               href={url}

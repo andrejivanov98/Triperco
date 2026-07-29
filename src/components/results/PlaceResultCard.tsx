@@ -5,6 +5,7 @@ import { formatRating } from '@/lib/ui/format'
 import { classifyActivity, eventOutsideTrip, showsOpeningHours } from '@/lib/trip/activityKind'
 import { Badge, badgeTone } from '@/components/ui/Badge'
 import { RemoteImage } from '@/components/ui/RemoteImage'
+import { AddButton, PRESSABLE } from '@/components/ui/AddButton'
 import { Icon } from '@/components/ui/Icon'
 
 /** A thing to do: what it is and how it rates, then the photo. */
@@ -15,6 +16,7 @@ export function PlaceResultCard({
   onOpen,
   onAdd,
   onOpenPhotos,
+  added = false,
 }: {
   place: Place
   badges?: string[]
@@ -23,6 +25,8 @@ export function PlaceResultCard({
   onOpen: () => void
   onAdd: () => void
   onOpenPhotos?: (index: number) => void
+  /** Already in the plan, so the action becomes a state. */
+  added?: boolean
 }) {
   const photo = place.photos[0]
   const rating = formatRating(place.rating, place.reviewCount)
@@ -115,13 +119,7 @@ export function PlaceResultCard({
             Not available
           </span>
         ) : (
-          <button
-            type="button"
-            onClick={onAdd}
-            className="flex-1 rounded-xl bg-accent px-3 py-2 text-xs font-bold text-white shadow-sm shadow-accent/25 transition hover:bg-accent-600"
-          >
-            Add to trip
-          </button>
+          <AddButton added={added} onAdd={onAdd} label="Add to trip" className="flex-1" />
         )}
         {/* Everything addable carries the place you actually book or check it. */}
         {(place.ticketUrl ?? place.sourceLinks?.maps) && (
@@ -129,7 +127,7 @@ export function PlaceResultCard({
             href={place.ticketUrl ?? place.sourceLinks?.maps}
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-xl border border-hairline bg-white px-3 py-2 text-xs font-bold text-ink transition hover:bg-sand"
+            className={'rounded-xl border border-hairline bg-white px-3 py-2 text-xs font-bold text-ink hover:bg-sand ' + PRESSABLE}
           >
             {place.ticketUrl ? 'Tickets ↗' : 'Open ↗'}
           </a>

@@ -23,6 +23,8 @@ interface ChatPaneProps {
   onOpenDetail?: (set: ResultSet, item: Flight | Stay | Place) => void
   /** So an event outside the trip window can say so on its card. */
   tripDates?: Pick<TripMeta, 'startDate' | 'endDate'>
+  /** Ids already in the plan, so a card can say so rather than inviting a second press. */
+  plannedIds?: Set<string>
   /** Rendered above the greeting when the chat is empty (e.g. starter prompts). */
   emptyState?: React.ReactNode
 }
@@ -47,6 +49,7 @@ export function ChatPane({
   onAddResult,
   onOpenDetail,
   tripDates,
+  plannedIds,
   emptyState,
 }: ChatPaneProps) {
   const [input, setInput] = useState('')
@@ -108,6 +111,7 @@ export function ChatPane({
                         set={set}
                         revision={revisions.get(setId(m.id, i))}
                         tripDates={tripDates}
+                        plannedIds={plannedIds}
                         onOpen={(s, item) => onOpenDetail?.(s, item)}
                         onAdd={(s, item) => onAddResult?.(s, item)}
                       />
@@ -167,7 +171,7 @@ export function ChatPane({
           <button
             type="submit"
             disabled={busy || input.trim().length === 0}
-            className="shrink-0 rounded-2xl bg-accent px-4 py-3 text-sm font-bold text-white shadow-md shadow-accent/25 transition hover:bg-accent-600 disabled:opacity-40 sm:px-5"
+            className="shrink-0 rounded-2xl bg-accent px-4 py-3 text-sm font-bold text-white shadow-md shadow-accent/25 transition active:scale-[0.97] hover:bg-accent-600 disabled:opacity-40 sm:px-5"
           >
             Send
           </button>

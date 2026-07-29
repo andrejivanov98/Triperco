@@ -55,7 +55,7 @@ export function ProgressMeter({
         <button
           type="button"
           onClick={() => onAsk(prompt)}
-          className="mt-0.5 rounded-xl bg-accent px-3 py-2 text-xs font-bold text-white transition hover:bg-accent-600"
+          className="mt-0.5 rounded-xl bg-accent px-3 py-2 text-xs font-bold text-white transition active:scale-[0.97] hover:bg-accent-600"
         >
           {prompt}
         </button>

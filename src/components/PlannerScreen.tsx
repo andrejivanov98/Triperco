@@ -11,6 +11,7 @@ import { getLatestMeta } from '@/lib/ui/messages'
 import { allResultSets } from '@/lib/ui/results'
 import { buildContextHints } from '@/lib/ui/contextHints'
 import { tripToMarkers } from '@/lib/ui/mapMarkers'
+import { plannedIds } from '@/lib/trip/planned'
 import { suggestQuickReplies } from '@/lib/ui/quickReplies'
 import { readOpeningContext, contextToMeta, buildOpeningMessage } from '@/lib/ui/openingMessage'
 import type { TimelineItem } from '@/lib/trip/timeline'
@@ -189,6 +190,8 @@ export function PlannerScreen() {
   }, [messages])
 
   const markers = useMemo(() => tripToMarkers(trip), [trip])
+  // Recomputed on every plan change, so a card flips to "Added" the moment it lands.
+  const planned = useMemo(() => plannedIds(trip), [trip])
   const sections = useMemo(
     () => chatSections(messages, trip.meta.destination),
     [messages, trip.meta.destination],
@@ -282,6 +285,7 @@ export function PlannerScreen() {
           onAddResult={addResult}
           onOpenDetail={openDetail}
           tripDates={trip.meta}
+          plannedIds={planned}
           emptyState={<ChatEmptyState onPick={(text) => sendMessage({ text })} />}
         />
       </div>
@@ -329,6 +333,7 @@ export function PlannerScreen() {
           kind={detail.kind}
           item={detail.item}
           meta={trip.meta}
+          added={planned.has(detail.item.id)}
           onClose={() => setDetail(null)}
           onAdd={() => {
             addResult({ kind: detail.kind, items: [] } as ResultSet, detail.item)

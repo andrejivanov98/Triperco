@@ -105,7 +105,7 @@ export function TimelineItemCard({
                 href={item.bookUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-lg bg-deep px-2.5 py-1 text-[11px] font-bold text-white transition hover:opacity-90"
+                className="rounded-lg bg-deep px-2.5 py-1 text-[11px] font-bold text-white transition active:scale-[0.97] hover:opacity-90"
               >
                 {item.bookLabel ?? 'Book'} ↗
               </a>
@@ -117,7 +117,7 @@ export function TimelineItemCard({
               <button
                 type="button"
                 onClick={() => onRemove(item)}
-                className="flex-1 rounded-xl border border-hairline bg-white px-3 py-2 text-[11px] font-bold text-ink transition hover:border-red-300 hover:text-red-600"
+                className="flex-1 rounded-xl border border-hairline bg-white px-3 py-2 text-[11px] font-bold text-ink transition active:scale-[0.97] hover:border-red-300 hover:text-red-600"
               >
                 Remove
               </button>
@@ -126,7 +126,7 @@ export function TimelineItemCard({
               <button
                 type="button"
                 onClick={() => onViewDetails(item)}
-                className="flex-1 rounded-xl bg-deep px-3 py-2 text-[11px] font-bold text-white transition hover:opacity-90"
+                className="flex-1 rounded-xl bg-deep px-3 py-2 text-[11px] font-bold text-white transition active:scale-[0.97] hover:opacity-90"
               >
                 View details
               </button>

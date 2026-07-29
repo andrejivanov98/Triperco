@@ -4,6 +4,7 @@ import { useState } from 'react'
 import type { Flight } from '@/lib/trip/types'
 import { arrivalDayLabel } from '@/lib/trip/flightDay'
 import { FlightSegments } from './FlightSegments'
+import { AddButton, PRESSABLE } from '@/components/ui/AddButton'
 import { formatMoney, formatDuration, formatStops } from '@/lib/ui/format'
 import { Badge, badgeTone } from '@/components/ui/Badge'
 import { RemoteImage } from '@/components/ui/RemoteImage'
@@ -74,11 +75,14 @@ export function FlightResultCard({
   badges = [],
   onOpen,
   onAdd,
+  added = false,
 }: {
   flight: Flight
   badges?: string[]
   onOpen: () => void
   onAdd: () => void
+  /** Already in the plan, so the action becomes a state. */
+  added?: boolean
 }) {
   const [expanded, setExpanded] = useState(false)
   const cabin = flight.segments?.find((s) => s.cabin)?.cabin
@@ -166,17 +170,17 @@ export function FlightResultCard({
             type="button"
             onClick={onOpen}
             aria-label={`View details for ${flight.from} to ${flight.to}`}
-            className="rounded-xl border border-hairline bg-white px-3 py-2 text-xs font-bold text-ink transition hover:bg-sand"
+            className={'rounded-xl border border-hairline bg-white px-3 py-2 text-xs font-bold text-ink hover:bg-sand ' + PRESSABLE}
           >
             Details
           </button>
-          <button
-            type="button"
-            onClick={onAdd}
-            className="rounded-xl bg-deep px-3.5 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-ink"
-          >
-            {roundTrip ? 'Select both' : 'Select flight'}
-          </button>
+          <AddButton
+            added={added}
+            onAdd={onAdd}
+            tone="deep"
+            label={roundTrip ? 'Select both' : 'Select flight'}
+            addedLabel={roundTrip ? 'Both added' : 'In your plan'}
+          />
         </div>
       </div>
     </div>
