@@ -20,29 +20,38 @@ export function LogoMark({ className = 'h-7 w-7', ...rest }: SVGProps<SVGSVGElem
       {...rest}
     >
       {/*
-        The flight path: a light, round-capped curve climbing out to the right. Deliberately thinner
-        than everything else — it is the line the eye follows, not a thing in itself.
+        The flight path: a light, round-capped curve running in from the left and levelling off
+        behind the tail. Deliberately the thinnest thing here — it is the line the eye follows, not
+        an object in its own right.
       */}
       <path
-        d="M2.9 12.7C8.2 9.6 13.8 8.4 19.1 8.9"
+        d="M2.6 10C6.4 8.9 11 8.5 15.8 8.8"
         fill="none"
         stroke="currentColor"
         strokeWidth="1.6"
         strokeLinecap="round"
       />
       {/*
-        The plane at the end of it: a solid airliner seen from above, banked along the climb. Drawn
-        upright on its own 24-grid and placed by transform, so the silhouette stays exact rather than
-        being hand-rotated into approximate coordinates.
+        The aeroplane: a solid airliner seen from above, banked 10° so it flies along the trail
+        rather than away from it. Together they are the crossbar of the T; the pin is its stem.
+
+        Every vertex is computed along that banked axis rather than scaled from an upright glyph. A
+        detailed icon rotated 45° collapses into a thin cross at this size — which is exactly what
+        the previous attempt did. Here the fuselage keeps its width and the wings keep their sweep,
+        so the shape still reads as an aircraft when the whole mark is 28px wide.
       */}
-      <g transform="translate(23.4 7.1) rotate(45) scale(0.55) translate(-12 -12)">
-        <path d="M21.5 15.6v-1.9l-8.2-5.1V3.1a1.3 1.3 0 0 0-2.6 0v5.5l-8.2 5.1v1.9l8.2-2.6v5.6l-2.2 1.6v1.6l3.5-1 3.5 1v-1.6l-2.2-1.6V13z" />
-      </g>
+      <path
+        d="M28.1 6.6L24.6 8L19.9 12.9L19.3 12.6L21.1 8.6L18.1 9.1L17.6 10.7L17.1 10.6L16.8 8.6L16.5 6.6L16.8 6.4L17.9 7.7L20.8 7.1L17.8 4L18.2 3.5L24.4 6.5Z"
+        strokeWidth="0.9"
+        stroke="currentColor"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
       {/* The pin: the stem of the T, its eye cut out rather than filled over. */}
       <path
         fillRule="evenodd"
         clipRule="evenodd"
-        d="M16 14.4a6.4 6.4 0 0 0-6.4 6.4c0 4.6 6.4 9.8 6.4 9.8s6.4-5.2 6.4-9.8a6.4 6.4 0 0 0-6.4-6.4zm0 8.9a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"
+        d="M16 13.6a5.6 5.6 0 0 0-5.6 5.6c0 4.1 5.6 9.2 5.6 9.2s5.6-5.1 5.6-9.2a5.6 5.6 0 0 0-5.6-5.6zm0 8a2.4 2.4 0 1 1 0-4.8 2.4 2.4 0 0 1 0 4.8z"
       />
     </svg>
   )
