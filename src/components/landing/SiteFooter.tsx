@@ -67,7 +67,8 @@ export function SiteFooter() {
           ))}
         </div>
 
-        <p className="mt-12 max-w-3xl text-[11px] font-medium leading-relaxed text-muted">
+        {/* Centred: ranged left under a four-column grid it read as a stray fifth column. */}
+        <p className="mx-auto mt-12 max-w-2xl border-t border-hairline pt-8 text-center text-[11px] font-medium leading-relaxed text-muted">
           Triperco searches live prices and hands you off to the provider to book. We are not
           affiliated with any airline, hotel or booking site, we take no commission for ranking
           anything higher, and prices shown are as of your search — the provider&apos;s own site is

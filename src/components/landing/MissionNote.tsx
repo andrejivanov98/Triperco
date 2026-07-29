@@ -8,14 +8,19 @@ import { Heading } from '@/components/ui/Heading'
  */
 export function MissionNote() {
   return (
-    <section id="mission" className="mx-auto w-full max-w-2xl px-6 py-6">
+    <section id="mission" className="mx-auto w-full max-w-2xl scroll-mt-24 px-6 py-6">
       <div className="flex flex-col items-center gap-5 text-center">
         <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Why Triperco</p>
         <Heading level={2} className="text-3xl text-deep">
           Skip straight to the good part
         </Heading>
 
-        <div className="flex flex-col gap-5 font-serif text-[15px] italic leading-[1.85] text-muted">
+        {/*
+          Set in our own display serif rather than the generic serif stack, and in its real italic
+          rather than a slant the browser fakes — which is what made this read as somebody else's
+          page pasted in.
+        */}
+        <div className="flex flex-col gap-5 font-display text-[15px] italic leading-[1.85] text-muted">
           <p>
             We love travelling. We just don&apos;t love the four browser tabs, the twelve filters and
             the hour lost comparing rooms that all look the same.
@@ -50,7 +55,8 @@ export function MissionNote() {
             check, and we say so.
           </p>
 
-          <p className="not-italic font-medium text-ink">
+          {/* The takeaway, so it steps out of the essay: our own sans, upright, and darker. */}
+          <p className="mt-2 font-sans text-base font-semibold not-italic leading-relaxed text-ink">
             Plan the whole trip in one conversation. Keep the parts you like, change the ones you
             don&apos;t, and book each one with the provider directly.
           </p>

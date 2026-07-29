@@ -26,6 +26,8 @@ export const inter = Inter({
 export const fraunces = Fraunces({
   subsets: ['latin'],
   weight: ['400', '500', '600', '700'],
+  // Real italics, so the mission essay is set rather than mechanically slanted.
+  style: ['normal', 'italic'],
   variable: '--font-fraunces',
   display: 'swap',
 })
