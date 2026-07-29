@@ -35,11 +35,20 @@ describe('BookingPanel — booking links', () => {
     render(<BookingPanel trip={trip()} onClose={() => {}} />)
     expect(screen.getByRole('heading', { name: /where to book each part/i })).toBeInTheDocument()
     expect(screen.getByText('City residence apartment')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /book on Airbnb/i })).toHaveAttribute(
-      'href',
-      'https://airbnb.com/rooms/1',
-    )
+    expect(screen.getByRole('link', { name: /book on Airbnb/i })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /book on Wizz Air/i })).toBeInTheDocument()
+  })
+
+  it('sends the traveler to the stay with their dates and party already applied', () => {
+    // The provider's own link is an opaque redirect that loses the dates, so we rebuild it.
+    render(<BookingPanel trip={trip()} onClose={() => {}} />)
+    const href = screen.getByRole('link', { name: /book on Airbnb/i }).getAttribute('href') ?? ''
+    const url = new URL(href)
+    expect(url.hostname).toBe('www.airbnb.com')
+    expect(url.pathname).toContain('City%20residence%20apartment')
+    expect(url.searchParams.get('checkin')).toBe('2026-08-07')
+    expect(url.searchParams.get('checkout')).toBe('2026-08-10')
+    expect(url.searchParams.get('adults')).toBe('2')
   })
 
   it('shows the trip total across everything bookable', () => {

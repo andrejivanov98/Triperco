@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 /**
  * The plan, summoned rather than always present.
@@ -73,21 +73,44 @@ export function PlanOverlay({
   )
 }
 
-/** The always-visible way back to the plan, carrying how much is in it. */
+/**
+ * The way back to the plan. Now that the plan is not on screen, this is the only thing holding it —
+ * so it is styled as the primary action on the page rather than another piece of chrome, and it
+ * pulses once whenever something new lands in the plan.
+ */
 export function PlanButton({ itemCount, onOpen }: { itemCount: number; onOpen: () => void }) {
+  const [pulse, setPulse] = useState(false)
+  const previous = useRef(itemCount)
+
+  useEffect(() => {
+    if (itemCount > previous.current) {
+      setPulse(true)
+      const timer = setTimeout(() => setPulse(false), 900)
+      previous.current = itemCount
+      return () => clearTimeout(timer)
+    }
+    previous.current = itemCount
+  }, [itemCount])
+
   return (
     <button
       type="button"
       data-testid="plan-button"
       onClick={onOpen}
-      className="flex items-center gap-2 rounded-xl border border-hairline bg-white px-3 py-1.5 text-xs font-bold text-ink transition hover:bg-sand"
+      aria-label={itemCount > 0 ? `Open your plan, ${itemCount} items` : 'Open your plan'}
+      className={
+        'flex items-center gap-2 rounded-2xl bg-deep px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-deep/25 transition hover:bg-ink hover:shadow-xl ' +
+        (pulse ? 'scale-105 ring-4 ring-accent/40' : 'scale-100')
+      }
     >
-      <span aria-hidden>🧭</span>
+      <span aria-hidden className="text-base leading-none">
+        🧭
+      </span>
       <span>Plan</span>
       {itemCount > 0 && (
         <span
           data-testid="plan-count"
-          className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-bold text-white"
+          className="min-w-5 rounded-full bg-accent px-1.5 py-0.5 text-center text-[11px] font-bold leading-tight text-white"
         >
           {itemCount}
         </span>

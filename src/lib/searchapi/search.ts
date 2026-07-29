@@ -138,7 +138,13 @@ export async function searchMultiCity(
   deps?: SearchDeps,
 ): Promise<Flight[]> {
   const { search, cache } = resolve(deps)
-  const legs = params.legs.filter((l) => l.departure_id && l.arrival_id && l.outbound_date)
+  const legs = params.legs
+    .filter((l) => l.departure_id && l.arrival_id && l.outbound_date)
+    .map((l) => ({
+      departure_id: resolveAirport(l.departure_id),
+      arrival_id: resolveAirport(l.arrival_id),
+      outbound_date: l.outbound_date,
+    }))
   if (legs.length < 2) return []
 
   const shape = legs.map((l) => `${l.departure_id}-${l.arrival_id}-${l.outbound_date}`).join('|')
@@ -159,19 +165,54 @@ export async function searchMultiCity(
 /** How many round trips we complete with a return leg. Each one costs an extra provider call. */
 const ROUND_TRIP_PAIRS = 4
 
+/**
+ * City-wide codes look right but return noticeably fewer itineraries than the city's main
+ * international airport — BUE gave 5 options where EZE gave 13 on the same route and date. Google
+ * treats them as a weaker query, so we resolve them to the airport people actually fly into.
+ */
+const METRO_TO_PRIMARY: Record<string, string> = {
+  BUE: 'EZE', // Buenos Aires
+  RIO: 'GIG', // Rio de Janeiro
+  SAO: 'GRU', // São Paulo
+  NYC: 'JFK', // New York
+  WAS: 'IAD', // Washington
+  CHI: 'ORD', // Chicago
+  LON: 'LHR', // London
+  PAR: 'CDG', // Paris
+  MIL: 'MXP', // Milan
+  ROM: 'FCO', // Rome
+  MOW: 'SVO', // Moscow
+  STO: 'ARN', // Stockholm
+  TYO: 'HND', // Tokyo
+  OSA: 'KIX', // Osaka
+  SEL: 'ICN', // Seoul
+  BJS: 'PEK', // Beijing
+  SHA: 'PVG', // Shanghai
+  BUH: 'OTP', // Bucharest
+  TCI: 'TFS', // Tenerife
+}
+
+/** Resolve a city-wide code to the airport that actually returns results. */
+export function resolveAirport(code: string): string {
+  const upper = code.trim().toUpperCase()
+  return METRO_TO_PRIMARY[upper] ?? code.trim()
+}
+
 export async function searchFlights(params: FlightParams, deps?: SearchDeps): Promise<Flight[]> {
   const { search, cache } = resolve(deps)
   // The provider rejects a round trip with no return date, so treat that as a one-way search.
   const type = params.flight_type === 'round_trip' && params.return_date ? 'round_trip' : 'one_way'
   const returnDate = type === 'round_trip' ? params.return_date : undefined
   const direction = params.direction ?? 'outbound'
+  const from = resolveAirport(params.departure_id)
+  const to = resolveAirport(params.arrival_id)
   const filters = `${params.travel_class ?? ''}:${params.stops ?? ''}:${params.adults ?? ''}:${params.children ?? ''}:${params.infants_in_seat ?? ''}:${params.infants_on_lap ?? ''}`
-  const key = `google_flights:${params.departure_id}:${params.arrival_id}:${params.outbound_date}:${returnDate ?? ''}:${type}:${direction}:${filters}`
+  const key = `google_flights:${from}:${to}:${params.outbound_date}:${returnDate ?? ''}:${type}:${direction}:${filters}`
 
   return withCache(cache, key, TTL.flights, async () => {
     const query = {
-      departure_id: params.departure_id,
-      arrival_id: params.arrival_id,
+      departure_id: from,
+      arrival_id: to,
       outbound_date: params.outbound_date,
       return_date: returnDate,
       flight_type: type,
@@ -193,17 +234,34 @@ export async function searchFlights(params: FlightParams, deps?: SearchDeps): Pr
      * and gets both legs.
      */
     const tokens = departureTokens(raw)
-    const paired: Flight[] = []
-    for (const flight of outbound.slice(0, ROUND_TRIP_PAIRS)) {
-      const token = tokens.find((t) => t.id === flight.id)?.token
-      if (!token) continue
-      const returnRaw = await search<RawFlightsResponse>('google_flights', {
-        ...query,
-        departure_token: token,
-      })
-      const returnLeg = normalizeFlights(returnRaw, 'return')[0]
-      if (returnLeg) paired.push({ ...flight, returnLeg })
-    }
+    const candidates = outbound
+      .slice(0, ROUND_TRIP_PAIRS)
+      .map((flight) => ({ flight, token: tokens.find((t) => t.id === flight.id)?.token }))
+      .filter((c): c is { flight: Flight; token: string } => Boolean(c.token))
+
+    /*
+     * Fetch the return legs concurrently. Doing this in sequence cost five round trips end to end,
+     * which on a long-haul route ran past the request budget and aborted the whole search — the
+     * traveler saw no flights at all for a route that has plenty.
+     *
+     * A leg that fails or times out just drops its pairing; a partial answer beats none.
+     */
+    const settled = await Promise.all(
+      candidates.map(async ({ flight, token }): Promise<Flight | null> => {
+        try {
+          const returnRaw = await search<RawFlightsResponse>('google_flights', {
+            ...query,
+            departure_token: token,
+          })
+          const returnLeg = normalizeFlights(returnRaw, 'return')[0]
+          return returnLeg ? { ...flight, returnLeg } : null
+        } catch {
+          return null
+        }
+      }),
+    )
+
+    const paired = settled.filter((f): f is Flight => f !== null)
     // If the provider gave us no returns at all, the outbound options are still useful.
     return paired.length > 0 ? paired : outbound
   })

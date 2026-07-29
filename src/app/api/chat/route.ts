@@ -9,7 +9,11 @@ import type { TriperUIMessage } from '@/lib/ui/messages'
 import type { TripState } from '@/lib/trip/types'
 import type { ContextHint } from '@/lib/ui/contextHints'
 
-export const maxDuration = 30
+/**
+ * A planning turn can chain several provider searches, and a long-haul round trip fans out to
+ * fetch return legs. Thirty seconds was aborting those mid-flight and showing the traveler nothing.
+ */
+export const maxDuration = 60
 
 export async function POST(req: Request) {
   const {
