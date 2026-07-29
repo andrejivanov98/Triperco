@@ -3,10 +3,13 @@ import type { SVGProps } from 'react'
 /**
  * The Triperco mark: a place, with a journey cut out of it.
  *
- * One solid shape — a map pin — and the only detail is the negative space inside it, which is a
- * plane climbing away. Nothing is layered and nothing is stroked, so there is no second colour, no
- * seam on a photograph, and nothing that thins out at small sizes: the counter simply gets smaller
- * along with the pin, the way the hole in an 'o' does.
+ * One solid shape — a map pin — whose only detail is the negative space inside it: a paper plane
+ * climbing away, with its fold cut back in as a third subpath so the two wings read separately.
+ *
+ * Nothing is layered and nothing is stroked, so there is no second colour, no seam on a photograph,
+ * and nothing that thins out at small sizes: the counter simply gets smaller along with the pin, the
+ * way the hole in an 'o' does. Below roughly 24px the fold line drops out and the plane falls back
+ * to a clean dart — which is the right thing to lose first.
  *
  * It says the two things the product is about at once — somewhere to go, and getting there.
  */
@@ -23,7 +26,7 @@ export function LogoMark({ className = 'h-8 w-8', ...rest }: SVGProps<SVGSVGElem
       <path
         fillRule="evenodd"
         clipRule="evenodd"
-        d="M16 2C10.2 2 5.5 6.7 5.5 12.5c0 7.9 10.5 17.5 10.5 17.5s10.5-9.6 10.5-17.5C26.5 6.7 21.8 2 16 2ZM22.2 7.4 9.8 13l4.8 6.4Z"
+        d="M16 2C10.2 2 5.5 6.7 5.5 12.5c0 7.9 10.5 17.5 10.5 17.5s10.5-9.6 10.5-17.5C26.5 6.7 21.8 2 16 2ZM22 7 9.4 13.6l5.3 1.7.6 5.2ZM20.9 7.3 14.8 14.6l.7.6L21.6 7.9Z"
       />
     </svg>
   )

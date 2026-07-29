@@ -13,8 +13,8 @@ describe('LogoMark', () => {
     const { container } = render(<LogoMark />)
     const path = container.querySelector('path')!
     expect(path).toHaveAttribute('fill-rule', 'evenodd')
-    // Two subpaths: the pin, then the counter inside it.
-    expect((path.getAttribute('d')!.match(/[Mm]/g) ?? []).length).toBe(2)
+    // Three subpaths: the pin, the plane cut out of it, and the fold cut back in.
+    expect((path.getAttribute('d')!.match(/[Mm]/g) ?? []).length).toBe(3)
   })
 
   it('is one colour, taken from the surrounding text', () => {
