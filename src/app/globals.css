@@ -16,6 +16,7 @@
   /* next/font exposes these CSS variables (see layout.tsx) */
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-fraunces), ui-serif, Georgia, "Times New Roman", serif;
+  --font-brand: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
 }
 
 :root {

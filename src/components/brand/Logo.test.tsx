@@ -3,81 +3,58 @@ import { render, screen } from '@testing-library/react'
 import { Logo, LogoMark } from './Logo'
 
 describe('LogoMark', () => {
-  it('is one colour, taking it from the surrounding text', () => {
+  it('is a single shape, so there is nothing to come apart', () => {
+    // A pin with a plane cut out of it — not a pin with a plane sitting on top of it.
     const { container } = render(<LogoMark />)
-    const svg = container.querySelector('svg')!
-    expect(svg).toHaveAttribute('fill', 'currentColor')
-    // No second colour anywhere: no fills, gradients or opacity tricks.
-    expect(container.innerHTML).not.toMatch(/gradient|#[0-9a-f]{3,6}|fill-opacity/i)
+    expect(container.querySelectorAll('path')).toHaveLength(1)
   })
 
-  it('is built from exactly three marks: the trail, the plane and the pin', () => {
+  it('cuts the plane out rather than covering it with a second colour', () => {
     const { container } = render(<LogoMark />)
-    expect(container.querySelectorAll('path')).toHaveLength(3)
+    const path = container.querySelector('path')!
+    expect(path).toHaveAttribute('fill-rule', 'evenodd')
+    // Two subpaths: the pin, then the counter inside it.
+    expect((path.getAttribute('d')!.match(/[Mm]/g) ?? []).length).toBe(2)
   })
 
-  it('draws the flight path lighter than the plane it carries', () => {
+  it('is one colour, taken from the surrounding text', () => {
     const { container } = render(<LogoMark />)
-    const trail = container.querySelector('path[stroke]')!
-    expect(Number(trail.getAttribute('stroke-width'))).toBeLessThan(2)
-    expect(trail).toHaveAttribute('fill', 'none')
-    expect(trail).toHaveAttribute('stroke-linecap', 'round')
+    expect(container.querySelector('svg')).toHaveAttribute('fill', 'currentColor')
+    expect(container.innerHTML).not.toMatch(/gradient|#[0-9a-f]{3,6}|fill-opacity|stroke=/i)
   })
 
-  it('cuts the pin’s eye out instead of covering it with a second shape', () => {
-    // A filled circle on top would show a seam the moment the mark sits on a photo.
+  it('carries no stroke, so it never thins out when scaled down', () => {
     const { container } = render(<LogoMark />)
-    const pin = [...container.querySelectorAll('path')].find((p) => p.getAttribute('fill-rule'))
-    expect(pin).toHaveAttribute('fill-rule', 'evenodd')
+    expect(container.querySelector('[stroke-width]')).toBeNull()
   })
 
-  it('scales from any size, because nothing is pinned to pixels', () => {
+  it('scales from a favicon to a billboard', () => {
     const { container } = render(<LogoMark className="h-40 w-40" />)
     expect(container.querySelector('svg')).toHaveAttribute('viewBox', '0 0 32 32')
   })
 
-  it('is decorative, so the name beside it carries the meaning', () => {
+  it('is decorative, because the name beside it carries the meaning', () => {
     const { container } = render(<LogoMark />)
     expect(container.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
   })
 })
 
-describe('Logo — the mark inside the name', () => {
-  it('reads as the name, however it is drawn', () => {
+describe('Logo', () => {
+  it('sets the name lowercase, in the brand face', () => {
     render(<Logo />)
-    expect(screen.getByRole('img', { name: 'Triperco' })).toBeInTheDocument()
+    const word = screen.getByText('triperco')
+    expect(word.className).toContain('font-brand')
+    expect(word.className).toContain('font-extrabold')
   })
 
-  it('sets the word in the display face', () => {
+  it('keeps the mark and the name as separate things', () => {
     const { container } = render(<Logo />)
-    const word = container.querySelector('text')!
-    expect(word.textContent).toBe('Triperc')
-    expect(word.getAttribute('class')).toContain('font-display')
+    expect(container.querySelector('svg')).not.toBeNull()
+    expect(screen.getByText('triperco').closest('svg')).toBeNull()
   })
 
-  it('pins the word’s width so the o always lands where it belongs', () => {
-    // Without this the pin drifts off the end of the word whenever the display face is slow.
-    const { container } = render(<Logo />)
-    expect(container.querySelector('text')).toHaveAttribute('textLength', '150')
-  })
-
-  it('ends the word with a pin rather than a letter', () => {
-    const { container } = render(<Logo />)
-    const pin = [...container.querySelectorAll('path')].find((p) => p.getAttribute('fill-rule'))
-    expect(pin).toHaveAttribute('fill-rule', 'evenodd')
-  })
-
-  it('flies a path from the T to that pin', () => {
-    const { container } = render(<Logo />)
-    const trail = container.querySelector('path[stroke][fill="none"]')!
-    // Starts at the T on the left and finishes beside the o on the right.
-    expect(trail.getAttribute('d')).toMatch(/^M5 13/)
-    expect(trail.getAttribute('d')).toMatch(/136\.5 7\.6$/)
-  })
-
-  it('falls back to the square mark for a favicon or a tight corner', () => {
-    const { container } = render(<Logo showWordmark={false} />)
-    expect(container.querySelector('text')).toBeNull()
-    expect(container.querySelector('svg')).toHaveAttribute('viewBox', '0 0 32 32')
+  it('can be the mark alone', () => {
+    render(<Logo showWordmark={false} />)
+    expect(screen.queryByText('triperco')).not.toBeInTheDocument()
   })
 })

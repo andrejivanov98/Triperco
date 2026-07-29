@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { inter, fraunces } from './fonts'
+import { inter, fraunces, jakarta } from './fonts'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -14,7 +14,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${fraunces.variable} font-sans`}>{children}</body>
+      <body className={`${inter.variable} ${fraunces.variable} ${jakarta.variable} font-sans`}>{children}</body>
     </html>
   )
 }
