@@ -272,7 +272,12 @@ export function PlannerScreen() {
         />
       </div>
 
-      <PlanOverlay open={planOpen} itemCount={planCount} onClose={closePlan}>
+      <PlanOverlay
+        open={planOpen}
+        itemCount={planCount}
+        title={trip.meta.title ?? (trip.meta.destination ? `${trip.meta.destination} Trip` : undefined)}
+        onClose={closePlan}
+      >
         <div className="flex h-full min-h-0 flex-col gap-3">
           <PlanMapToggle view={view} onChange={setView} />
           <div className="min-h-0 flex-1">

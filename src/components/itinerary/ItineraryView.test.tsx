@@ -18,16 +18,16 @@ describe('ItineraryView', () => {
     render(<ItineraryView trip={trip()} />)
     expect(screen.getByRole('heading', { name: 'Tenerife Escape' })).toBeInTheDocument()
     expect(screen.getByText('$1,462')).toBeInTheDocument() // trip total (distinct from the $1,400 stay)
-    expect(screen.getByText(/search flights/i)).toBeInTheDocument()
+    expect(screen.getByText(/find the way there/i)).toBeInTheDocument()
   })
 
   it('offers a slot for every gap and sends a prompt when one is tapped', () => {
     const onFix = vi.fn()
     render(<ItineraryView trip={trip()} onFix={onFix} />)
     // The fixture has a stay but no flights and nothing to do.
-    expect(screen.getByText(/search flights/i)).toBeInTheDocument()
-    expect(screen.getAllByText(/add things to do/i).length).toBeGreaterThan(0)
-    fireEvent.click(screen.getByText(/search flights/i))
+    expect(screen.getByText(/find the way there/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/find things to do/i).length).toBeGreaterThan(0)
+    fireEvent.click(screen.getByText(/find the way there/i))
     expect(onFix).toHaveBeenCalledWith(expect.stringMatching(/find flights to Tenerife/i))
   })
 
@@ -35,7 +35,8 @@ describe('ItineraryView', () => {
     const t = trip()
     t.flights = [{ id: 'f1', from: 'SKP', to: 'TFS', stops: 0, price: 200, bookUrl: 'x' }]
     render(<ItineraryView trip={t} onFix={() => {}} />)
-    expect(screen.getByText(/add a return flight/i)).toBeInTheDocument()
+    // The slot's own heading, which the progress meter's prompt does not duplicate.
+    expect(screen.getByText(/one way only/i)).toBeInTheDocument()
   })
 
   it('opens the booking panel from the footer', () => {

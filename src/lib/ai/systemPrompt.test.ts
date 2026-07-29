@@ -47,13 +47,29 @@ describe('buildSystemPrompt', () => {
   it('bans narration so the chat shows results, not intentions', () => {
     const p = buildSystemPrompt().toLowerCase()
     expect(p).toContain('do not narrate')
-    expect(p).toContain('one or two short sentences')
+    expect(p).toContain('one short sentence')
+    expect(p).toContain('never explain your reasoning')
   })
 
-  it('tells the agent to cover the whole trip, food included', () => {
+  it('makes it work one step at a time instead of dumping the whole trip', () => {
     const p = buildSystemPrompt().toLowerCase()
-    expect(p).toContain('where to eat')
-    expect(p).toContain('getstaydetails')
+    expect(p).toContain('one step at a time')
+    expect(p).toContain('never search flights, stays and places in the same turn')
+  })
+
+  it('makes it ask which flight shape they want rather than deciding', () => {
+    const p = buildSystemPrompt().toLowerCase()
+    expect(p).toContain('do not decide between a round trip and two one-ways')
+  })
+
+  it('insists on a real trip name, never a generic one', () => {
+    const p = buildSystemPrompt()
+    expect(p).toContain('Torino Getaway')
+    expect(p.toLowerCase()).toContain('never a')
+  })
+
+  it('still tells the agent to ground its recommendations in real detail', () => {
+    expect(buildSystemPrompt().toLowerCase()).toContain('getstaydetails')
   })
 })
 

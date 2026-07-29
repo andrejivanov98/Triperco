@@ -12,12 +12,15 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 export function PlanOverlay({
   open,
   itemCount,
+  title,
   onClose,
   children,
 }: {
   open: boolean
   /** Shown in the heading so the traveler can see the plan is not empty before reading it. */
   itemCount: number
+  /** The trip's own name, once it has one. A trip called "Your plan" belongs to nobody. */
+  title?: string
   onClose: () => void
   children: ReactNode
 }) {
@@ -50,13 +53,18 @@ export function PlanOverlay({
       <aside
         role="dialog"
         aria-modal="true"
-        aria-label="Your plan"
+        aria-label={title ?? 'Your plan'}
         data-testid="plan-pane"
         className="glass relative flex h-full w-full min-w-0 flex-col gap-3 overflow-hidden rounded-none p-3 shadow-2xl sm:max-w-md sm:rounded-l-3xl"
       >
         <div className="flex shrink-0 items-center justify-between gap-2">
-          <span className="text-xs font-bold uppercase tracking-wide text-muted">
-            Your plan{itemCount > 0 ? ` · ${itemCount}` : ''}
+          <span
+            data-testid="plan-title"
+            className="truncate font-display text-base text-ink"
+            title={title}
+          >
+            {title ?? 'Your plan'}
+            {itemCount > 0 && <span className="ml-1.5 text-xs font-semibold text-muted">· {itemCount}</span>}
           </span>
           <button
             type="button"
