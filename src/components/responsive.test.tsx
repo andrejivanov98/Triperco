@@ -53,13 +53,21 @@ describe('cards never exceed the viewport', () => {
 })
 
 describe('the header survives a narrow screen', () => {
-  it('drops the wordmark, keeping the mark', () => {
+  it('drops the wordmark, keeping the mark — and never shows both', () => {
     const { container } = render(<SiteHeader />)
-    const marks = container.querySelectorAll('a[aria-label="Triperco — home"] > span')
-    // Two lockups: the mark alone for phones, the full one from sm upwards.
-    expect(marks).toHaveLength(2)
-    expect(marks[0].className).toContain('sm:hidden')
-    expect(marks[1].className).toContain('hidden')
+    const slots = container.querySelectorAll('a[aria-label="Triperco — home"] > span')
+    expect(slots).toHaveLength(2)
+
+    /*
+     * The display switch must sit on these wrappers, not on the Logo itself: Logo carries its own
+     * `inline-flex`, and whether a `hidden` beside it wins depends on stylesheet order rather than
+     * class order — which is how both logos ended up visible at once.
+     */
+    expect(slots[0].className).toBe('sm:hidden')
+    expect(slots[1].className).toBe('hidden sm:block')
+    for (const slot of slots) {
+      expect(slot.className).not.toMatch(/inline-flex/)
+    }
   })
 
   it('holds the section navigator back until there is room for it', () => {

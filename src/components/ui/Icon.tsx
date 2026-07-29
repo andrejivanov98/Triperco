@@ -21,6 +21,8 @@ export type IconName =
   | 'check'
   | 'clock'
   | 'pin'
+  | 'new-chat'
+  | 'arrow-right'
 
 /**
  * One stroked line-icon set, drawn on a 24-grid at 1.7 weight.
@@ -149,6 +151,19 @@ const PATHS: Record<IconName, ReactElement> = {
     <>
       <path d="M12 21s7-5.6 7-11a7 7 0 0 0-14 0c0 5.4 7 11 7 11Z" />
       <circle cx="12" cy="10" r="2.6" />
+    </>
+  ),
+  /* A speech bubble with a plus: a new conversation, not just a new document. */
+  'new-chat': (
+    <>
+      <path d="M20.5 12.8a8.5 8.5 0 0 1-12.2 7.7L3.5 21.5l1.1-4.6A8.5 8.5 0 1 1 20.5 12.8Z" />
+      <path d="M12 9.2v5.2M9.4 11.8h5.2" />
+    </>
+  ),
+  'arrow-right': (
+    <>
+      <path d="M4.5 12h14.5" />
+      <path d="m13.5 6.5 5.5 5.5-5.5 5.5" />
     </>
   ),
 }

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { Logo } from '@/components/brand/Logo'
+import { Icon } from '@/components/ui/Icon'
 
 /**
  * The bar that sits above everything: identity on the left, one menu on the right.
@@ -52,9 +53,20 @@ export function SiteHeader({
       <div className="flex h-16 w-full items-center justify-between gap-3 px-4 sm:px-6">
         <div className="flex min-w-0 shrink items-center gap-2 sm:gap-3">
           <Link href="/" aria-label="Triperco — home" className="shrink-0 transition hover:opacity-80">
-            {/* The mark alone on a phone: the wordmark is the first thing that can go. */}
-            <Logo className="sm:hidden" markClassName="h-8 w-8" showWordmark={false} />
-            <Logo className="hidden sm:inline-flex" />
+            {/*
+              The mark alone on a phone: the wordmark is the first thing that can go.
+
+              The switch lives on these wrappers rather than on the Logo itself, because Logo sets
+              its own `inline-flex` and a `hidden` passed alongside it does not reliably win — which
+              display utility applies is decided by their order in the stylesheet, not in the class
+              attribute. That is why both were showing at once.
+            */}
+            <span className="sm:hidden">
+              <Logo markClassName="h-8 w-8" showWordmark={false} />
+            </span>
+            <span className="hidden sm:block">
+              <Logo />
+            </span>
           </Link>
           <span className="hidden min-w-0 sm:flex">{left}</span>
         </div>
@@ -95,8 +107,9 @@ export function SiteHeader({
                     setOpen(false)
                     onNewChat?.()
                   }}
-                  className="block px-4 py-3 text-sm font-semibold text-ink transition hover:bg-sand"
+                  className="flex items-center gap-3 px-4 py-3 text-sm font-semibold text-ink transition hover:bg-sand"
                 >
+                  <Icon name="new-chat" className="h-[18px] w-[18px] shrink-0 text-muted" />
                   New chat
                 </Link>
               </div>

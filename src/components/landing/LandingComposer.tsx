@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { DEFAULT_GUESTS, describeGuests, isDefaultGuests, type Guests } from '@/lib/ui/guests'
 import { describeRange, type DateRange } from '@/lib/ui/calendar'
 import { Popover } from '@/components/ui/Popover'
+import { Icon } from '@/components/ui/Icon'
 import { GuestPicker } from './GuestPicker'
 import { DateRangePicker } from './DateRangePicker'
 
@@ -103,12 +104,17 @@ export function LandingComposer() {
             </Popover>
           </div>
 
+          {/*
+            The arrow alone. The field beside it already says what this does, and the label was the
+            widest thing in the row on a phone — the first thing to squeeze everything else.
+          */}
           <button
             type="submit"
             aria-label="Start planning"
-            className="ml-auto shrink-0 rounded-full bg-deep px-3.5 py-2 text-xs font-bold text-white shadow-md shadow-deep/20 transition hover:opacity-90 sm:px-4 sm:text-[13px]"
+            title="Start planning"
+            className="ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-deep text-white shadow-md shadow-deep/20 transition hover:opacity-90"
           >
-            Start planning →
+            <Icon name="arrow-right" className="h-[18px] w-[18px]" />
           </button>
         </div>
       </div>
