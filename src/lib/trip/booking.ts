@@ -1,6 +1,6 @@
 import type { TripState } from './types'
 import { formatDateRange } from './dates'
-import { stayBookingLinkFromTrip } from './bookingLink'
+import { primaryStayBookingLink } from './bookingLink'
 
 export type BookingStatus = 'not_booked' | 'booked' | 'confirmed'
 
@@ -70,14 +70,13 @@ export function bookableItems(trip: TripState): BookableItem[] {
      * blank search at the exact moment they are ready to pay. Rebuild it with the property, their
      * dates and their party already applied.
      */
-    const offer = s.offers?.find((o) => o.official) ?? s.offers?.[0]
-    const link = stayBookingLinkFromTrip(s, trip.meta, offer?.source, offer?.url ?? s.bookUrl)
+    const link = primaryStayBookingLink(s, trip.meta)
     items.push({
       key: `stay:${s.id}`,
       kind: 'stay',
       title: s.name,
       partner: link.provider,
-      bookUrl: link.url || s.bookUrl || offer?.url,
+      bookUrl: link.url || s.bookUrl || s.offers?.[0]?.url,
       price: s.totalPrice ?? s.pricePerNight * s.nights,
       detail: [
         s.kind === 'vacation_rental' ? 'Home' : s.hotelClass ?? 'Hotel',

@@ -18,6 +18,8 @@ export interface BookingContext {
   adults?: number
   children?: number
   rooms?: number
+  /** The city. Without it "Doroma House" matches half of Europe. */
+  city?: string
 }
 
 export interface BookingLink {
@@ -28,14 +30,25 @@ export interface BookingLink {
   dated: boolean
 }
 
-function ctxFromMeta(meta: Pick<TripMeta, 'startDate' | 'endDate' | 'adults' | 'children' | 'rooms' | 'travelers'>): BookingContext {
+function ctxFromMeta(
+  meta: Pick<TripMeta, 'startDate' | 'endDate' | 'adults' | 'children' | 'rooms' | 'travelers' | 'destination'>,
+): BookingContext {
   return {
     checkIn: meta.startDate,
     checkOut: meta.endDate,
     adults: meta.adults ?? meta.travelers,
     children: meta.children,
     rooms: meta.rooms,
+    city: meta.destination,
   }
+}
+
+/** "Doroma House, Turin" — the name alone is not unique enough to land on the right property. */
+function searchQuery(stay: Stay, context: BookingContext): string {
+  const name = stay.name.trim()
+  const city = context.city?.trim()
+  if (!city) return name
+  return name.toLowerCase().includes(city.toLowerCase()) ? name : `${name}, ${city}`
 }
 
 function isDate(value: string | undefined): value is string {
@@ -46,17 +59,14 @@ function positive(value: number | undefined): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.trunc(value) : undefined
 }
 
-/** The host a source name or URL points at, lowercased and without www. */
-function hostOf(source: string | undefined, url: string | undefined): string {
-  const fromUrl = (() => {
-    if (!url) return ''
-    try {
-      return new URL(url).hostname.replace(/^www\./, '').toLowerCase()
-    } catch {
-      return ''
-    }
-  })()
-  return (fromUrl || (source ?? '')).toLowerCase()
+/** The host a URL points at, lowercased and without www. */
+function hostOf(url: string | undefined): string {
+  if (!url) return ''
+  try {
+    return new URL(url).hostname.replace(/^www\./, '').toLowerCase()
+  } catch {
+    return ''
+  }
 }
 
 type Builder = (name: string, ctx: BookingContext) => string
@@ -117,6 +127,23 @@ const BUILDERS: { match: RegExp; provider: string; build: Builder }[] = [
 ]
 
 /**
+ * Who is selling this.
+ *
+ * The provider's name is checked first and the URL only as a fallback: the URL is usually an opaque
+ * tracking redirect on a host nobody recognises, so trusting it would send an Airbnb listing to a
+ * generic search.
+ */
+function findBuilder(source: string | undefined, url: string | undefined) {
+  const name = (source ?? '').trim().toLowerCase()
+  if (name) {
+    const bySource = BUILDERS.find((b) => b.match.test(name))
+    if (bySource) return bySource
+  }
+  const host = hostOf(url)
+  return host ? BUILDERS.find((b) => b.match.test(host)) : undefined
+}
+
+/**
  * A link that arrives with the dates already applied.
  *
  * `source` is the provider name from the offer; `originalUrl` is whatever the provider gave us,
@@ -128,24 +155,46 @@ export function stayBookingLink(
   source?: string,
   originalUrl?: string,
 ): BookingLink {
-  const name = stay.name.trim()
-  const host = hostOf(source, originalUrl)
-  const known = BUILDERS.find((b) => b.match.test(host))
+  const query = searchQuery(stay, context)
+  const known = findBuilder(source, originalUrl)
   const dated = isDate(context.checkIn) && isDate(context.checkOut)
 
-  if (!name) {
+  if (!stay.name.trim()) {
     // Nothing to search for — the provider's own link is still better than nothing.
     return { url: originalUrl ?? '', provider: source ?? 'the provider', dated: false }
   }
 
-  if (known) return { url: known.build(name, context), provider: known.provider, dated }
-  return { url: GOOGLE_HOTELS(name, context), provider: 'Google Hotels', dated }
+  if (known) return { url: known.build(query, context), provider: known.provider, dated }
+  return { url: GOOGLE_HOTELS(query, context), provider: 'Google Hotels', dated }
+}
+
+/**
+ * The one button that should say "Book this stay".
+ *
+ * The provider gives us no offer link with the dates in it — for most properties it gives us no
+ * offer at all — so there is no such thing as a true deep link to the exact room here. The most
+ * reliable thing we can build is the property's own Google Hotels page for those exact dates, which
+ * lists every provider's price for that stay. One click from there carries the dates through.
+ *
+ * A named provider is only preferred when we know its search parameters AND the property is a
+ * hotel; holiday rentals have long descriptive names that provider search boxes handle badly.
+ */
+export function primaryStayBookingLink(
+  stay: Stay,
+  meta: Pick<TripMeta, 'startDate' | 'endDate' | 'adults' | 'children' | 'rooms' | 'travelers' | 'destination'>,
+): BookingLink {
+  // The property's own site first, then whoever else is selling it; Google Hotels if nobody is.
+  const official = stay.offers?.find((o) => o.official) ?? stay.offers?.[0]
+  return stayBookingLink(stay, ctxFromMeta(meta), official?.source, official?.url ?? stay.bookUrl)
 }
 
 /** The same thing, taking the dates straight off the trip. */
 export function stayBookingLinkFromTrip(
   stay: Stay,
-  meta: Pick<TripMeta, 'startDate' | 'endDate' | 'adults' | 'children' | 'rooms' | 'travelers'>,
+  meta: Pick<
+    TripMeta,
+    'startDate' | 'endDate' | 'adults' | 'children' | 'rooms' | 'travelers' | 'destination'
+  >,
   source?: string,
   originalUrl?: string,
 ): BookingLink {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { stayBookingLink, stayBookingLinkFromTrip } from './bookingLink'
+import { stayBookingLink, stayBookingLinkFromTrip, primaryStayBookingLink } from './bookingLink'
 import type { Stay } from './types'
 
 function stay(name = 'Hotel Vander'): Stay {
@@ -96,6 +96,75 @@ describe('stayBookingLink — unknown providers', () => {
     const link = stayBookingLink({ ...stay(), name: '  ' }, dates, 'Booking.com', 'https://x.example/y')
     expect(link.url).toBe('https://x.example/y')
     expect(link.dated).toBe(false)
+  })
+})
+
+describe('stayBookingLink — landing on the right property', () => {
+  it('adds the city, because the name alone matches half of Europe', () => {
+    const link = stayBookingLink(stay('Doroma House'), { ...dates, city: 'Turin' }, 'Booking.com')
+    expect(new URL(link.url).searchParams.get('ss')).toBe('Doroma House, Turin')
+  })
+
+  it('does not repeat a city the name already carries', () => {
+    const link = stayBookingLink(stay('Rosè-To Turin Suite'), { ...dates, city: 'Turin' }, 'Booking.com')
+    expect(new URL(link.url).searchParams.get('ss')).toBe('Rosè-To Turin Suite')
+  })
+
+  it('still works when we do not know the city yet', () => {
+    const link = stayBookingLink(stay('Doroma House'), dates, 'Booking.com')
+    expect(new URL(link.url).searchParams.get('ss')).toBe('Doroma House')
+  })
+})
+
+describe('primaryStayBookingLink', () => {
+  it('sends an Airbnb listing to Airbnb with the whole stay applied', () => {
+    const listing: Stay = {
+      ...stay('CASA LENA by Apartments To Art'),
+      kind: 'vacation_rental',
+      offers: [{ source: 'Airbnb', url: 'https://opaque.example/x', official: true }],
+    }
+    const link = primaryStayBookingLink(listing, {
+      startDate: '2026-08-09',
+      endDate: '2026-08-19',
+      travelers: 2,
+      destination: 'Turin',
+    })
+    const url = new URL(link.url)
+    expect(url.hostname).toBe('www.airbnb.com')
+    expect(url.pathname).toContain('Turin')
+    expect(url.searchParams.get('checkin')).toBe('2026-08-09')
+    expect(url.searchParams.get('adults')).toBe('2')
+    expect(link.dated).toBe(true)
+  })
+
+  it('falls back to the property page on Google Hotels when nobody is selling it', () => {
+    // The provider returns no offers at all for most properties, so this is the common case.
+    const link = primaryStayBookingLink(stay('Doroma House'), {
+      startDate: '2026-08-09',
+      endDate: '2026-08-19',
+      travelers: 2,
+      destination: 'Turin',
+    })
+    const url = new URL(link.url)
+    expect(url.hostname).toBe('www.google.com')
+    expect(url.searchParams.get('q')).toBe('Doroma House, Turin')
+    expect(url.searchParams.get('checkin')).toBe('2026-08-09')
+  })
+
+  it('prefers the property own site over a reseller', () => {
+    const withOffers: Stay = {
+      ...stay('Grand Hotel'),
+      offers: [
+        { source: 'Expedia', url: 'https://expedia.com/x' },
+        { source: 'Booking.com', url: 'https://booking.com/y', official: true },
+      ],
+    }
+    const link = primaryStayBookingLink(withOffers, {
+      startDate: '2026-08-09',
+      endDate: '2026-08-19',
+      travelers: 2,
+    })
+    expect(link.provider).toBe('Booking.com')
   })
 })
 
