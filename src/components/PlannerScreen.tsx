@@ -253,7 +253,6 @@ export function PlannerScreen() {
     <main className="flex min-h-screen flex-col lg:h-screen lg:overflow-hidden">
       <SiteHeader
         onNewChat={startNewTrip}
-        left={<ShareButton onShare={handleShare} sharing={sharing} shareUrl={shareUrl} />}
         center={
           <SectionNavigator
             sections={sections}
@@ -262,7 +261,12 @@ export function PlannerScreen() {
             }
           />
         }
-        right={<PlanButton itemCount={planCount} onOpen={openPlan} />}
+        right={
+          <>
+            <PlanButton itemCount={planCount} onOpen={openPlan} />
+            <ShareButton onShare={handleShare} sharing={sharing} shareUrl={shareUrl} />
+          </>
+        }
       />
 
       <div className="mx-auto flex w-full max-w-[1400px] min-h-0 flex-1 flex-col gap-2 px-2 py-2 sm:px-4">

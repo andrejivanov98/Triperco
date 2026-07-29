@@ -20,32 +20,29 @@ export function LogoMark({ className = 'h-7 w-7', ...rest }: SVGProps<SVGSVGElem
       {...rest}
     >
       {/*
-        The vapour trail: one round-capped stroke lifting left to right, so the eye travels the way
-        the plane is going. Together with the plane it forms the crossbar of the T.
+        The flight path: a light, round-capped curve climbing out to the right. Deliberately thinner
+        than everything else — it is the line the eye follows, not a thing in itself.
       */}
       <path
-        d="M3.1 12.4C7.4 10.8 11.7 9.8 16 9.4"
+        d="M2.9 12.7C8.2 9.6 13.8 8.4 19.1 8.9"
         fill="none"
         stroke="currentColor"
-        strokeWidth="2.3"
+        strokeWidth="1.6"
         strokeLinecap="round"
       />
       {/*
-        The plane as a folded paper dart, stroked with round joins so every corner is blunted.
-        Sharp swept angles read as military; blunt ones read as paper.
+        The plane at the end of it: a solid airliner seen from above, banked along the climb. Drawn
+        upright on its own 24-grid and placed by transform, so the silhouette stays exact rather than
+        being hand-rotated into approximate coordinates.
       */}
-      <path
-        d="M29.2 3.8 17.6 9.9l4.4 1 1.1 3.6z"
-        stroke="currentColor"
-        strokeWidth="1.9"
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-      {/* Pin: the stem of the T, with its eye cut out rather than filled over. */}
+      <g transform="translate(23.4 7.1) rotate(45) scale(0.55) translate(-12 -12)">
+        <path d="M21.5 15.6v-1.9l-8.2-5.1V3.1a1.3 1.3 0 0 0-2.6 0v5.5l-8.2 5.1v1.9l8.2-2.6v5.6l-2.2 1.6v1.6l3.5-1 3.5 1v-1.6l-2.2-1.6V13z" />
+      </g>
+      {/* The pin: the stem of the T, its eye cut out rather than filled over. */}
       <path
         fillRule="evenodd"
         clipRule="evenodd"
-        d="M16 14a6.3 6.3 0 0 0-6.3 6.3c0 4.5 6.3 9.7 6.3 9.7s6.3-5.2 6.3-9.7A6.3 6.3 0 0 0 16 14zm0 8.8a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"
+        d="M16 14.4a6.4 6.4 0 0 0-6.4 6.4c0 4.6 6.4 9.8 6.4 9.8s6.4-5.2 6.4-9.8a6.4 6.4 0 0 0-6.4-6.4zm0 8.9a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"
       />
     </svg>
   )
