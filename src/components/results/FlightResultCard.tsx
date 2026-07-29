@@ -89,7 +89,7 @@ export function FlightResultCard({
   return (
     <div
       className={
-        'flex w-[21rem] shrink-0 snap-start flex-col gap-3 overflow-hidden rounded-[20px] border bg-white/60 p-4 transition hover:shadow-md ' +
+        'flex w-[min(21rem,84vw)] shrink-0 snap-start flex-col gap-3 overflow-hidden rounded-[20px] border bg-white/60 p-4 transition hover:shadow-md ' +
         (expanded ? 'max-h-[36rem] ' : 'h-[23rem] ') +
         (featured ? 'border-accent/40 ring-1 ring-accent/25' : 'border-hairline')
       }

@@ -33,7 +33,7 @@ export function PlaceResultCard({
 
   return (
     // A fixed frame: every card is the same size, so the photo and the buttons never shift.
-    <div className="flex h-[26rem] w-[19rem] shrink-0 snap-start flex-col gap-3 rounded-[22px] border border-hairline bg-white/60 p-3">
+    <div className="flex h-[26rem] w-[min(19rem,80vw)] shrink-0 snap-start flex-col gap-3 rounded-[22px] border border-hairline bg-white/60 p-3">
       <button type="button" onClick={onOpen} className="flex h-[7.5rem] shrink-0 flex-col gap-1.5 overflow-hidden text-left">
         <div className="flex items-start justify-between gap-2">
           <span className="line-clamp-2 text-sm font-bold leading-snug text-ink">{place.name}</span>

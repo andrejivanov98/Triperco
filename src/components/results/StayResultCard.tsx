@@ -78,7 +78,7 @@ export function StayResultCard({
       }}
       aria-label={`${stay.name} — see details`}
       data-testid="stay-card"
-      className="group flex h-[27rem] w-[19rem] shrink-0 cursor-pointer snap-start flex-col overflow-hidden rounded-[22px] border border-hairline bg-white/70 text-left transition hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      className="group flex h-[27rem] w-[min(19rem,80vw)] shrink-0 cursor-pointer snap-start flex-col overflow-hidden rounded-[22px] border border-hairline bg-white/70 text-left transition hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
     >
       {/* Photo first, Airbnb-style, with the badge floating on it. */}
       <div className="relative h-44 w-full shrink-0 overflow-hidden bg-sand">

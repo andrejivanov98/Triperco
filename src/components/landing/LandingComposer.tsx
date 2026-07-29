@@ -62,7 +62,7 @@ export function LandingComposer() {
     setOpenPanel((current) => (current === panel ? null : panel))
 
   const chip =
-    'flex items-center gap-2 rounded-full border border-hairline bg-white px-3 py-2 text-xs font-bold text-ink transition hover:border-accent/50'
+    'flex shrink-0 items-center gap-1.5 rounded-full border border-hairline bg-white px-2.5 py-1.5 text-[11px] font-bold text-ink transition hover:border-accent/50 sm:gap-2 sm:px-3 sm:py-2 sm:text-xs'
 
   return (
     <form
@@ -73,7 +73,7 @@ export function LandingComposer() {
       }}
       className="w-full max-w-2xl"
     >
-      <div className="glass flex flex-col gap-3 p-4">
+      <div className="glass flex flex-col gap-3 p-3 sm:p-4">
         <input
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
@@ -81,7 +81,7 @@ export function LandingComposer() {
           className="w-full bg-transparent px-1 text-base font-medium text-ink outline-none placeholder:text-muted"
         />
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
             <button type="button" onClick={() => toggle('guests')} className={chip} aria-expanded={openPanel === 'guests'}>
               <PeopleIcon />
@@ -106,7 +106,7 @@ export function LandingComposer() {
           <button
             type="submit"
             aria-label="Start planning"
-            className="ml-auto rounded-full bg-deep px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-deep/20 transition hover:opacity-90"
+            className="ml-auto shrink-0 rounded-full bg-deep px-3.5 py-2 text-xs font-bold text-white shadow-md shadow-deep/20 transition hover:opacity-90 sm:px-4 sm:text-[13px]"
           >
             Start planning →
           </button>

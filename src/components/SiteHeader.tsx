@@ -50,16 +50,22 @@ export function SiteHeader({
     >
       {/* Full width, small gutters: the identity belongs at the edge, not floating in a column. */}
       <div className="flex h-16 w-full items-center justify-between gap-3 px-4 sm:px-6">
-        <div className="flex shrink-0 items-center gap-3">
-          <Link href="/" aria-label="Triperco — home" className="transition hover:opacity-80">
-            <Logo />
+        <div className="flex min-w-0 shrink items-center gap-2 sm:gap-3">
+          <Link href="/" aria-label="Triperco — home" className="shrink-0 transition hover:opacity-80">
+            {/* The mark alone on a phone: the wordmark is the first thing that can go. */}
+            <Logo className="sm:hidden" markClassName="h-8 w-8" showWordmark={false} />
+            <Logo className="hidden sm:inline-flex" />
           </Link>
-          {left}
+          <span className="hidden min-w-0 sm:flex">{left}</span>
         </div>
 
-        {center && <div className="flex min-w-0 flex-1 justify-center">{center}</div>}
+        {/*
+          The navigator is a shortcut, not a control — on a narrow screen it would crowd out the
+          plan, which is the thing you actually need to reach.
+        */}
+        {center && <div className="hidden min-w-0 flex-1 justify-center md:flex">{center}</div>}
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           {right}
           <div ref={ref} className="relative">
             <button

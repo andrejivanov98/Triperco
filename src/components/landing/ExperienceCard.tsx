@@ -6,7 +6,7 @@ export function ExperienceCard({ experience }: { experience: Experience }) {
   return (
     <Link
       href={`/plan?q=${encodeURIComponent(experience.planPrompt)}`}
-      className="group relative block h-60 w-[268px] shrink-0 snap-start overflow-hidden rounded-[20px]"
+      className="group relative block h-60 w-[min(268px,72vw)] shrink-0 snap-start overflow-hidden rounded-[20px]"
     >
       <Image
         src={experience.image}

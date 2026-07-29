@@ -6,7 +6,7 @@ import type { Flight, Stay, Place, TripMeta } from '@/lib/trip/types'
 import type { ResultSet } from '@/lib/ui/results'
 import { getResultSets } from '@/lib/ui/results'
 import { revisionsFor, setId } from '@/lib/ui/revisions'
-import { getOptionSets, getForms, getSuggestions } from '@/lib/ui/interactions'
+import { getOptionSets, getForms } from '@/lib/ui/interactions'
 import { ResultCarousel } from '@/components/results/ResultCarousel'
 import { MessageText } from './MessageText'
 import { OptionList } from './OptionList'
@@ -16,7 +16,8 @@ import { ThinkingIndicator, ResultSkeleton } from './ThinkingIndicator'
 interface ChatPaneProps {
   messages: TriperUIMessage[]
   status: string
-  suggestions: string[]
+  /** Retained for callers; no longer rendered — suggestions come as guided cards in the thread. */
+  suggestions?: string[]
   onSend: (text: string) => void
   onAddResult?: (set: ResultSet, item: Flight | Stay | Place) => void
   onOpenDetail?: (set: ResultSet, item: Flight | Stay | Place) => void
@@ -42,7 +43,6 @@ function isSearching(message: TriperUIMessage | undefined, busy: boolean): boole
 export function ChatPane({
   messages,
   status,
-  suggestions,
   onSend,
   onAddResult,
   onOpenDetail,
@@ -55,10 +55,6 @@ export function ChatPane({
   const last = messages[messages.length - 1]
   // Which carousels have been answered again since, so only the live set stays open.
   const revisions = revisionsFor(messages)
-
-  // What the agent proposed for this exact moment beats anything we can guess from trip state.
-  const proposed = last?.role === 'assistant' ? getSuggestions(last) : []
-  const chips = proposed.length > 0 ? proposed : suggestions
 
   // Follow the conversation as it streams.
   useEffect(() => {
@@ -95,8 +91,8 @@ export function ChatPane({
                 <div
                   className={
                     isUser
-                      ? 'max-w-[85%] break-words rounded-3xl rounded-br-lg bg-deep px-4 py-2.5 text-sm font-medium text-white'
-                      : 'max-w-[92%] break-words text-[15px] font-medium text-ink'
+                      ? 'max-w-[92%] break-words rounded-3xl rounded-br-lg bg-deep px-4 py-2.5 text-sm font-medium text-white sm:max-w-[85%]'
+                      : 'max-w-full break-words text-[15px] font-medium text-ink sm:max-w-[92%]'
                   }
                 >
                   <MessageText text={text} />
@@ -166,12 +162,12 @@ export function ChatPane({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Tell Triperco what you want…"
-            className="flex-1 rounded-2xl border border-hairline bg-white/70 px-4 py-3 text-sm font-medium text-ink outline-none transition focus:border-accent/50 focus:bg-white placeholder:text-muted"
+            className="min-w-0 flex-1 rounded-2xl border border-hairline bg-white/70 px-3.5 py-3 text-base font-medium text-ink outline-none transition focus:border-accent/50 focus:bg-white placeholder:text-muted sm:px-4 sm:text-sm"
           />
           <button
             type="submit"
             disabled={busy || input.trim().length === 0}
-            className="rounded-2xl bg-accent px-5 py-3 text-sm font-bold text-white shadow-md shadow-accent/25 transition hover:bg-accent-600 disabled:opacity-40"
+            className="shrink-0 rounded-2xl bg-accent px-4 py-3 text-sm font-bold text-white shadow-md shadow-accent/25 transition hover:bg-accent-600 disabled:opacity-40 sm:px-5"
           >
             Send
           </button>

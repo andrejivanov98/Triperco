@@ -250,7 +250,7 @@ export function PlannerScreen() {
 
   return (
     // The conversation now owns the width. The plan is a drawer you summon, not a permanent column.
-    <main className="flex min-h-screen flex-col lg:h-screen lg:overflow-hidden">
+    <main className="flex h-[100dvh] flex-col overflow-hidden">
       <SiteHeader
         onNewChat={startNewTrip}
         center={
@@ -269,10 +269,10 @@ export function PlannerScreen() {
         }
       />
 
-      <div className="mx-auto flex w-full max-w-[1400px] min-h-0 flex-1 flex-col gap-2 px-2 py-2 sm:px-4">
+      <div className="mx-auto flex w-full min-h-0 max-w-[1400px] flex-1 flex-col gap-2 px-2 py-2 sm:px-4">
       <div
         data-testid="chat-pane"
-        className="glass flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-4"
+        className="glass flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-3 sm:p-4"
       >
         <ChatPane
           messages={messages}

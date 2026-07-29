@@ -108,12 +108,13 @@ export function PlanButton({ itemCount, onOpen }: { itemCount: number; onOpen: (
       onClick={onOpen}
       aria-label={itemCount > 0 ? `Open your plan, ${itemCount} items` : 'Open your plan'}
       className={
-        'flex items-center gap-2 rounded-2xl bg-deep py-2.5 pl-4 pr-3 text-sm font-bold text-white shadow-lg shadow-deep/25 transition hover:bg-ink hover:shadow-xl ' +
+        'flex items-center gap-2 rounded-2xl bg-deep px-3 py-2.5 text-sm font-bold text-white shadow-lg shadow-deep/25 transition hover:bg-ink hover:shadow-xl sm:pl-4 sm:pr-3 ' +
         (pulse ? 'scale-105 ring-4 ring-accent/40' : 'scale-100')
       }
     >
-      <Icon name="map" className="h-[18px] w-[18px]" />
-      <span className="flex flex-col items-start leading-none">
+      <Icon name="map" className="h-[18px] w-[18px] shrink-0" />
+      {/* On a phone the icon and the count say it; the label is what gives way. */}
+      <span className="hidden flex-col items-start leading-none sm:flex">
         <span>My plan</span>
         <span className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/60">
           {itemCount > 0 ? `${itemCount} added` : 'Empty'}
@@ -122,12 +123,12 @@ export function PlanButton({ itemCount, onOpen }: { itemCount: number; onOpen: (
       {itemCount > 0 && (
         <span
           data-testid="plan-count"
-          className="ml-0.5 min-w-5 rounded-full bg-accent px-1.5 py-0.5 text-center text-[11px] font-bold leading-tight text-white"
+          className="min-w-5 rounded-full bg-accent px-1.5 py-0.5 text-center text-[11px] font-bold leading-tight text-white sm:ml-0.5"
         >
           {itemCount}
         </span>
       )}
-      <span aria-hidden className="ml-0.5 text-xs text-white/60">
+      <span aria-hidden className="ml-0.5 hidden text-xs text-white/60 sm:inline">
         ›
       </span>
     </button>

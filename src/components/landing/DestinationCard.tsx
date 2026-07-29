@@ -6,7 +6,7 @@ export function DestinationCard({ destination }: { destination: Destination }) {
   return (
     <Link
       href={`/plan?q=${encodeURIComponent(destination.planPrompt)}`}
-      className="group block w-[268px] shrink-0 snap-start"
+      className="group block w-[min(268px,72vw)] shrink-0 snap-start"
     >
       <div className="relative h-48 w-full overflow-hidden rounded-[20px]">
         <Image
