@@ -39,8 +39,10 @@ export function mergePlaceDetails(
   return places.map((place) => {
     const detail = details[place.id]
     if (!detail) return place
+    // Fetched photos lead: they are full-size, and the search's own is an 86px thumbnail that must
+    // not end up as the card's cover.
     const photos = detail.photos?.length
-      ? [...new Set([...place.photos, ...detail.photos])]
+      ? [...new Set([...detail.photos, ...place.photos])]
       : place.photos
     const reviewSnippets = detail.reviews?.length ? detail.reviews : place.reviewSnippets
     return { ...place, photos, reviewSnippets }

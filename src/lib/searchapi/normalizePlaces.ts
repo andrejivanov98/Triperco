@@ -1,4 +1,5 @@
 import type { Place } from '../trip/types'
+import { capPhotoSize } from './normalizePhotos'
 
 interface RawLocalResult {
   title: string
@@ -76,11 +77,15 @@ function serviceOptions(raw?: RawLocalResult['extensions']): string[] | undefine
 export function normalizePlaces(raw: RawMapsResponse): Place[] {
   return (raw.local_results ?? []).map((r) => {
     /*
-     * Every photo the provider gave us, thumbnail first. Before this only the thumbnail survived and
-     * `images` was discarded, so a place with a dozen photos arrived with one and the card had
-     * nothing to show.
+     * Every photo the provider gave us. Before this only the thumbnail survived and `images` was
+     * discarded, so a place with a dozen photos arrived with one and the card had nothing to show.
+     *
+     * The gallery images lead and the search thumbnail comes last: a thumbnail is an 86px crop, and
+     * putting it first made it the card's cover — a blurred smear where the photo should be.
      */
-    const photos = [...new Set([r.thumbnail, ...(r.images ?? [])].filter((p): p is string => Boolean(p)))]
+    const photos = [...new Set([...(r.images ?? []), r.thumbnail].filter((p): p is string => Boolean(p)))].map(
+      (url) => capPhotoSize(url),
+    )
     return {
       id: r.place_id,
       name: r.title,

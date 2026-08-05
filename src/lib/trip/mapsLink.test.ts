@@ -1,0 +1,56 @@
+import { describe, it, expect } from 'vitest'
+import { directionsUrl, placeUrl, telUrl } from './mapsLink'
+
+describe('directionsUrl', () => {
+  it('prefers coordinates, which cannot be confused with another place of the same name', () => {
+    const url = directionsUrl({ name: 'Hotel Artemide', coords: { lat: 41.895, lng: 12.494 } })
+    expect(url).toContain('destination=41.895%2C12.494')
+  })
+
+  it('falls back to the name and address together', () => {
+    const url = directionsUrl({ name: 'Hotel Artemide', address: 'Via Nazionale 22, Rome' })
+    expect(url).toContain('Hotel+Artemide')
+    expect(url).toContain('Via+Nazionale')
+  })
+
+  it('is undefined with nothing to route to', () => {
+    expect(directionsUrl({})).toBeUndefined()
+    expect(directionsUrl({ name: '' })).toBeUndefined()
+  })
+
+  it('always produces a url a phone will open', () => {
+    const url = directionsUrl({ name: 'Colosseum' })!
+    expect(() => new URL(url)).not.toThrow()
+    expect(url.startsWith('https://www.google.com/maps/dir/')).toBe(true)
+  })
+})
+
+describe('placeUrl', () => {
+  it('uses the provider place id when we have one', () => {
+    expect(placeUrl({ placeId: 'PID1', name: 'Colosseum' })).toBe(
+      'https://www.google.com/maps/place/?q=place_id:PID1',
+    )
+  })
+
+  it('searches by name and address otherwise', () => {
+    const url = placeUrl({ name: 'Colosseum', address: 'Piazza del Colosseo, Rome' })!
+    expect(url).toContain('/maps/search/')
+    expect(url).toContain('Colosseum')
+  })
+
+  it('is undefined with nothing to look up', () => {
+    expect(placeUrl({})).toBeUndefined()
+  })
+})
+
+describe('telUrl', () => {
+  it('makes a phone number pressable', () => {
+    expect(telUrl('+39 06 489 911')).toBe('tel:+3906489911')
+  })
+
+  it('ignores something that is not a number', () => {
+    expect(telUrl('ask at reception')).toBeUndefined()
+    expect(telUrl(undefined)).toBeUndefined()
+    expect(telUrl('12')).toBeUndefined()
+  })
+})

@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getTripStore } from '@/lib/share/tripStore'
 import { TripSummarySheet } from '@/components/booking/TripSummarySheet'
+import { SummaryShareButton } from '@/components/booking/SummaryShareButton'
 import { SiteHeader } from '@/components/SiteHeader'
 import { SiteFooter } from '@/components/landing/SiteFooter'
 import { RemoteImage } from '@/components/ui/RemoteImage'
@@ -101,6 +102,13 @@ export default async function SharedTripPage({ params }: { params: Promise<{ id:
         </section>
 
         <section className="mx-auto w-full max-w-3xl px-6 py-10">
+          {/*
+            Shared trips get forwarded on — the friend who was sent it sends it to the other two.
+            This page already has its own address, so sharing here passes the link along as-is.
+          */}
+          <div className="mb-6 flex justify-end print:hidden">
+            <SummaryShareButton title={title} />
+          </div>
           <TripSummarySheet trip={trip} />
         </section>
 
@@ -115,9 +123,10 @@ export default async function SharedTripPage({ params }: { params: Promise<{ id:
             </p>
             <Link
               href={`/plan?from=${id}`}
-              className="mt-1 rounded-2xl bg-deep px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-deep/25 transition hover:bg-ink"
+              className="mt-1 inline-flex items-center gap-2 rounded-2xl bg-deep px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-deep/25 transition hover:bg-ink"
             >
-              Make this trip mine →
+              Make this trip mine
+              <Icon name="arrow-right" className="h-4 w-4" />
             </Link>
             <Link href="/plan" className="text-xs font-bold text-accent transition hover:underline">
               Or plan a different trip

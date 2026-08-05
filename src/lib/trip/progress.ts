@@ -24,6 +24,22 @@ function transportTarget(trip: TripState): number {
 }
 
 /**
+ * Whether the traveler has settled where they are going.
+ *
+ * Not just `meta.destination`: that is only set when the agent remembers to record it, and it was
+ * routinely empty while the plan already held a hotel in Rome and a flight into Fiumicino. The panel
+ * then showed "Where to" unticked and offered "Help me pick where to go" to somebody who had
+ * plainly already picked.
+ *
+ * Anything in the plan is a decision about where to go, so anything in the plan settles this.
+ */
+export function hasDestination(trip: TripState): boolean {
+  if (trip.meta.destination) return true
+  if (trip.stays.length > 0 || trip.flights.length > 0) return true
+  return trip.days.some((day) => day.items.length > 0)
+}
+
+/**
  * What is still missing, as counts rather than a checklist.
  *
  * The plan panel used to say nothing when empty, which left the traveler to guess what a finished
@@ -31,13 +47,14 @@ function transportTarget(trip: TripState): number {
  */
 export function tripProgress(trip: TripState): TripProgress {
   const transport = transportTarget(trip)
+  const decided = hasDestination(trip)
   const steps: TripStep[] = [
     {
       key: 'destination',
       label: 'Where to',
-      added: trip.meta.destination ? 1 : 0,
+      added: decided ? 1 : 0,
       target: 1,
-      done: Boolean(trip.meta.destination),
+      done: decided,
     },
     {
       key: 'transport',

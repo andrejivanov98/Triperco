@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { tripProgress, nextGapPrompt } from './progress'
-import { createTrip } from './tripState'
+import { createTrip, setMeta, addFlight, addStay, addItineraryItem } from './tripState'
 import type { Flight, Stay, TripState } from './types'
 
 function flight(id: string, over: Partial<Flight> = {}): Flight {
@@ -99,5 +99,65 @@ describe('nextGapPrompt', () => {
       stays: [stay('s')],
     })
     expect(nextGapPrompt(state)).toBeUndefined()
+  })
+})
+
+/**
+ * `meta.destination` is only set when the agent remembers to record it, and it was routinely empty
+ * while the plan already held a hotel and a flight. The panel then showed "Where to" unticked and
+ * offered "Help me pick where to go" to somebody who had plainly already picked.
+ */
+describe('the plan itself settles where they are going', () => {
+  const rome: Stay = {
+    id: 's1',
+    name: 'Hotel Artemide',
+    source: 'hotel',
+    pricePerNight: 120,
+    nights: 3,
+    photos: [],
+    bookUrl: 'x',
+  }
+
+  it('ticks Where to once a stay is in the plan, even with no destination recorded', () => {
+    const trip = addStay(createTrip('t1'), rome)
+    expect(trip.meta.destination).toBeUndefined()
+    const step = tripProgress(trip).steps.find((s) => s.key === 'destination')!
+    expect(step.done).toBe(true)
+    expect(step.added).toBe(1)
+  })
+
+  it('ticks it once a flight is in the plan', () => {
+    const trip = addFlight(createTrip('t1'), {
+      id: 'f1',
+      from: 'SKP',
+      to: 'FCO',
+      stops: 0,
+      price: 90,
+      bookUrl: 'x',
+    })
+    expect(tripProgress(trip).steps[0].done).toBe(true)
+  })
+
+  it('ticks it once a thing to do is in the plan', () => {
+    const trip = addItineraryItem(createTrip('t1'), 0, { placeId: 'p1', name: 'Colosseum' })
+    expect(tripProgress(trip).steps[0].done).toBe(true)
+  })
+
+  it('never offers to help pick a destination once the plan has something in it', () => {
+    const trip = addStay(createTrip('t1'), rome)
+    expect(nextGapPrompt(trip)).not.toMatch(/where to go/i)
+    // It moves on to the real gap instead.
+    expect(nextGapPrompt(trip)).toMatch(/flights/i)
+  })
+
+  it('still asks on a genuinely empty plan', () => {
+    const trip = createTrip('t1')
+    expect(tripProgress(trip).steps[0].done).toBe(false)
+    expect(nextGapPrompt(trip)).toMatch(/where to go/i)
+  })
+
+  it('still honours a recorded destination on an empty plan', () => {
+    const trip = setMeta(createTrip('t1'), { destination: 'Rome' })
+    expect(tripProgress(trip).steps[0].done).toBe(true)
   })
 })

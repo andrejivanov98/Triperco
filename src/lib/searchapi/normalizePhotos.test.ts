@@ -32,3 +32,31 @@ describe('normalizePhotos', () => {
     )
   })
 })
+
+/**
+ * A Maps search thumbnail is an 86px crop. Drawn across a card it fills with a blurred smear, which
+ * is what "the cover images on things to do are awful" actually was.
+ */
+describe('capPhotoSize — upgrading a thumbnail', () => {
+  it('asks for a usable width when the provider served a postage stamp', () => {
+    expect(capPhotoSize('https://lh5.googleusercontent.com/p/AF1Q=w86-h86-k-no')).toBe(
+      'https://lh5.googleusercontent.com/p/AF1Q=w800-h800-k-no',
+    )
+  })
+
+  it('leaves a photo that is already big enough alone', () => {
+    const url = 'https://lh5.googleusercontent.com/p/AF1Q=w1200-h800-k-no'
+    expect(capPhotoSize(url)).toBe(url)
+  })
+
+  it('still caps an original-size url', () => {
+    expect(capPhotoSize('https://lh5.googleusercontent.com/p/AF1Q=s0')).toBe(
+      'https://lh5.googleusercontent.com/p/AF1Q=s1600',
+    )
+  })
+
+  it('leaves a url with no size hint untouched', () => {
+    const url = 'https://example.com/photo.jpg'
+    expect(capPhotoSize(url)).toBe(url)
+  })
+})

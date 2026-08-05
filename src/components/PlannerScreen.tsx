@@ -237,20 +237,33 @@ export function PlannerScreen() {
     writePlanParam(false)
   }, [writePlanParam])
 
-  const handleShare = useCallback(async () => {
-    setSharing(true)
+  /**
+   * Save the trip and return the link to it. Null when it could not be saved, so a caller can say so
+   * rather than handing someone a link to an empty planner.
+   */
+  const createShareLink = useCallback(async (): Promise<string | null> => {
     try {
       const res = await fetch('/api/trips', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ trip: tripRef.current }),
       })
-      const { id } = (await res.json()) as { id: string }
-      setShareUrl(`${window.location.origin}/trip/${id}`)
+      if (!res.ok) return null
+      const { id } = (await res.json()) as { id?: string }
+      return id ? `${window.location.origin}/trip/${id}` : null
+    } catch {
+      return null
+    }
+  }, [])
+
+  const handleShare = useCallback(async () => {
+    setSharing(true)
+    try {
+      setShareUrl(await createShareLink())
     } finally {
       setSharing(false)
     }
-  }, [])
+  }, [createShareLink])
 
   return (
     // The conversation now owns the width. The plan is a drawer you summon, not a permanent column.
@@ -324,6 +337,7 @@ export function PlannerScreen() {
         <BookingPanel
           trip={trip}
           initialView={booking}
+          onCreateLink={createShareLink}
           onClose={() => setBooking(false)}
           onStatusChange={(key, status) =>
             setTrip((t) => ({ ...t, bookings: { ...(t.bookings ?? {}), [key]: status } }))

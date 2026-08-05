@@ -43,7 +43,8 @@ describe('mergePlaceDetails', () => {
     const merged = mergePlaceDetails([place('a', { photos: ['thumb'] }), place('b')], {
       a: { photos: ['p1'], reviews: [{ text: 'Great.' }] },
     })
-    expect(merged[0].photos).toEqual(['thumb', 'p1'])
+    // Fetched first, thumbnail after: the thumbnail must never become the card's cover.
+    expect(merged[0].photos).toEqual(['p1', 'thumb'])
     expect(merged[0].reviewSnippets[0].text).toBe('Great.')
     expect(merged[1].photos).toEqual([])
   })

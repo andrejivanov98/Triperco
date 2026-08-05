@@ -432,8 +432,12 @@ export async function enrichPlace(place: Place, deps?: SearchDeps): Promise<Plac
   ])
   return {
     ...place,
-    // Keep whatever the search already gave us when a lookup came back empty.
-    photos: photos.length > 0 ? [...new Set([...place.photos, ...photos])] : place.photos,
+    /*
+     * The fetched gallery leads. These are full-size photos; what the search gave us is an 86px
+     * thumbnail, and appending rather than prepending left that thumbnail as the card's cover — a
+     * blurred smear in front of a dozen good photos. It stays on the end as a fallback.
+     */
+    photos: photos.length > 0 ? [...new Set([...photos, ...place.photos])] : place.photos,
     reviewSnippets: reviews.length > 0 ? reviews : place.reviewSnippets,
   }
 }

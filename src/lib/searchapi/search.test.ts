@@ -361,10 +361,17 @@ describe('enrichPlaces', () => {
     expect(enriched.reviewSnippets[0].text).toBe('Worth the queue.')
   })
 
-  it('keeps the thumbnail the search already gave us', async () => {
+  it('leads with a full-size photo, not the search thumbnail', async () => {
+    // The thumbnail is an 86px crop. Leading with it made a card's cover a blurred smear.
     const { deps } = enrichDeps()
     const [enriched] = await enrichPlaces([place('a')], 1, deps)
-    expect(enriched.photos[0]).toBe('https://thumb')
+    expect(enriched.photos[0]).toBe('https://p/1')
+  })
+
+  it('keeps the thumbnail on the end as a fallback', async () => {
+    const { deps } = enrichDeps()
+    const [enriched] = await enrichPlaces([place('a')], 1, deps)
+    expect(enriched.photos).toContain('https://thumb')
   })
 
   it('enriches only the first few, leaving the rest untouched', async () => {

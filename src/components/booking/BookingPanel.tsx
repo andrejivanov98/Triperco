@@ -76,6 +76,7 @@ export function BookingPanel({
   onClose,
   onStatusChange,
   initialView = 'partners',
+  onCreateLink,
 }: {
   trip: TripState
   onClose: () => void
@@ -83,6 +84,8 @@ export function BookingPanel({
   onStatusChange?: (key: string, status: BookingStatus) => void
   /** Opened from "Trip summary" rather than "Continue to book", so skip the links. */
   initialView?: 'partners' | 'summary'
+  /** Saves the trip and resolves to its shareable url, so the summary can be sent to someone. */
+  onCreateLink?: () => Promise<string | null>
 }) {
   const items = useMemo(() => bookableItems(trip), [trip])
   // Local echo so the pill updates instantly; the trip is the record that survives.
@@ -125,7 +128,7 @@ export function BookingPanel({
           <div className="flex items-center gap-2">
             {view === 'summary' && (
               <>
-                <SummaryShareButton title={title} />
+                <SummaryShareButton title={title} onCreateLink={onCreateLink} />
                 <button
                   type="button"
                   onClick={() => window.print()}

@@ -2,7 +2,42 @@ import type { TripState } from '@/lib/trip/types'
 import { arrivalDayLabel } from '@/lib/trip/flightDay'
 import { formatMoney, formatDuration, formatStops } from '@/lib/ui/format'
 import { formatDateRange } from '@/lib/trip/dates'
-import { Icon } from '@/components/ui/Icon'
+import { directionsUrl, placeUrl, telUrl } from '@/lib/trip/mapsLink'
+import { Icon, type IconName } from '@/components/ui/Icon'
+
+/**
+ * One thing to press. The summary is read on a phone while travelling, so an address has to be a tap
+ * to directions rather than something to select, copy and paste into another app.
+ *
+ * `print:hidden` because a link is worthless on paper — the printed sheet keeps the address text.
+ */
+function ActionLink({
+  href,
+  icon,
+  children,
+}: {
+  href: string
+  icon: IconName
+  children: React.ReactNode
+}) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      // Deliberately roomy: this is pressed with a thumb, often one-handed and in a hurry.
+      className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-white px-3 py-1.5 text-[11px] font-bold text-ink transition active:scale-[0.97] hover:bg-sand print:hidden"
+    >
+      <Icon name={icon} className="h-3.5 w-3.5 text-muted" />
+      {children}
+    </a>
+  )
+}
+
+/** The row of actions under one entry. Renders nothing when there is nothing to press. */
+function Actions({ children }: { children: React.ReactNode }) {
+  return <div className="mt-1.5 flex flex-wrap gap-1.5 print:hidden">{children}</div>
+}
 
 /**
  * The trip as a document: every part of the plan, in order, with the detail someone would want
@@ -65,6 +100,13 @@ export function TripSummarySheet({ trip }: { trip: TripState }) {
                     .filter(Boolean)
                     .join(' · ')}
                 </div>
+                {flight.bookUrl && (
+                  <Actions>
+                    <ActionLink href={flight.bookUrl} icon="plane">
+                      {flight.bookingStatus === 'booked' ? 'Booking' : 'Check the fare'}
+                    </ActionLink>
+                  </Actions>
+                )}
               </div>
             )
           })}
@@ -95,6 +137,29 @@ export function TripSummarySheet({ trip }: { trip: TripState }) {
                   .filter(Boolean)
                   .join(' · ')}
               </div>
+              {/* Where you sleep is the one address you navigate to most, and the one you ring. */}
+              <Actions>
+                {directionsUrl(stay) && (
+                  <ActionLink href={directionsUrl(stay)!} icon="route">
+                    Directions
+                  </ActionLink>
+                )}
+                {placeUrl(stay) && (
+                  <ActionLink href={placeUrl(stay)!} icon="pin">
+                    On the map
+                  </ActionLink>
+                )}
+                {telUrl(stay.phone) && (
+                  <ActionLink href={telUrl(stay.phone)!} icon="info">
+                    Call
+                  </ActionLink>
+                )}
+                {stay.bookUrl && (
+                  <ActionLink href={stay.bookUrl} icon="bed">
+                    Booking
+                  </ActionLink>
+                )}
+              </Actions>
             </div>
           ))}
         </section>
@@ -103,21 +168,45 @@ export function TripSummarySheet({ trip }: { trip: TripState }) {
       {activities.length > 0 && (
         <section className="flex flex-col gap-2">
           <h2 className="text-xs font-bold uppercase tracking-wide text-muted">Things to do</h2>
-          <ul className="flex flex-col gap-2">
-            {activities.map((item, i) => (
-              <li key={`${item.placeId}-${i}`} className="flex flex-col">
-                <span className="flex items-baseline justify-between gap-3">
-                  <span className="text-sm font-medium">{item.name}</span>
-                  {item.category && (
-                    <span className="shrink-0 text-xs font-medium text-muted">{item.category}</span>
+          <ul className="flex flex-col gap-3">
+            {activities.map((item, i) => {
+              const place = { name: item.name, address: item.address, coords: item.coords, placeId: item.placeId }
+              const directions = directionsUrl(place)
+              const onMap = placeUrl(place)
+              return (
+                <li key={`${item.placeId}-${i}`} className="flex flex-col">
+                  <span className="flex items-baseline justify-between gap-3">
+                    <span className="text-sm font-medium">{item.name}</span>
+                    {item.category && (
+                      <span className="shrink-0 text-xs font-medium text-muted">{item.category}</span>
+                    )}
+                  </span>
+                  {/* The address is what makes this useful once they are actually there. */}
+                  {item.address && (
+                    <span className="text-[11px] font-medium text-muted">{item.address}</span>
                   )}
-                </span>
-                {/* The address is what makes this useful once they are actually there. */}
-                {item.address && (
-                  <span className="text-[11px] font-medium text-muted">{item.address}</span>
-                )}
-              </li>
-            ))}
+                  {(directions || onMap || item.bookUrl) && (
+                    <Actions>
+                      {directions && (
+                        <ActionLink href={directions} icon="route">
+                          Directions
+                        </ActionLink>
+                      )}
+                      {onMap && (
+                        <ActionLink href={onMap} icon="pin">
+                          Details
+                        </ActionLink>
+                      )}
+                      {item.bookUrl && (
+                        <ActionLink href={item.bookUrl} icon="ticket">
+                          Book
+                        </ActionLink>
+                      )}
+                    </Actions>
+                  )}
+                </li>
+              )
+            })}
           </ul>
         </section>
       )}
