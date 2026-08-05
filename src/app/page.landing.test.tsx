@@ -18,9 +18,28 @@ import Home from './page'
 describe('landing page', () => {
   it('answers the first silent question: do I have to sign up', () => {
     render(<Home />)
-    const notice = screen.getByText(/free while we're in early access/i)
+    // The notice is split into two lines, so read the whole badge rather than one of them.
+    const notice = screen.getByText(/free while we're in early access/i).closest('p')
     expect(notice).toHaveTextContent(/no account/i)
     expect(notice).toHaveTextContent(/no card/i)
+  })
+
+  it('breaks the early-access notice into two deliberate lines on a phone', () => {
+    render(<Home />)
+    const first = screen.getByText(/free while we're in early access/i)
+    const second = screen.getByText(/no account, no card, just start planning/i)
+    // Two separate elements, stacked on a narrow screen and inline from sm up.
+    expect(first).not.toBe(second)
+    expect(first.parentElement?.className).toContain('flex-col')
+    expect(first.parentElement?.className).toContain('sm:block')
+  })
+
+  it('keeps the dot at the start of the notice, not adrift in the middle of it', () => {
+    render(<Home />)
+    const notice = screen.getByText(/free while we're in early access/i).closest('p')
+    // items-center left the dot vertically centred once the text wrapped, which read as a stray mark.
+    expect(notice?.className).toContain('items-start')
+    expect(notice?.className).toContain('sm:items-center')
   })
 
   it('clears the sticky header when a footer link jumps to a section', () => {

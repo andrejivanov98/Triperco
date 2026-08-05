@@ -28,10 +28,24 @@ export default function Home() {
 
       <main className="flex flex-col gap-14 pb-4">
         <section className="mx-auto flex w-full max-w-3xl flex-col items-center gap-5 px-5 pt-12 text-center sm:px-8">
-          {/* Said before the composer, because "do I have to sign up" is the first silent question. */}
-          <p className="inline-flex items-center gap-2 rounded-full border border-accent/25 bg-accent-050 px-3.5 py-1.5 text-xs font-semibold text-accent-600">
-            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
-            Free while we&apos;re in early access — no account, no card, just start planning
+          {/*
+            Said before the composer, because "do I have to sign up" is the first silent question.
+
+            On a phone this is two deliberate lines rather than three ragged ones, and the dot marks
+            the start of the first. Centred, it drifted into the middle of the wrapped block and read
+            as a stray mark rather than the beginning of a sentence.
+          */}
+          <p className="inline-flex items-start gap-2 rounded-2xl border border-accent/25 bg-accent-050 px-4 py-2 text-left text-xs font-semibold text-accent-600 sm:items-center sm:rounded-full sm:px-3.5 sm:py-1.5">
+            <span
+              aria-hidden
+              className="mt-[0.3rem] h-1.5 w-1.5 shrink-0 rounded-full bg-accent sm:mt-0"
+            />
+            {/* Stacked on a narrow screen, one sentence with its dash on a wide one. */}
+            <span className="flex flex-col sm:block">
+              <span>Free while we&apos;re in early access</span>
+              <span className="hidden sm:inline"> — </span>
+              <span>no account, no card, just start planning</span>
+            </span>
           </p>
           <Heading level={1} className="max-w-2xl text-4xl text-deep sm:text-5xl">
             Where are you heading next?

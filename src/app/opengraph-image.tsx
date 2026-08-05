@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og'
+import { LOGO_PATH } from '@/components/brand/Logo'
 
 export const alt = 'Triperco — plan your whole trip in one conversation'
 export const size = { width: 1200, height: 630 }
@@ -25,12 +26,9 @@ export default function OpengraphImage() {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+          {/* The same geometry as the app's mark, imported rather than copied so it cannot drift. */}
           <svg width="76" height="76" viewBox="0 0 32 32" fill="#14213A">
-            <path
-              fillRule="evenodd"
-              clipRule="evenodd"
-              d="M16 2C10.2 2 5.5 6.7 5.5 12.5c0 7.9 10.5 17.5 10.5 17.5s10.5-9.6 10.5-17.5C26.5 6.7 21.8 2 16 2ZM23.6 9.3 8.1 14l6 1.9.6 5.7ZM22.5 9.4 14.2 15.1l.6.9 8.3-5.7Z"
-            />
+            <path fillRule="evenodd" clipRule="evenodd" d={LOGO_PATH} />
           </svg>
           <div style={{ fontSize: 60, fontWeight: 800, color: '#14213A', letterSpacing: -2 }}>
             triperco
