@@ -37,21 +37,80 @@ describe('classifyActivity', () => {
   })
 
   it('does not mistake a restaurant for a tour', () => {
-    expect(classifyActivity(place({ category: 'Trattoria' }))).toBe('attraction')
-    expect(classifyActivity(place({ category: 'Wine bar' }))).toBe('attraction')
+    expect(classifyActivity(place({ category: 'Trattoria' }))).toBe('activity')
+    expect(classifyActivity(place({ category: 'Wine bar' }))).toBe('activity')
+  })
+})
+
+/**
+ * Somewhere you go to see something and somewhere you go to do something are not interchangeable
+ * suggestions, and a single "things to do" list made them look like they were.
+ */
+describe('classifyActivity — visiting versus doing', () => {
+  it('reads sights as places to visit', () => {
+    for (const category of [
+      'Museum',
+      'Historical landmark',
+      'Catholic cathedral',
+      'Observation deck',
+      'Art gallery',
+      'Castle',
+      'Park',
+    ]) {
+      expect(classifyActivity(place({ category }))).toBe('attraction')
+    }
+  })
+
+  it('reads eating and drinking as things to do', () => {
+    for (const category of ['Restaurant', 'Pizzeria', 'Coffee shop', 'Cocktail bar', 'Bakery']) {
+      expect(classifyActivity(place({ category }))).toBe('activity')
+    }
+  })
+
+  it('reads doing-something places as things to do', () => {
+    for (const category of [
+      'Water park',
+      'Spa',
+      'Bowling alley',
+      'Escape room center',
+      'Scuba diving center',
+      'Beach club',
+    ]) {
+      expect(classifyActivity(place({ category }))).toBe('activity')
+    }
+  })
+
+  it('keeps a booked wine tasting a tour, while a wine bar is a thing to do', () => {
+    expect(classifyActivity(place({ category: 'Wine tasting room' }))).toBe('tour')
+    expect(classifyActivity(place({ category: 'Wine bar' }))).toBe('activity')
+  })
+
+  it('reads the types list when the category says nothing useful', () => {
+    expect(classifyActivity(place({ category: 'Point of interest', types: ['Seafood restaurant'] }))).toBe(
+      'activity',
+    )
+  })
+
+  it('still lets a date and an explicit kind win', () => {
+    expect(classifyActivity(place({ category: 'Restaurant', startDate: '2026-08-02' }))).toBe('event')
+    expect(classifyActivity(place({ category: 'Restaurant', activityKind: 'attraction' }))).toBe(
+      'attraction',
+    )
   })
 })
 
 describe('activityKindLabel', () => {
   it('names each kind for what it is', () => {
-    expect(activityKindLabel('attraction', 4)).toBe('things to do')
+    expect(activityKindLabel('attraction', 4)).toBe('places to visit')
+    expect(activityKindLabel('activity', 4)).toBe('things to do')
     expect(activityKindLabel('tour', 4)).toBe('tours')
     expect(activityKindLabel('event', 4)).toBe('events')
   })
 
   it('reads correctly for one', () => {
     expect(activityKindLabel('event', 1)).toBe('event')
-    expect(activityKindLabel('attraction', 1)).toBe('thing to do')
+    expect(activityKindLabel('attraction', 1)).toBe('place to visit')
+    expect(activityKindLabel('activity', 1)).toBe('thing to do')
   })
 })
 

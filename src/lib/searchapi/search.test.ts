@@ -7,8 +7,10 @@ import {
   getPlacePhotos,
   getStayDetails,
   getDestinationPhoto,
+  enrichPlaces,
 } from './search'
 import { createInMemoryCache } from './cache'
+import type { Place } from '../trip/types'
 
 // A fake search fn that records calls and returns canned raw responses per engine.
 function fakeDeps(responses: Record<string, unknown>) {
@@ -326,5 +328,79 @@ describe('searchFlights — legs', () => {
     )
     expect(flights).toHaveLength(1)
     expect(flights[0].returnLeg).toBeUndefined()
+  })
+})
+
+/**
+ * A search result carries one thumbnail and at most one review quote. Everything that makes a
+ * "things to do" card worth looking at has to be fetched per place, so the first few are fetched up
+ * front and the rest fill in on demand.
+ */
+describe('enrichPlaces', () => {
+  function place(id: string): Place {
+    return { id, name: id, photos: ['https://thumb'], reviewSnippets: [], sourceLinks: {} }
+  }
+
+  function enrichDeps() {
+    const calls: string[] = []
+    const search = async <T>(engine: string): Promise<T> => {
+      calls.push(engine)
+      return (
+        engine === 'google_maps_photos'
+          ? { photos: [{ image: 'https://p/1' }, { image: 'https://p/2' }] }
+          : { reviews: [{ rating: 5, snippet: 'Worth the queue.' }] }
+      ) as T
+    }
+    return { deps: { search, cache: createInMemoryCache() }, calls }
+  }
+
+  it('merges photos and reviews onto a place', async () => {
+    const { deps } = enrichDeps()
+    const [enriched] = await enrichPlaces([place('a')], 1, deps)
+    expect(enriched.photos).toContain('https://p/1')
+    expect(enriched.reviewSnippets[0].text).toBe('Worth the queue.')
+  })
+
+  it('keeps the thumbnail the search already gave us', async () => {
+    const { deps } = enrichDeps()
+    const [enriched] = await enrichPlaces([place('a')], 1, deps)
+    expect(enriched.photos[0]).toBe('https://thumb')
+  })
+
+  it('enriches only the first few, leaving the rest untouched', async () => {
+    const { deps, calls } = enrichDeps()
+    const places = ['a', 'b', 'c', 'd', 'e'].map(place)
+    const result = await enrichPlaces(places, 2, deps)
+    expect(result[0].reviewSnippets).toHaveLength(1)
+    expect(result[4].reviewSnippets).toHaveLength(0)
+    // Two places, two lookups each.
+    expect(calls).toHaveLength(4)
+  })
+
+  it('never re-orders the list it was given', async () => {
+    const { deps } = enrichDeps()
+    const places = ['a', 'b', 'c'].map(place)
+    const result = await enrichPlaces(places, 2, deps)
+    expect(result.map((p) => p.id)).toEqual(['a', 'b', 'c'])
+  })
+
+  it('returns the places untouched when asked for none', async () => {
+    const { deps, calls } = enrichDeps()
+    const places = [place('a')]
+    expect(await enrichPlaces(places, 0, deps)).toEqual(places)
+    expect(calls).toHaveLength(0)
+  })
+
+  it('keeps the search when a lookup fails — a missing gallery is cosmetic', async () => {
+    const deps = {
+      cache: createInMemoryCache(),
+      search: async <T>(engine: string): Promise<T> => {
+        if (engine === 'google_maps_photos') throw new Error('503')
+        return { reviews: [{ rating: 5, snippet: 'Lovely.' }] } as T
+      },
+    }
+    const [enriched] = await enrichPlaces([place('a')], 1, deps)
+    expect(enriched.photos).toEqual(['https://thumb'])
+    expect(enriched.reviewSnippets[0].text).toBe('Lovely.')
   })
 })

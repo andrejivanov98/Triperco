@@ -16,6 +16,33 @@ const HEADING = /^\s*#{1,6}\s+/
 const TABLE_ROW = /^\s*\|.*\|?\s*$/
 const RULE = /^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/
 
+/*
+ * A model can emit something that is not conversation at all: a fenced block, a raw payload, a
+ * half-written tool call, a leaked provider tag. None of it means anything to a traveler, and
+ * rendering it literally is the worst thing this chat can do — so none of it survives parsing.
+ *
+ * These patterns match a whole line only. Prose that merely mentions a brace or a bracket is
+ * conversation and must come through untouched, so nothing here looks inside a line of text.
+ */
+
+/** ``` or ~~~, with or without a language tag. */
+const FENCE = /^\s*(?:```|~~~)/
+
+/*
+ * A JSON payload, in any of the shapes one arrives in: a brace or bracket alone on a line, a
+ * closing one, a `"key":` pair, or a whole object/array on one line.
+ *
+ * Opening a line with `{` or `[` is not enough on its own — `[the museum](url) opens at nine` is
+ * prose — so an opener must also carry a quoted key before the line is dropped.
+ */
+const PAYLOAD_LINE = /^\s*[{[]$|^\s*[}\]][,;]?$|^\s*"[\w-]+"\s*:|^\s*[{[].*"\s*:/
+
+/** `searchFlights({…})`, `print(results)` — a bare call and nothing else. No space before the paren, so "Rome (the capital)" is prose. */
+const CALL_ONLY = /^\s*[A-Za-z_$][\w$.]*\(.*\)[;,]?\s*$/
+
+/** A line that is only an XML-ish tag, e.g. the `<tool_call>` wrappers some providers leak. */
+const TAG_ONLY = /^\s*<\/?[A-Za-z_][\w:.-]*(?:\s[^>]*)?\/?>\s*$/
+
 /** `[label](url)` → `label`; `` `code` `` → `code`. */
 function stripSyntax(line: string): string {
   return line
@@ -51,10 +78,14 @@ function toSpans(line: string, allStrong = false): ChatSpan[] {
  * Parse assistant text into renderable blocks. Markdown markers never survive: emphasis becomes
  * spans, lists become bullet blocks, and headings/tables/rules are stripped. Chat should read as
  * conversation — structured trip data belongs in cards.
+ *
+ * Code, payloads and leaked tool tags never survive either. This runs on every token while the
+ * answer streams, so a fenced block cannot flash on screen even for one frame before it is removed.
  */
 export function parseChatText(raw: string): ChatBlock[] {
   const blocks: ChatBlock[] = []
   let bullets: ChatSpan[][] | null = null
+  let inFence = false
 
   const flush = () => {
     if (bullets?.length) blocks.push({ type: 'bullets', spans: [], items: bullets })
@@ -63,6 +94,24 @@ export function parseChatText(raw: string): ChatBlock[] {
 
   for (const line of raw.split('\n')) {
     const trimmed = line.trim()
+
+    /*
+     * A fence swallows everything up to its close. An unterminated one — which is exactly what a
+     * truncated or still-streaming code block looks like — swallows the rest of the message, so
+     * half-written code is never shown while it arrives.
+     */
+    if (FENCE.test(trimmed)) {
+      flush()
+      inFence = !inFence
+      continue
+    }
+    if (inFence) continue
+
+    if (PAYLOAD_LINE.test(trimmed) || CALL_ONLY.test(trimmed) || TAG_ONLY.test(trimmed)) {
+      flush()
+      continue
+    }
+
     if (!trimmed || RULE.test(trimmed) || TABLE_ROW.test(trimmed)) {
       flush()
       continue

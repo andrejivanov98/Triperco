@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { rankResults } from './rank'
+import { rankResults, BADGE_PRIORITY, MAX_CARDS } from './rank'
 import type { Flight, Stay, Place } from '@/lib/trip/types'
 
 function flight(p: Partial<Flight> & { id: string; price: number }): Flight {
@@ -32,9 +32,10 @@ describe('rankResults — flights', () => {
     expect(nonstop?.badges).toContain('Nonstop')
   })
 
-  it('puts the best value first and badges it', () => {
+  it('leads with the cheapest, and still badges the best value', () => {
     const ranked = rankResults({ kind: 'flights', items })
-    expect(ranked[0].badges).toContain('Best value')
+    expect(ranked[0].badges).toContain('Cheapest')
+    expect(ranked.flatMap((r) => r.badges)).toContain('Best value')
   })
 
   it('never gives one item the same badge twice', () => {
@@ -88,11 +89,24 @@ describe('rankResults — general', () => {
     expect(rankResults({ kind: 'flights', items: [] })).toEqual([])
   })
 
-  it('caps a set at eight cards so the chat stays scannable', () => {
+  it('shows ten cards by default', () => {
     const many = Array.from({ length: 20 }, (_, i) =>
       flight({ id: `f${i}`, price: 100 + i, durationMinutes: 200 }),
     )
-    expect(rankResults({ kind: 'flights', items: many })).toHaveLength(8)
+    expect(rankResults({ kind: 'flights', items: many })).toHaveLength(MAX_CARDS)
+    expect(MAX_CARDS).toBeGreaterThanOrEqual(10)
+  })
+
+  it('returns everything when the traveler asks to see it all', () => {
+    const many = Array.from({ length: 20 }, (_, i) =>
+      flight({ id: `f${i}`, price: 100 + i, durationMinutes: 200 }),
+    )
+    expect(rankResults({ kind: 'flights', items: many }, many.length)).toHaveLength(20)
+  })
+
+  it('never returns more than the set holds, however large the limit', () => {
+    const few = [flight({ id: 'a', price: 100 })]
+    expect(rankResults({ kind: 'flights', items: few }, 500)).toHaveLength(1)
   })
 
   it('keeps the badged winners even when the set is capped', () => {
@@ -102,6 +116,69 @@ describe('rankResults — general', () => {
     // f19 is both cheapest and fastest and would sort last by input order.
     const ranked = rankResults({ kind: 'flights', items: many })
     expect(ranked.map((r) => r.item.id)).toContain('f19')
+  })
+})
+
+/**
+ * The traveler should never have to scroll to find the obvious options. Provider order buries them:
+ * the cheapest stay was regularly the eleventh card.
+ */
+describe('rankResults — the standouts lead', () => {
+  it('orders the standouts by declared priority, cheapest first', () => {
+    const items = [
+      // Deliberately worst-first in provider order, so only ranking can fix it.
+      stay({ id: 'plain', pricePerNight: 120 }),
+      stay({ id: 'most-reviewed', pricePerNight: 130, rating: 4.2, reviewCount: 9000 }),
+      stay({ id: 'best-rated', pricePerNight: 140, rating: 4.9, reviewCount: 800 }),
+      stay({ id: 'cheapest', pricePerNight: 40, rating: 3.2, reviewCount: 500 }),
+    ]
+    const ranked = rankResults({ kind: 'stays', items })
+    expect(ranked[0].item.id).toBe('cheapest')
+    // Everything badged comes before the option with nothing to say for it.
+    expect(ranked.at(-1)?.item.id).toBe('plain')
+  })
+
+  it('puts a provider deal ahead of an option with no badge at all', () => {
+    const ranked = rankResults({
+      kind: 'stays',
+      items: [
+        // A third, cheaper stay takes the Cheapest badge, so these two are separated only by the deal.
+        stay({ id: 'cheapest', pricePerNight: 80 }),
+        stay({ id: 'plain', pricePerNight: 100 }),
+        stay({ id: 'deal', pricePerNight: 100, dealBadge: '24% less than usual' }),
+      ],
+    })
+    const order = ranked.map((r) => r.item.id)
+    expect(order.indexOf('deal')).toBeLessThan(order.indexOf('plain'))
+  })
+
+  it('badges the most reviewed stay, not just the most reviewed place', () => {
+    const ranked = rankResults({
+      kind: 'stays',
+      items: [
+        stay({ id: 'quiet', pricePerNight: 100, rating: 4.9, reviewCount: 40 }),
+        stay({ id: 'busy', pricePerNight: 110, rating: 4.3, reviewCount: 9000 }),
+      ],
+    })
+    const badges = new Map(ranked.map((r) => [r.item.id, r.badges]))
+    expect(badges.get('busy')).toContain('Most reviewed')
+  })
+
+  it('ranks places by rating and review weight, not provider order', () => {
+    const ranked = rankResults({
+      kind: 'places',
+      items: [
+        place({ id: 'plain' }),
+        place({ id: 'famous', rating: 4.6, reviewCount: 390000 }),
+        place({ id: 'hidden', rating: 4.9, reviewCount: 120 }),
+      ],
+    })
+    // 'Top rated' outranks 'Most reviewed' in BADGE_PRIORITY.
+    expect(ranked.map((r) => r.item.id)).toEqual(['hidden', 'famous', 'plain'])
+  })
+
+  it('lists cheapest ahead of best value in the declared priority', () => {
+    expect(BADGE_PRIORITY.indexOf('Cheapest')).toBeLessThan(BADGE_PRIORITY.indexOf('Best value'))
   })
 })
 

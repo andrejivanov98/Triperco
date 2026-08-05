@@ -12,7 +12,13 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params
   const doc = legalDocument(slug)
   // The root layout appends "· Triperco" via its title template.
-  return doc ? { title: doc.title, description: doc.summary } : {}
+  return doc
+    ? {
+        title: doc.title,
+        description: doc.summary,
+        alternates: { canonical: `/legal/${doc.slug}` },
+      }
+    : {}
 }
 
 export default async function LegalPage({ params }: { params: Promise<{ slug: string }> }) {

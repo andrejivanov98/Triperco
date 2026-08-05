@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { inter, fraunces, jakarta } from './fonts'
+import { siteUrl } from '@/lib/site'
 import './globals.css'
 
 const DESCRIPTION =
@@ -7,15 +8,12 @@ const DESCRIPTION =
 
 /**
  * metadataBase matters more than it looks: without it Next emits relative og:image URLs, which
- * every chat client ignores — so the link preview silently falls back to a bare URL. It reads the
- * Vercel-provided host in production and localhost in dev, so previews work in both.
+ * every chat client ignores — so the link preview silently falls back to a bare URL.
+ *
+ * Deliberately no `alternates.canonical` here: a canonical set on the root layout is inherited by
+ * every page that does not set its own, which would point the whole site at the homepage. Each
+ * page declares its own instead.
  */
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
-  ? `https://${process.env.NEXT_PUBLIC_SITE_URL.replace(/^https?:\/\//, '')}`
-  : process.env.VERCEL_PROJECT_PRODUCTION_URL
-    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-    : 'http://localhost:3000'
-
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {

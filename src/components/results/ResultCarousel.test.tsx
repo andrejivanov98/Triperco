@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { ResultCarousel } from './ResultCarousel'
 import type { Stay } from '@/lib/trip/types'
 
@@ -190,5 +190,134 @@ describe('ResultCarousel', () => {
     )
     // Flipping a photo must not open the detail panel by accident.
     expect(onOpen).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * A hotels search returns around twenty properties. Showing eight and silently discarding the rest
+ * threw away most of what the traveler had already paid a provider call for.
+ */
+describe('ResultCarousel — seeing the rest', () => {
+  const many = Array.from({ length: 18 }, (_, i) => stay(`s${i}`, 100 + i))
+
+  it('shows ten cards and offers the rest', () => {
+    render(<ResultCarousel set={{ kind: 'stays', items: many }} onOpen={() => {}} onAdd={() => {}} />)
+    expect(screen.getByTestId('show-all')).toBeInTheDocument()
+    expect(screen.getByText(/showing the best 10/i)).toBeInTheDocument()
+    expect(screen.getByText(/8 more found/i)).toBeInTheDocument()
+  })
+
+  it('expands to everything the search found, in place', () => {
+    render(<ResultCarousel set={{ kind: 'stays', items: many }} onOpen={() => {}} onAdd={() => {}} />)
+    fireEvent.click(screen.getByTestId('show-all'))
+    expect(screen.getByText('Hotel s17')).toBeInTheDocument()
+    expect(screen.getByText(/showing all 18/i)).toBeInTheDocument()
+    // The offer is spent — there is nothing further to reveal.
+    expect(screen.queryByTestId('show-all')).not.toBeInTheDocument()
+  })
+
+  it('offers nothing extra when the search already fits on screen', () => {
+    render(<ResultCarousel set={{ kind: 'stays', items }} onOpen={() => {}} onAdd={() => {}} />)
+    expect(screen.queryByTestId('show-all')).not.toBeInTheDocument()
+    expect(screen.queryByText(/showing the best/i)).not.toBeInTheDocument()
+  })
+
+  it('counts only what a traveler could actually pick', () => {
+    // A closed-down place is filtered before ranking, so it must not inflate the "more found" count.
+    const places = [
+      ...Array.from({ length: 11 }, (_, i) => ({
+        id: `p${i}`,
+        name: `Place ${i}`,
+        photos: [],
+        reviewSnippets: [],
+        sourceLinks: {},
+      })),
+      {
+        id: 'gone',
+        name: 'Old Bar',
+        photos: [],
+        reviewSnippets: [],
+        sourceLinks: {},
+        permanentlyClosed: true,
+      },
+    ]
+    render(<ResultCarousel set={{ kind: 'places', items: places }} onOpen={() => {}} onAdd={() => {}} />)
+    expect(screen.getByText(/1 more found/i)).toBeInTheDocument()
+  })
+})
+
+/**
+ * The search fills in the first few places; the rest are fetched in one batch so a twenty-card
+ * carousel does not cost forty provider calls up front.
+ */
+describe('ResultCarousel — filling in the remaining place cards', () => {
+  function bare(id: string) {
+    return {
+      id,
+      name: `Place ${id}`,
+      photos: ['https://thumb'],
+      reviewSnippets: [],
+      sourceLinks: {},
+    }
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('asks only about the cards the search left thin', async () => {
+    const calls: string[][] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string, init: RequestInit) => {
+        calls.push((JSON.parse(String(init.body)) as { placeIds: string[] }).placeIds)
+        return { ok: true, json: async () => ({ places: {} }) } as Response
+      }),
+    )
+
+    const items = [
+      { ...bare('rich'), photos: ['a', 'b'], reviewSnippets: [{ text: 'Lovely.' }] },
+      bare('thin'),
+    ]
+    render(<ResultCarousel set={{ kind: 'places', items }} onOpen={() => {}} onAdd={() => {}} />)
+
+    await waitFor(() => expect(calls).toHaveLength(1))
+    expect(calls[0]).toEqual(['thin'])
+  })
+
+  it('shows the quote once it arrives', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          places: { thin: { photos: ['https://p/1'], reviews: [{ text: 'Go at sunset.' }] } },
+        }),
+      }) as Response),
+    )
+
+    render(
+      <ResultCarousel set={{ kind: 'places', items: [bare('thin')] }} onOpen={() => {}} onAdd={() => {}} />,
+    )
+    await waitFor(() =>
+      expect(screen.getByTestId('place-quote')).toHaveTextContent('Go at sunset.'),
+    )
+  })
+
+  it('keeps the cards when the lookup fails', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      throw new Error('offline')
+    }))
+    render(
+      <ResultCarousel set={{ kind: 'places', items: [bare('thin')] }} onOpen={() => {}} onAdd={() => {}} />,
+    )
+    expect(screen.getByText('Place thin')).toBeInTheDocument()
+  })
+
+  it('never asks about stays or flights', () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    render(<ResultCarousel set={{ kind: 'stays', items }} onOpen={() => {}} onAdd={() => {}} />)
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 })

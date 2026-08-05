@@ -6,17 +6,28 @@ import type { Flight, Stay, Place, TripMeta } from '@/lib/trip/types'
 import type { ResultSet } from '@/lib/ui/results'
 import { getResultSets } from '@/lib/ui/results'
 import { revisionsFor, setId } from '@/lib/ui/revisions'
-import { getOptionSets, getForms } from '@/lib/ui/interactions'
+import {
+  getOptionSets,
+  getForms,
+  getDetailRequests,
+  getNotices,
+  getSuggestions,
+} from '@/lib/ui/interactions'
 import { ResultCarousel } from '@/components/results/ResultCarousel'
 import { MessageText } from './MessageText'
 import { OptionList } from './OptionList'
 import { PrefForm } from './PrefForm'
+import { DetailForm } from './DetailForm'
+import { SuggestionChips } from './SuggestionChips'
 import { ThinkingIndicator, ResultSkeleton } from './ThinkingIndicator'
 
 interface ChatPaneProps {
   messages: TriperUIMessage[]
   status: string
-  /** Retained for callers; no longer rendered — suggestions come as guided cards in the thread. */
+  /**
+   * Fallback next steps, derived from what the trip still needs. Used only when the agent did not
+   * propose its own for this turn, so the traveler always has somewhere to go.
+   */
   suggestions?: string[]
   onSend: (text: string) => void
   onAddResult?: (set: ResultSet, item: Flight | Stay | Place) => void
@@ -45,6 +56,7 @@ function isSearching(message: TriperUIMessage | undefined, busy: boolean): boole
 export function ChatPane({
   messages,
   status,
+  suggestions = [],
   onSend,
   onAddResult,
   onOpenDetail,
@@ -58,6 +70,18 @@ export function ChatPane({
   const last = messages[messages.length - 1]
   // Which carousels have been answered again since, so only the live set stays open.
   const revisions = revisionsFor(messages)
+
+  /*
+   * Chips belong to the newest assistant turn only. The agent writes them for the moment it just
+   * created — "Somewhere quieter" after stays, "Only nonstop" after flights — so carrying them down
+   * the whole thread would offer the traveler four searches' worth of stale next steps at once.
+   *
+   * When the agent didn't propose any, the trip-derived fallback fills in, so a turn never ends
+   * without a way forward.
+   */
+  const liveTurnId = last?.role === 'assistant' && !busy ? last.id : undefined
+  const agentReplies = last?.role === 'assistant' ? getSuggestions(last) : []
+  const liveReplies = agentReplies.length > 0 ? agentReplies : suggestions
 
   // Follow the conversation as it streams.
   useEffect(() => {
@@ -80,6 +104,8 @@ export function ChatPane({
           const sets = m.role === 'assistant' ? getResultSets(m) : []
           const options = m.role === 'assistant' ? getOptionSets(m) : []
           const forms = m.role === 'assistant' ? getForms(m) : []
+          const details = m.role === 'assistant' ? getDetailRequests(m) : []
+          const notices = m.role === 'assistant' ? getNotices(m) : []
           const text = messageText(m)
           const isUser = m.role === 'user'
 
@@ -101,6 +127,25 @@ export function ChatPane({
                   <MessageText text={text} />
                 </div>
               )}
+
+              {/*
+                Triperco's own voice, when the model's answer could not be shown. A recovered
+                sentence reads as normal prose; an outright failure is marked, so it is never
+                mistaken for trip information.
+              */}
+              {notices.map((notice, i) => (
+                <div
+                  key={`n${i}`}
+                  data-testid="turn-notice"
+                  data-kind={notice.kind}
+                  className={
+                    'max-w-full break-words text-[15px] sm:max-w-[92%] ' +
+                    (notice.kind === 'failed' ? 'font-medium text-muted' : 'font-medium text-ink')
+                  }
+                >
+                  <MessageText text={notice.text} />
+                </div>
+              ))}
 
               {sets.length > 0 && (
                 <div className="w-full min-w-0">
@@ -135,6 +180,25 @@ export function ChatPane({
                   />
                 </div>
               ))}
+
+              {details.map((request, i) => (
+                <div key={`d${i}`} className="w-full max-w-md">
+                  <DetailForm
+                    request={request}
+                    onSubmit={onSend}
+                    onSkip={() => onSend("Let's skip that.")}
+                  />
+                </div>
+              ))}
+
+              {/*
+                A guided card is already a question with its own answers, so chips beside one would
+                offer two competing ways to reply to the same thing.
+              */}
+              {m.id === liveTurnId &&
+                options.length === 0 &&
+                forms.length === 0 &&
+                details.length === 0 && <SuggestionChips replies={liveReplies} onPick={onSend} />}
             </div>
           )
         })}

@@ -88,3 +88,54 @@ describe('PlaceResultCard — events', () => {
     expect(screen.getByText('2026-08-04')).toBeInTheDocument()
   })
 })
+
+/**
+ * A rating is a number. What a place is actually like comes from a photo and something a visitor
+ * said, and the card carried neither until the traveler opened the detail panel.
+ */
+describe('PlaceResultCard — richer cards', () => {
+  it('quotes a real review when the search found one', () => {
+    render(
+      <PlaceResultCard
+        place={place({ reviewSnippets: [{ text: 'Go early, the queue is brutal by ten.' }] })}
+        onOpen={noop}
+        onAdd={noop}
+      />,
+    )
+    expect(screen.getByTestId('place-quote')).toHaveTextContent('Go early, the queue is brutal by ten.')
+  })
+
+  it('says how many photos there are, so the gallery is findable', () => {
+    render(
+      <PlaceResultCard
+        place={place({ photos: ['https://p/1', 'https://p/2', 'https://p/3'] })}
+        onOpen={noop}
+        onAdd={noop}
+      />,
+    )
+    expect(screen.getByText('3 photos')).toBeInTheDocument()
+  })
+
+  it('stays quiet about a gallery of one', () => {
+    render(<PlaceResultCard place={place({ photos: ['https://p/1'] })} onOpen={noop} onAdd={noop} />)
+    expect(screen.queryByText(/photos$/)).not.toBeInTheDocument()
+  })
+
+  it('renders cleanly with nothing extra to show', () => {
+    render(<PlaceResultCard place={place()} onOpen={noop} onAdd={noop} />)
+    expect(screen.queryByTestId('place-quote')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /add to trip/i })).toBeInTheDocument()
+  })
+
+  it('shows opening hours for a restaurant, which closes just like a museum', () => {
+    render(
+      <PlaceResultCard
+        place={place({ category: 'Trattoria', openNow: true, hours: '12–23' })}
+        onOpen={noop}
+        onAdd={noop}
+      />,
+    )
+    expect(screen.getByText('Open now')).toBeInTheDocument()
+    expect(screen.getByText('12–23')).toBeInTheDocument()
+  })
+})

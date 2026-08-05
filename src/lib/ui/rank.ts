@@ -6,8 +6,26 @@ export type RankedItem =
   | { kind: 'stays'; item: Stay; badges: string[] }
   | { kind: 'places'; item: Place; badges: string[] }
 
-/** How many cards one carousel shows — enough to choose from, few enough to scan. */
-export const MAX_CARDS = 8
+/** How many cards one carousel shows before the traveler asks for the rest. */
+export const MAX_CARDS = 10
+
+/**
+ * The order standout options lead in. First match wins, so a card carrying several badges takes the
+ * position of its strongest one.
+ *
+ * This is the single place to change what a carousel emphasises. The cheapest option leads
+ * deliberately: it is the most legible signal a traveler can act on, and burying it behind our own
+ * "best value" judgement asks them to trust a score they cannot see.
+ */
+export const BADGE_PRIORITY = [
+  'Cheapest',
+  'Best value',
+  'Best rated',
+  'Top rated',
+  'Most reviewed',
+  'Fastest',
+  'Nonstop',
+] as const
 
 /** Below this, a perfect star rating is noise rather than a signal. */
 const MIN_REVIEWS_FOR_RATING = 25
@@ -82,6 +100,9 @@ function stayBadges(items: Stay[]): Map<string, string[]> {
   add(bestValue?.id, 'Best value')
   add(minBy(items, (s) => s.pricePerNight || undefined)?.id, 'Cheapest')
   add(maxBy(credible, (s) => s.rating)?.id, 'Best rated')
+  // Weight of opinion is its own signal, and a stay carrying thousands of reviews is a safer pick
+  // than a higher average from a few dozen. Places have always said so; stays did not.
+  add(maxBy(credible, (s) => s.reviewCount)?.id, 'Most reviewed')
   for (const s of items) if (s.dealBadge) add(s.id, s.dealBadge)
 
   return badges
@@ -102,10 +123,26 @@ function placeBadges(items: Place[]): Map<string, string[]> {
 }
 
 /**
- * Score, badge and trim a result set: badged winners first, then the rest in provider order,
- * capped at MAX_CARDS. Pure — the domain objects are never mutated.
+ * Where a card sits, by the strongest badge it carries. Lower leads.
+ *
+ * A badge we do not rank explicitly — a provider deal like "24% less than usual" — still beats no
+ * badge at all, because it is a real reason to look.
  */
-export function rankResults(set: ResultSet): RankedItem[] {
+function tierOf(badges: string[]): number {
+  for (const [index, badge] of BADGE_PRIORITY.entries()) {
+    if (badges.includes(badge)) return index
+  }
+  return badges.length > 0 ? BADGE_PRIORITY.length : BADGE_PRIORITY.length + 1
+}
+
+/**
+ * Score, badge and trim a result set: the standout options first in BADGE_PRIORITY order, then the
+ * rest in provider order. Pure — the domain objects are never mutated.
+ *
+ * `limit` defaults to what a carousel shows; pass a larger one when the traveler has asked to see
+ * everything the search returned.
+ */
+export function rankResults(set: ResultSet, limit: number = MAX_CARDS): RankedItem[] {
   // A place that has closed down can't be planned around, so it never reaches the traveler.
   const items =
     set.kind === 'places' ? set.items.filter((p) => p.permanentlyClosed !== true) : set.items
@@ -125,17 +162,15 @@ export function rankResults(set: ResultSet): RankedItem[] {
     index,
   })) as (RankedItem & { index: number })[]
 
-  // Our recommendation leads, then the rest of the badged winners, then provider order.
-  const tier = (badges: string[]) =>
-    badges.includes('Best value') ? 0 : badges.length > 0 ? 1 : 2
-
   ranked.sort((a, b) => {
-    const t = tier(a.badges) - tier(b.badges)
+    const t = tierOf(a.badges) - tierOf(b.badges)
     if (t !== 0) return t
     // Among equals, lead with the one carrying the most reasons to pick it.
     if (a.badges.length !== b.badges.length) return b.badges.length - a.badges.length
     return a.index - b.index
   })
 
-  return ranked.slice(0, MAX_CARDS).map(({ kind, item, badges }) => ({ kind, item, badges }) as RankedItem)
+  return ranked
+    .slice(0, Math.max(0, limit))
+    .map(({ kind, item, badges }) => ({ kind, item, badges }) as RankedItem)
 }

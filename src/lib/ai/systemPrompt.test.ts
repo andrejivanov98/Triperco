@@ -92,3 +92,54 @@ describe('buildSystemPrompt — later refinements', () => {
     expect(buildSystemPrompt().toLowerCase()).toContain('closed down')
   })
 })
+
+describe('buildSystemPrompt — reading the traveler', () => {
+  it('tells the agent to record pace and vibe', () => {
+    const p = buildSystemPrompt()
+    expect(p).toContain('READ THE ROOM')
+    expect(p).toContain('pace, vibe')
+  })
+
+  it('names all three paces and what each one changes', () => {
+    const p = buildSystemPrompt()
+    for (const pace of ['"fast"', '"explore"', '"detailed"']) expect(p).toContain(pace)
+  })
+
+  it('tells the agent to match the mood rather than argue with it', () => {
+    expect(buildSystemPrompt().toLowerCase()).toContain(
+      'never argue with how they feel about their own trip',
+    )
+  })
+})
+
+/**
+ * The prompt used to say both "open every new trip with presentOptions, then stop and wait" and
+ * "never ask permission to search". Those cannot both be followed, and which one won was luck.
+ */
+describe('buildSystemPrompt — no contradiction about when to search', () => {
+  it('no longer tells the agent to open every trip with a menu', () => {
+    expect(buildSystemPrompt().toLowerCase()).not.toContain('open every new trip with presentoptions')
+  })
+
+  it('makes the fork depend on whether a task was named', () => {
+    const p = buildSystemPrompt()
+    expect(p).toContain('DID THEY SAY WHAT THEY WANT? THEN DO IT')
+    expect(p.toLowerCase()).toContain('never ask permission')
+  })
+
+  it('keeps presentOptions for the case where the path really does fork', () => {
+    expect(buildSystemPrompt()).toContain('presentOptions')
+  })
+})
+
+describe('buildSystemPrompt — controls over prose', () => {
+  it('requires askTripDetail for dates, party, budget and origin', () => {
+    const p = buildSystemPrompt()
+    expect(p).toContain('askTripDetail')
+    expect(p.toLowerCase()).toContain('never ask for those four in prose')
+  })
+
+  it('forbids code and payloads outright', () => {
+    expect(buildSystemPrompt().toLowerCase()).toContain('never write code, json, a payload')
+  })
+})

@@ -1,7 +1,13 @@
 import type { UIMessage } from 'ai'
 import type { TripMeta } from '../trip/types'
 import type { ResultSet } from './results'
-import type { OptionSet, PrefForm, ReplySuggestions } from './interactions'
+import type {
+  DetailRequest,
+  OptionSet,
+  PrefForm,
+  ReplySuggestions,
+  TurnNotice,
+} from './interactions'
 
 /**
  * Standard parts + custom data parts.
@@ -17,7 +23,9 @@ export type TriperUIMessage = UIMessage<
     results: ResultSet
     options: OptionSet
     form: PrefForm
+    detail: DetailRequest
     suggestions: ReplySuggestions
+    notice: TurnNotice
   }
 >
 

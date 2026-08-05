@@ -18,7 +18,8 @@ export function GuidedCard({
   footerRight,
 }: {
   title: string
-  children: ReactNode
+  /** Optional: a card whose only answer is typed (a departure city) has no rows to show. */
+  children?: ReactNode
   freeTextPlaceholder?: string
   onFreeText?: (text: string) => void
   onSkip?: () => void

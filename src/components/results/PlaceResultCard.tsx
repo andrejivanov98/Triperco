@@ -34,10 +34,12 @@ export function PlaceResultCard({
   const closedForGood = place.permanentlyClosed === true
   const kind = classifyActivity(place)
   const clashes = tripDates ? eventOutsideTrip(place, tripDates) : false
+  const quote = place.reviewSnippets?.[0]?.text?.trim()
 
   return (
     // A fixed frame: every card is the same size, so the photo and the buttons never shift.
-    <div className="flex h-[26rem] w-[min(19rem,80vw)] shrink-0 snap-start flex-col gap-3 rounded-[22px] border border-hairline bg-white/60 p-3">
+    // 28rem rather than 26: the review quote needs its two lines without pushing Add off the card.
+    <div className="flex h-[28rem] w-[min(19rem,80vw)] shrink-0 snap-start flex-col gap-3 rounded-[22px] border border-hairline bg-white/60 p-3">
       <button type="button" onClick={onOpen} className="flex h-[7.5rem] shrink-0 flex-col gap-1.5 overflow-hidden text-left">
         <div className="flex items-start justify-between gap-2">
           <span className="line-clamp-2 text-sm font-bold leading-snug text-ink">{place.name}</span>
@@ -111,7 +113,27 @@ export function PlaceResultCard({
             className="h-full w-full object-cover transition group-hover:scale-[1.03]"
           />
         </button>
+
+        {/* Say there is more to see, so the gallery is discoverable from the card. */}
+        {place.photos.length > 1 && (
+          <span className="pointer-events-none absolute bottom-2 right-2 rounded-full bg-deep/70 px-2 py-0.5 text-[10px] font-bold text-white">
+            {place.photos.length} photos
+          </span>
+        )}
       </div>
+
+      {/*
+        One real thing a visitor said, in their words. A rating is a number; this is the only part of
+        the card that tells you what the place is actually like.
+      */}
+      {quote && (
+        <p
+          data-testid="place-quote"
+          className="line-clamp-2 shrink-0 text-[11px] font-medium italic leading-relaxed text-muted"
+        >
+          “{quote}”
+        </p>
+      )}
 
       <div className="mt-auto flex items-center gap-2">
         {closedForGood ? (

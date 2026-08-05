@@ -56,10 +56,17 @@ export interface PriceInsight {
 
 /**
  * What sort of thing to do this is. They behave differently and flattening them loses what makes
- * each actionable: an attraction is somewhere you turn up (hours matter), a tour is something you
- * book (hours do not), and an event happens once (a date you can miss).
+ * each actionable.
+ *
+ * `attraction` — somewhere you go to see: a museum, a monument, a viewpoint. Hours matter.
+ * `activity`   — something you go to do: eat, drink, swim, climb. Hours matter.
+ * `tour`       — something you book ahead. Hours are irrelevant.
+ * `event`      — happens once, on a fixed date you can miss.
+ *
+ * `attraction` keeps its name for compatibility: it is the fallback in existing shared threads and
+ * in `resultSetKey`, so renaming it would silently re-bucket every set already in the wild.
  */
-export type ActivityKind = 'attraction' | 'tour' | 'event'
+export type ActivityKind = 'attraction' | 'activity' | 'tour' | 'event'
 
 export interface Place {
   id: string
@@ -230,6 +237,31 @@ export interface Day {
   items: ItineraryItem[]
 }
 
+/** How much the traveler wants to be asked, rather than told. */
+export type TripPace = 'fast' | 'explore' | 'detailed'
+
+/** The shape of trip they are after. A closed list, so it stays comparable across turns. */
+export type TripVibe =
+  | 'relaxed'
+  | 'foodie'
+  | 'culture'
+  | 'nightlife'
+  | 'family'
+  | 'adventure'
+  | 'budget'
+  | 'luxury'
+
+export const TRIP_VIBES: readonly TripVibe[] = [
+  'relaxed',
+  'foodie',
+  'culture',
+  'nightlife',
+  'family',
+  'adventure',
+  'budget',
+  'luxury',
+]
+
 export interface TripMeta {
   destination?: string
   startDate?: string
@@ -251,6 +283,18 @@ export interface TripMeta {
   pets?: number
   /** "Give or take a few days" — how far either side of the dates they will move. */
   dateFlexDays?: number
+  /**
+   * How this traveler wants to be helped, inferred from how they talk.
+   *
+   * `fast` — decisive; wants the answer, not the options. `explore` — browsing; wants to compare
+   * before committing. `detailed` — planning properly; wants the depth.
+   *
+   * Recorded because it decays otherwise: someone who opened with "just book me something cheap"
+   * was being asked to choose between four kinds of tour four turns later.
+   */
+  pace?: TripPace
+  /** What sort of trip they want, in their own terms. Steers what is worth surfacing. */
+  vibe?: TripVibe[]
 }
 
 export interface TripState {

@@ -19,9 +19,40 @@ const TOUR_PATTERNS = [
   /\bactivity (?:operator|provider)/i,
 ]
 
-function looksLikeTour(text: string | undefined): boolean {
+/**
+ * Somewhere you go to *do* something rather than to *see* something. Eating, drinking, swimming and
+ * climbing are not sightseeing, and mixing them into one list means "visit the Colosseum" and "take
+ * a cooking class" arrive as the same kind of suggestion.
+ *
+ * Checked after TOUR_PATTERNS, so a booked wine tasting stays a tour while a wine bar is an activity.
+ */
+const ACTIVITY_PATTERNS = [
+  /\brestaurant/i,
+  /\btrattoria|\bosteria|\btavern|\bbistro|\bbrasserie/i,
+  /\bpizzeria|\bsteakhouse|\bsushi\b|\bramen\b/i,
+  /\bcaf[eé]\b|\bcoffee/i,
+  /\bbar\b|\bpub\b|\bwine bar|\bcocktail|\bbrewery|\bbrewpub/i,
+  /\bnight ?club|\bdisco|\blounge\b/i,
+  /\bfood (?:court|hall|stand|truck)|\bmarket\b|\bdeli\b|\bbakery|\bice cream|\bgelato/i,
+  /\bspa\b|\bhammam|\bmassage|\bthermal bath|\bonsen/i,
+  /\bbeach club|\bwater ?park|\baqua ?park|\bswimming pool/i,
+  /\bamusement|\btheme park|\bfun ?fair|\barcade|\bbowling|\bkarting|\bgo-kart/i,
+  /\bescape room|\bpaintball|\blaser tag|\bmini ?golf/i,
+  /\bclimbing|\bbouldering|\bdiving|\bsnorkel|\bsurf|\bkayak|\brafting|\bzip ?line|\bski (?:resort|school)/i,
+  /\bgym\b|\byoga\b|\bfitness/i,
+]
+
+function matches(patterns: RegExp[], text: string | undefined): boolean {
   if (!text) return false
-  return TOUR_PATTERNS.some((pattern) => pattern.test(text))
+  return patterns.some((pattern) => pattern.test(text))
+}
+
+function looksLikeTour(text: string | undefined): boolean {
+  return matches(TOUR_PATTERNS, text)
+}
+
+function looksLikeActivity(text: string | undefined): boolean {
+  return matches(ACTIVITY_PATTERNS, text)
 }
 
 /** What kind of thing to do this is. An explicit kind from the provider always wins. */
@@ -30,15 +61,18 @@ export function classifyActivity(place: Place): ActivityKind {
   if (place.startDate) return 'event'
   if (looksLikeTour(place.category)) return 'tour'
   if ((place.types ?? []).some(looksLikeTour)) return 'tour'
+  if (looksLikeActivity(place.category)) return 'activity'
+  if ((place.types ?? []).some(looksLikeActivity)) return 'activity'
   return 'attraction'
 }
 
 /** The noun to put on a carousel of these. */
 export function activityKindLabel(kind: ActivityKind, count: number): string {
-  const plural = count === 1
-  if (kind === 'tour') return plural ? 'tour' : 'tours'
-  if (kind === 'event') return plural ? 'event' : 'events'
-  return plural ? 'thing to do' : 'things to do'
+  const singular = count === 1
+  if (kind === 'tour') return singular ? 'tour' : 'tours'
+  if (kind === 'event') return singular ? 'event' : 'events'
+  if (kind === 'activity') return singular ? 'thing to do' : 'things to do'
+  return singular ? 'place to visit' : 'places to visit'
 }
 
 /**
@@ -56,7 +90,11 @@ export function eventOutsideTrip(place: Place, meta: Pick<TripMeta, 'startDate' 
   return false
 }
 
-/** Whether opening hours mean anything for this kind. */
+/**
+ * Whether opening hours mean anything for this kind. They do for anywhere you turn up — a museum
+ * and a restaurant both close — and they do not for something you book or something with a fixed
+ * date of its own.
+ */
 export function showsOpeningHours(kind: ActivityKind): boolean {
-  return kind === 'attraction'
+  return kind === 'attraction' || kind === 'activity'
 }

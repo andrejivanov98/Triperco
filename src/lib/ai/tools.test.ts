@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildPlannerTools, createPlannerState } from './tools'
+import { buildPlannerTools, createPlannerState, allocateEnrichment } from './tools'
 import { createInMemoryCache } from '../searchapi/cache'
 
 // Fake SearchApi deps returning canned raw responses per engine.
@@ -207,5 +207,121 @@ describe('searchPlaces + getPlaceDetails', () => {
     expect(details.photos).toEqual(['https://p/1'])
     // enrichment cached on the stashed place
     expect(state.lastPlaces[0].reviewSnippets[0].text).toBe('Amazing.')
+  })
+})
+
+/**
+ * A museum, a restaurant, a walking tour and a concert are four different offers. Merging them into
+ * one "things to do" carousel made "visit the Colosseum" and "book a cooking class" arrive as the
+ * same kind of suggestion.
+ */
+describe('searchPlaces — four buckets', () => {
+  const mixed = {
+    google_maps: {
+      local_results: [
+        { title: 'Colosseum', place_id: 'sight', type: 'Historical landmark' },
+        { title: 'Da Enzo', place_id: 'food', type: 'Trattoria' },
+        { title: 'Vespa Tours', place_id: 'tour', type: 'Sightseeing tour agency' },
+      ],
+    },
+    google_maps_reviews: { reviews: [{ rating: 5, snippet: 'Worth it.' }] },
+    google_maps_photos: { photos: [{ image: 'https://p/1' }] },
+  }
+
+  it('splits one search into a carousel per kind', async () => {
+    const state = createPlannerState()
+    const tools = buildPlannerTools(state, fakeDeps(mixed))
+    await run(tools.searchPlaces, { q: 'things to do in Rome' })
+
+    const kinds = state.pendingResults.map((s) => (s.kind === 'places' ? s.placeKind : null))
+    expect(kinds).toContain('attraction')
+    expect(kinds).toContain('activity')
+    expect(kinds).toContain('tour')
+    // Nothing here has a date, so no events carousel is invented.
+    expect(kinds).not.toContain('event')
+  })
+
+  it('gives each bucket its own set key, so one never supersedes another', async () => {
+    const state = createPlannerState()
+    const tools = buildPlannerTools(state, fakeDeps(mixed))
+    await run(tools.searchPlaces, { q: 'things to do in Rome' })
+    const keys = state.pendingResults.map((s) => s.setKey)
+    expect(new Set(keys).size).toBe(keys.length)
+  })
+
+  it('puts each place in exactly one bucket', async () => {
+    const state = createPlannerState()
+    const tools = buildPlannerTools(state, fakeDeps(mixed))
+    await run(tools.searchPlaces, { q: 'things to do in Rome' })
+    const ids = state.pendingResults.flatMap((s) => s.items.map((i) => i.id))
+    expect(ids.sort()).toEqual(['food', 'sight', 'tour'])
+  })
+
+  it('tells the agent which kind each result is', async () => {
+    const state = createPlannerState()
+    const tools = buildPlannerTools(state, fakeDeps(mixed))
+    const places = await run(tools.searchPlaces, { q: 'things to do in Rome' })
+    const byId = new Map(places.map((p: { id: string; kind: string }) => [p.id, p.kind]))
+    expect(byId.get('sight')).toBe('attraction')
+    expect(byId.get('food')).toBe('activity')
+    expect(byId.get('tour')).toBe('tour')
+  })
+
+  it('arrives with photos and a real quote, not a bare name', async () => {
+    const state = createPlannerState()
+    const tools = buildPlannerTools(state, fakeDeps(mixed))
+    const places = await run(tools.searchPlaces, { q: 'things to do in Rome' })
+    expect(places[0].reviewQuote).toBe('Worth it.')
+    // Kept on the stashed copy too, so adding it to the plan carries the photo.
+    expect(state.lastPlaces[0].photos).toContain('https://p/1')
+  })
+
+  it('surfaces a provider failure as data rather than throwing', async () => {
+    const deps = {
+      cache: undefined,
+      search: async () => {
+        throw new Error('502 bad gateway')
+      },
+    } as never
+    const tools = buildPlannerTools(createPlannerState(), deps)
+    const result = await run(tools.searchPlaces, { q: 'things to do in Rome' })
+    expect(result.error).toMatch(/502/)
+  })
+})
+
+/**
+ * One place search can split four ways, and each enriched place costs two provider calls. A
+ * per-bucket budget would have made a single question cost twenty-four of them.
+ */
+describe('allocateEnrichment', () => {
+  it('fills every bucket’s leading card before any bucket gets a second', () => {
+    expect(allocateEnrichment([5, 5, 5, 5], 4)).toEqual([1, 1, 1, 1])
+  })
+
+  it('spends the whole budget on one bucket when there is only one', () => {
+    expect(allocateEnrichment([9], 4)).toEqual([4])
+  })
+
+  it('never allocates more than a bucket holds', () => {
+    expect(allocateEnrichment([1, 1], 4)).toEqual([1, 1])
+  })
+
+  it('hands the spare capacity to the buckets that can use it', () => {
+    expect(allocateEnrichment([1, 5], 4)).toEqual([1, 3])
+  })
+
+  it('never exceeds the budget in total', () => {
+    const quota = allocateEnrichment([10, 10, 10, 10], 4)
+    expect(quota.reduce((a, b) => a + b, 0)).toBe(4)
+  })
+
+  it('handles no buckets at all', () => {
+    expect(allocateEnrichment([], 4)).toEqual([])
+  })
+
+  it('stays inside the Balanced budget for a four-way split', () => {
+    // Four places enriched, two provider calls each: eight, not twenty-four.
+    const total = allocateEnrichment([6, 6, 6, 6]).reduce((a, b) => a + b, 0)
+    expect(total * 2).toBeLessThanOrEqual(8)
   })
 })

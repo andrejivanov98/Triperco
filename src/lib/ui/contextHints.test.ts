@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { buildContextHints, formatContextHints, visibleSets } from './contextHints'
+import { MAX_CARDS } from './rank'
 import type { ResultSet } from './results'
 import type { Flight, Stay, Place } from '@/lib/trip/types'
 
@@ -76,10 +77,11 @@ describe('buildContextHints — positions match the screen', () => {
   })
 
   it('reports that more results exist beyond the cards shown', () => {
-    const items = Array.from({ length: 12 }, (_, i) => stay(`s${i}`, { pricePerNight: 100 + i }))
+    const items = Array.from({ length: 16 }, (_, i) => stay(`s${i}`, { pricePerNight: 100 + i }))
     const [hint] = buildContextHints({ sets: [{ kind: 'stays', items }], capturedAt: AT })
     const parsed = payload(hint.content)
-    expect(parsed.showing).toBe(8)
+    // Read from MAX_CARDS, not repeated: the hint must describe exactly the cards on screen.
+    expect(parsed.showing).toBe(MAX_CARDS)
     expect(parsed.has_more_results).toBe(true)
   })
 })

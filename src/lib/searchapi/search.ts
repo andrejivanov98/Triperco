@@ -162,8 +162,14 @@ export async function searchMultiCity(
   })
 }
 
-/** How many round trips we complete with a return leg. Each one costs an extra provider call. */
-const ROUND_TRIP_PAIRS = 4
+/**
+ * How many round trips we complete with a return leg. Each one costs an extra provider call.
+ *
+ * This number is the hard ceiling on how many round trips a traveler can ever choose between: the
+ * provider serves returns one outbound at a time, and an outbound with no return is not a round
+ * trip. At four, every round-trip search in the app showed exactly four cards.
+ */
+const ROUND_TRIP_PAIRS = 10
 
 /**
  * City-wide codes look right but return noticeably fewer itineraries than the city's main
@@ -404,6 +410,49 @@ export async function searchPlaces(params: PlaceParams, deps?: SearchDeps): Prom
     })
     return normalizePlaces(raw)
   })
+}
+
+/**
+ * How many places get their photos and reviews fetched as part of the search.
+ *
+ * Each one costs two extra provider calls, so this is a deliberate trade: the cards a traveler
+ * actually looks at first arrive complete, and the rest fill in from the batch endpoint as they
+ * scroll. Both halves are cached for a day, so a second look costs nothing.
+ */
+export const ENRICH_AT_SEARCH = 3
+
+/**
+ * Photos and reviews for one place, merged onto it. Failures are swallowed per place: a missing
+ * gallery is cosmetic, and losing the whole search over one of them would not be.
+ */
+export async function enrichPlace(place: Place, deps?: SearchDeps): Promise<Place> {
+  const [photos, reviews] = await Promise.all([
+    getPlacePhotos(place.id, deps).catch(() => [] as string[]),
+    getPlaceReviews(place.id, deps).catch(() => [] as ReviewSnippet[]),
+  ])
+  return {
+    ...place,
+    // Keep whatever the search already gave us when a lookup came back empty.
+    photos: photos.length > 0 ? [...new Set([...place.photos, ...photos])] : place.photos,
+    reviewSnippets: reviews.length > 0 ? reviews : place.reviewSnippets,
+  }
+}
+
+/**
+ * Fill in the first few places so their cards have something to show, concurrently.
+ *
+ * Order is preserved: the caller has already ranked these, and re-ordering them here would move the
+ * cards out from under the positions the agent was told about.
+ */
+export async function enrichPlaces(
+  places: Place[],
+  limit = ENRICH_AT_SEARCH,
+  deps?: SearchDeps,
+): Promise<Place[]> {
+  const count = Math.max(0, Math.min(limit, places.length))
+  if (count === 0) return places
+  const enriched = await Promise.all(places.slice(0, count).map((p) => enrichPlace(p, deps)))
+  return [...enriched, ...places.slice(count)]
 }
 
 export interface EventParams {

@@ -3,7 +3,8 @@ import { z } from 'zod'
 import type { TripState, Flight, Stay, Place } from '../trip/types'
 import type { ResultSet } from '../ui/results'
 import { makeSetKey } from '../ui/results'
-import type { OptionSet, PrefForm, ReplySuggestions } from '../ui/interactions'
+import { rankResults } from '../ui/rank'
+import type { DetailRequest, OptionSet, PrefForm, ReplySuggestions } from '../ui/interactions'
 import { createTrip, setMeta } from '../trip/tripState'
 import { mergeStayDetail } from '../trip/mergeStay'
 import { stayVerdict } from '../trip/stayVerdict'
@@ -18,6 +19,7 @@ import {
   getTransferOptions as apiGetTransferOptions,
   getPlaceReviews as apiGetPlaceReviews,
   getPlacePhotos as apiGetPlacePhotos,
+  enrichPlaces as apiEnrichPlaces,
   getStayDetails as apiGetStayDetails,
   type SearchDeps,
 } from '../searchapi/search'
@@ -32,6 +34,7 @@ export interface PlannerState {
   pendingResults: ResultSet[]
   pendingOptions: OptionSet[]
   pendingForms: PrefForm[]
+  pendingDetails: DetailRequest[]
   pendingSuggestions: ReplySuggestions[]
 }
 
@@ -44,6 +47,7 @@ export function createPlannerState(trip?: TripState): PlannerState {
     pendingResults: [],
     pendingOptions: [],
     pendingForms: [],
+    pendingDetails: [],
     pendingSuggestions: [],
   }
 }
@@ -51,6 +55,54 @@ export function createPlannerState(trip?: TripState): PlannerState {
 function hours(minutes?: number): string | undefined {
   if (minutes === undefined) return undefined
   return `${Math.floor(minutes / 60)}h ${minutes % 60}m`
+}
+
+/** How many options one tool result describes. A little past what the carousel shows, so the agent has room to compare. */
+const TOOL_RESULT_LIMIT = 12
+
+/** The places member of the union, so a bucket keeps its `Place[]` items through a reassignment. */
+type PlaceSet = Extract<ResultSet, { kind: 'places' }>
+
+/**
+ * How many places one search enriches with photos and reviews, across every bucket it produced.
+ *
+ * Shared rather than per-bucket on purpose. One search can split four ways, so enriching three of
+ * each would be twenty-four provider calls to answer a single question.
+ */
+export const ENRICH_BUDGET = 4
+
+/**
+ * Spread the enrichment budget over the buckets, one at a time round-robin.
+ *
+ * Every carousel's leading card is what gets read, so each bucket gets its first place filled in
+ * before any bucket gets a second. Returns a per-bucket count, in the order given.
+ */
+export function allocateEnrichment(sizes: number[], budget = ENRICH_BUDGET): number[] {
+  const quota = sizes.map(() => 0)
+  let spent = 0
+  let progressed = true
+  while (spent < budget && progressed) {
+    progressed = false
+    for (const [i, size] of sizes.entries()) {
+      if (spent >= budget) break
+      if (quota[i] >= size) continue
+      quota[i] += 1
+      spent += 1
+      progressed = true
+    }
+  }
+  return quota
+}
+
+/**
+ * A result set in the order the traveler will see it, so "the first one" means the same thing to the
+ * agent and to the person reading the cards.
+ *
+ * Before this, tools described the provider's own order while the screen showed our ranking, so the
+ * agent's "the first is cheapest" could point at the third card.
+ */
+function asShown<T extends Flight | Stay | Place>(set: ResultSet): T[] {
+  return rankResults(set, TOOL_RESULT_LIMIT).map((entry) => entry.item as T)
 }
 
 /**
@@ -87,6 +139,31 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
           .number()
           .optional()
           .describe('How many days either side they can move, if they said their dates are flexible'),
+        pace: z
+          .enum(['fast', 'explore', 'detailed'])
+          .optional()
+          .describe(
+            'How they want to be helped, read from how they talk. "fast" — decisive, wants the answer ' +
+              '("just book something cheap", "surprise me"). "explore" — browsing, wants to compare ' +
+              '("what are my options?", "show me a few"). "detailed" — planning properly ("I want to ' +
+              'see everything", "plan it day by day"). Record it the moment you can tell, and revise it ' +
+              'if they change register.',
+          ),
+        vibe: z
+          .array(
+            z.enum([
+              'relaxed',
+              'foodie',
+              'culture',
+              'nightlife',
+              'family',
+              'adventure',
+              'budget',
+              'luxury',
+            ]),
+          )
+          .optional()
+          .describe('The sort of trip they want, from what they said. Only what they actually signalled.'),
       }),
       execute: async (patch) => {
         state.trip = setMeta(state.trip, patch)
@@ -144,14 +221,15 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
               : ('one_way' as const)
           // Same route, same leg means the same question — searching it again revises the set.
           const route = `${params.departure_id} → ${params.arrival_id}`
-          state.pendingResults.push({
+          const set: ResultSet = {
             kind: 'flights',
             query: route,
             setKey: makeSetKey('flights', route, flightType),
             items: state.lastFlights,
             flightType,
-          })
-          return state.lastFlights.slice(0, 10).map((f) => ({
+          }
+          state.pendingResults.push(set)
+          return asShown<Flight>(set).map((f) => ({
             id: f.id,
             from: f.from,
             to: f.to,
@@ -196,14 +274,15 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
         withToolError(async () => {
           state.lastFlights = await apiSearchMultiCity(params, deps)
           const route = params.legs.map((l) => l.departure_id).concat(params.legs.at(-1)!.arrival_id).join(' → ')
-          state.pendingResults.push({
+          const set: ResultSet = {
             kind: 'flights',
             query: route,
             setKey: makeSetKey('flights', route, 'one_way'),
             items: state.lastFlights,
             flightType: 'one_way',
-          })
-          return state.lastFlights.slice(0, 10).map((f) => ({
+          }
+          state.pendingResults.push(set)
+          return asShown<Flight>(set).map((f) => ({
             id: f.id,
             airline: f.airline,
             from: f.from,
@@ -242,13 +321,14 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
             check_out_date: params.check_out_date,
             adults: params.adults,
           }
-          state.pendingResults.push({
+          const set: ResultSet = {
             kind: 'stays',
             query: params.q,
             setKey: makeSetKey('stays', params.q),
             items: state.lastStays,
-          })
-          return state.lastStays.slice(0, 10).map((s) => ({
+          }
+          state.pendingResults.push(set)
+          return asShown<Stay>(set).map((s) => ({
             id: s.id,
             name: s.name,
             kind: s.kind,
@@ -315,28 +395,54 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
 
     searchPlaces: tool({
       description:
-        'Search places, attractions and restaurants near a location. The traveler picks what goes into the plan — you only surface options.',
+        'Search things to see and do near a location. Results are split into places to visit ' +
+        '(museums, landmarks, viewpoints), things to do (food, drink, spas, activities) and tours ' +
+        '(booked ahead) — they are different offers and never share a carousel, so write a query for ' +
+        'the one you want: "top sights in Rome" vs "best restaurants in Rome" vs "walking tours in Rome". ' +
+        'The traveler picks what goes into the plan — you only surface options.',
       inputSchema: z.object({
-        q: z.string().describe('What to search, e.g. "top attractions in Rome"'),
+        q: z.string().describe('What to search, e.g. "top sights in Rome" or "best restaurants in Rome"'),
         ll: z.string().optional().describe('GPS bias, format "@lat,lng,zoom"'),
       }),
       execute: async (params) =>
         withToolError(async () => {
           const found = await apiSearchPlaces(params, deps)
-          state.lastPlaces = found
-          // Tours are booked and attractions are turned up at, so they never share a carousel.
-          for (const kind of ['attraction', 'tour'] as const) {
-            const items = found.filter((p) => classifyActivity(p) === kind)
-            if (items.length === 0) continue
-            state.pendingResults.push({
-              kind: 'places',
-              query: params.q,
-              setKey: makeSetKey('places', params.q, kind),
-              placeKind: kind,
-              items,
-            })
-          }
-          return found.slice(0, 12).map((p) => ({
+
+          /*
+           * Four different offers, four carousels. Somewhere you go to see something, somewhere you
+           * go to do something, something you book, and something with a fixed date are not
+           * interchangeable suggestions, and one merged list made them look like they were.
+           */
+          const drafts = (['attraction', 'activity', 'tour', 'event'] as const)
+            .map((kind) => ({ kind, items: found.filter((p) => classifyActivity(p) === kind) }))
+            .filter((draft) => draft.items.length > 0)
+
+          const quota = allocateEnrichment(drafts.map((d) => d.items.length))
+
+          const live = await Promise.all(
+            drafts.map(async ({ kind, items }, i) => {
+              const set: PlaceSet = {
+                kind: 'places',
+                query: params.q,
+                setKey: makeSetKey('places', params.q, kind),
+                placeKind: kind,
+                items,
+              }
+              // Enrich in ranked order, so the cards that arrive complete are the ones read first.
+              const ranked = asShown<Place>(set)
+              set.items = [
+                ...(await apiEnrichPlaces(ranked, quota[i], deps)),
+                ...items.filter((p) => !ranked.includes(p)),
+              ]
+              return set
+            }),
+          )
+
+          for (const set of live) state.pendingResults.push(set)
+          // Keep the enriched copies, so a later detail lookup or add carries the photos we fetched.
+          state.lastPlaces = live.flatMap((set) => set.items)
+
+          return state.lastPlaces.slice(0, TOOL_RESULT_LIMIT).map((p) => ({
             id: p.id,
             name: p.name,
             kind: classifyActivity(p),
@@ -346,6 +452,9 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
             price: p.priceRange,
             hours: p.hours,
             address: p.address,
+            // So a recommendation can quote something real without a second lookup.
+            reviewQuote: p.reviewSnippets[0]?.text?.slice(0, 200),
+            photoCount: p.photos.length,
           }))
         }),
     }),
@@ -362,14 +471,15 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
         withToolError(async () => {
           const events = await apiSearchEvents(params, deps)
           state.lastPlaces = [...state.lastPlaces, ...events]
-          state.pendingResults.push({
+          const set: ResultSet = {
             kind: 'places',
             query: params.q,
             setKey: makeSetKey('places', params.q, 'event'),
             placeKind: 'event',
             items: events,
-          })
-          return events.slice(0, 10).map((e) => ({
+          }
+          state.pendingResults.push(set)
+          return asShown<Place>(set).map((e) => ({
             id: e.id,
             name: e.name,
             date: e.startDate,
@@ -387,18 +497,19 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
       description:
         'Fetch reviews and photos for a searched place by id, to enrich its card. Use before recommending so you can cite real pros and cons.',
       inputSchema: z.object({ id: z.string() }),
-      execute: async ({ id }) => {
-        const [reviews, photos] = await Promise.all([
-          apiGetPlaceReviews(id, deps),
-          apiGetPlacePhotos(id, deps),
-        ])
-        const place = state.lastPlaces.find((p) => p.id === id)
-        if (place) {
-          place.reviewSnippets = reviews
-          if (photos.length) place.photos = photos
-        }
-        return { reviews: reviews.slice(0, 5), photos: photos.slice(0, 5) }
-      },
+      execute: async ({ id }) =>
+        withToolError(async () => {
+          const [reviews, photos] = await Promise.all([
+            apiGetPlaceReviews(id, deps),
+            apiGetPlacePhotos(id, deps),
+          ])
+          const place = state.lastPlaces.find((p) => p.id === id)
+          if (place) {
+            place.reviewSnippets = reviews
+            if (photos.length) place.photos = photos
+          }
+          return { reviews: reviews.slice(0, 5), photos: photos.slice(0, 5) }
+        }),
     }),
 
     getTransferOptions: tool({
@@ -444,6 +555,27 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
       execute: async ({ replies }) => {
         state.pendingSuggestions.push({ replies })
         return { suggested: replies.length }
+      },
+    }),
+
+    askTripDetail: tool({
+      description:
+        'Ask for a concrete trip detail with the right control instead of a typed answer: "dates" ' +
+        'opens a calendar, "party" opens rooms/adults/children steppers, "budget" offers rough bands, ' +
+        '"origin" asks for a departure city. ALWAYS prefer this over asking in prose when you need one ' +
+        'of these four — a traveler who has not decided yet has nothing to type, and a calendar is how ' +
+        'they work it out. After calling this, STOP and wait for their answer.',
+      inputSchema: z.object({
+        field: z
+          .enum(['dates', 'party', 'origin', 'budget'])
+          .describe('Which detail you need. One per call.'),
+        question: z
+          .string()
+          .describe('The question in your own voice, e.g. "When were you thinking of going?"'),
+      }),
+      execute: async ({ field, question }) => {
+        state.pendingDetails.push({ field, question })
+        return { asked: field }
       },
     }),
 

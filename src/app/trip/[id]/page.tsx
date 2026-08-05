@@ -13,11 +13,16 @@ import { formatDateRange } from '@/lib/trip/dates'
  * This is the link people actually paste into a chat, so the preview has to carry the trip rather
  * than the product: its name, where and when, and the destination photo if we have one. The root
  * layout's title template appends "· Triperco", so the title here is just the trip.
+ *
+ * Every one of these is noindex. Sharing a plan with three friends is not publishing it, and the
+ * link is the only thing protecting it — a trip turning up in search results would be a leak, not
+ * traffic. The preview crawlers that matter here read og: tags and ignore robots directives, so
+ * noindex costs the shared link nothing.
  */
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const trip = await getTripStore().load(id)
-  if (!trip) return { title: 'Trip not found' }
+  if (!trip) return { title: 'Trip not found', robots: { index: false, follow: false } }
 
   const title = trip.meta.title ?? `${trip.meta.destination ?? 'A'} trip`
   const range = formatDateRange(trip.meta.startDate, trip.meta.endDate)
@@ -32,6 +37,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return {
     title,
     description,
+    robots: { index: false, follow: false },
     openGraph: {
       title: `${title} · Triperco`,
       description,

@@ -75,9 +75,12 @@ function serviceOptions(raw?: RawLocalResult['extensions']): string[] | undefine
 
 export function normalizePlaces(raw: RawMapsResponse): Place[] {
   return (raw.local_results ?? []).map((r) => {
-    const photos: string[] = []
-    if (r.thumbnail) photos.push(r.thumbnail)
-    else if (r.images?.length) photos.push(...r.images)
+    /*
+     * Every photo the provider gave us, thumbnail first. Before this only the thumbnail survived and
+     * `images` was discarded, so a place with a dozen photos arrived with one and the card had
+     * nothing to show.
+     */
+    const photos = [...new Set([r.thumbnail, ...(r.images ?? [])].filter((p): p is string => Boolean(p)))]
     return {
       id: r.place_id,
       name: r.title,

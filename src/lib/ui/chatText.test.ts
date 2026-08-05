@@ -88,3 +88,59 @@ describe('parseChatText', () => {
     expect(block.spans.map((s) => s.text).join('')).toBe('Use SKP as the airport.')
   })
 })
+
+/**
+ * The model occasionally emits something that is not conversation at all — a fenced block, a raw
+ * payload, a half-written tool call. None of it is ever useful to a traveler, and rendering it
+ * literally is the single worst thing the chat can do, so it never survives parsing.
+ */
+describe('parseChatText — code and payloads never render', () => {
+  it('drops a fenced block whole, keeping the prose around it', () => {
+    const blocks = parseChatText(
+      'Here are your flights:\n```json\n{"flights": [{"price": 120}]}\n```\nThe first is cheapest.',
+    )
+    const text = blocks.flatMap((b) => b.spans ?? []).map((s) => s.text).join(' ')
+    expect(text).toContain('Here are your flights:')
+    expect(text).toContain('The first is cheapest.')
+    expect(text).not.toContain('{')
+    expect(text).not.toContain('price')
+  })
+
+  it('drops an unterminated fence and everything after it', () => {
+    const blocks = parseChatText('Found 12 stays.\n```\nconst x = await search()')
+    const text = blocks.flatMap((b) => b.spans ?? []).map((s) => s.text).join(' ')
+    expect(text).toBe('Found 12 stays.')
+  })
+
+  it('drops a fence marker carrying a language tag on its own line', () => {
+    expect(parseChatText('```typescript\nexport const a = 1\n```')).toEqual([])
+  })
+
+  it('drops a bare JSON object or array, even unfenced', () => {
+    expect(parseChatText('{"tool": "searchFlights", "args": {"departure_id": "SKP"}}')).toEqual([])
+    expect(parseChatText('[{"id": "f1"}, {"id": "f2"}]')).toEqual([])
+  })
+
+  it('drops a line that is only a function or tool call', () => {
+    expect(parseChatText('searchFlights({"departure_id": "SKP"})')).toEqual([])
+    expect(parseChatText('print(results)')).toEqual([])
+  })
+
+  it('drops xml-ish tool tags the provider sometimes leaks', () => {
+    const blocks = parseChatText(
+      '<tool_call>\n{"name": "searchHotels"}\n</tool_call>\n14 stays in Trastevere.',
+    )
+    const text = blocks.flatMap((b) => b.spans ?? []).map((s) => s.text).join(' ')
+    expect(text).toBe('14 stays in Trastevere.')
+  })
+
+  it('keeps prose that merely mentions braces or code words', () => {
+    const [block] = parseChatText('The hotel is on Via del Corso (near the {old} quarter).')
+    expect(block.spans.map((s) => s.text).join('')).toContain('Via del Corso')
+  })
+
+  it('keeps a price that starts a sentence, which is not a payload', () => {
+    const [block] = parseChatText('$180 a night, breakfast included.')
+    expect(block.spans.map((s) => s.text).join('')).toBe('$180 a night, breakfast included.')
+  })
+})

@@ -1,7 +1,7 @@
 import type { Flight, Stay, Place } from '@/lib/trip/types'
 import type { ResultSet } from './results'
 import { resultSetKey } from './results'
-import { rankResults } from './rank'
+import { rankResults, MAX_CARDS } from './rank'
 
 /**
  * A snapshot of what the traveler can actually see, sent with their message.
@@ -25,8 +25,11 @@ export interface ContextHint {
   capturedAt: string
 }
 
-/** Matches MAX_CARDS: the cap is what the carousel shows, so positions line up with the screen. */
-const MAX_ITEMS = 8
+/**
+ * Taken from MAX_CARDS rather than repeated, so "the second one" always means the second card the
+ * traveler can see. When these two drifted apart, the positions in the hint stopped matching.
+ */
+const MAX_ITEMS = MAX_CARDS
 const MAX_AMENITIES = 8
 /** Only the newest set per kind is what they're looking at; older ones are scrolled away. */
 const MAX_SETS = 3

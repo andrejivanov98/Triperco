@@ -18,9 +18,35 @@ export interface PrefForm {
   options: string[]
 }
 
+/**
+ * A concrete trip detail the agent needs, answered with a real control rather than typed prose.
+ *
+ * Asking "when are you thinking of going?" in a chat bubble makes a traveler compose a sentence to
+ * answer something a calendar answers better — and someone who has not decided yet has nothing to
+ * type at all. This is a planning app; the controls are the point.
+ */
+export type DetailField = 'dates' | 'party' | 'origin' | 'budget'
+
+export interface DetailRequest {
+  field: DetailField
+  question: string
+}
+
 /** Follow-ups the agent proposes for this exact moment in the conversation. */
 export interface ReplySuggestions {
   replies: string[]
+}
+
+/**
+ * A line Triperco writes itself, when the model's own answer could not be shown.
+ *
+ * Kept separate from assistant text on purpose: this is never the model's voice, so it can never be
+ * mistaken for trip information, and it can never carry a price or a claim.
+ */
+export interface TurnNotice {
+  text: string
+  /** `recovered` — a second attempt produced this. `failed` — nothing could be produced at all. */
+  kind: 'recovered' | 'failed'
 }
 
 export function getSuggestions(message: TriperUIMessage): string[] {
@@ -38,5 +64,17 @@ export function getOptionSets(message: TriperUIMessage): OptionSet[] {
 export function getForms(message: TriperUIMessage): PrefForm[] {
   return message.parts
     .filter((p): p is { type: 'data-form'; data: PrefForm } => p.type === 'data-form')
+    .map((p) => p.data)
+}
+
+export function getDetailRequests(message: TriperUIMessage): DetailRequest[] {
+  return message.parts
+    .filter((p): p is { type: 'data-detail'; data: DetailRequest } => p.type === 'data-detail')
+    .map((p) => p.data)
+}
+
+export function getNotices(message: TriperUIMessage): TurnNotice[] {
+  return message.parts
+    .filter((p): p is { type: 'data-notice'; data: TurnNotice } => p.type === 'data-notice')
     .map((p) => p.data)
 }

@@ -1,11 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Flight, Stay, Place, TripMeta } from '@/lib/trip/types'
 import type { ResultSet } from '@/lib/ui/results'
+import type { RankedItem } from '@/lib/ui/rank'
 import type { SetRevision } from '@/lib/ui/revisions'
 import { activityKindLabel } from '@/lib/trip/activityKind'
-import { rankResults } from '@/lib/ui/rank'
+import { rankResults, MAX_CARDS } from '@/lib/ui/rank'
+import { idsToEnrich, mergePlaceDetails, type PlaceDetail } from '@/lib/ui/enrichPlaces'
 import { Lightbox } from '@/components/ui/Lightbox'
 import { StayResultCard } from './StayResultCard'
 import { FlightResultCard } from './FlightResultCard'
@@ -59,6 +61,10 @@ export function ResultCarousel({
   const [atEnd, setAtEnd] = useState(true)
   const [photos, setPhotos] = useState<{ title: string; list: string[]; index: number } | null>(null)
   const [reopened, setReopened] = useState(false)
+  // Everything the search returned, once they've asked for it. Costs nothing: it is already here.
+  const [expanded, setExpanded] = useState(false)
+  // Photos and reviews fetched for cards the search did not fill in, keyed by place id.
+  const [details, setDetails] = useState<Record<string, PlaceDetail>>({})
 
   const sync = useCallback(() => {
     const el = trackRef.current
@@ -86,8 +92,53 @@ export function ResultCarousel({
     sync()
   }
 
-  const ranked = rankResults(set)
+  /*
+   * Only the first few places arrive from the search with photos and a review; fetching all twenty
+   * would have cost forty provider calls for cards most travelers never scroll to. So the rest fill
+   * in from one batch request, and again when the set is expanded.
+   */
+  const visible = useMemo(
+    () => rankResults(set, expanded ? set.items.length : MAX_CARDS),
+    [set, expanded],
+  )
+  const pending = useMemo(
+    () => (set.kind === 'places' ? idsToEnrich(visible.map((v) => v.item as Place)) : []),
+    [set.kind, visible],
+  )
+  // A stable key, so this runs once per genuinely new group of ids rather than on every render.
+  const pendingKey = pending.join(',')
+
+  useEffect(() => {
+    if (pendingKey.length === 0) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await fetch('/api/places/details', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ placeIds: pendingKey.split(',') }),
+        })
+        if (!res.ok || cancelled) return
+        const { places } = (await res.json()) as { places?: Record<string, PlaceDetail> }
+        if (places && !cancelled) setDetails((current) => ({ ...current, ...places }))
+      } catch {
+        // Cards keep whatever the search gave them; a missing gallery is cosmetic.
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [pendingKey])
+
+  const ranked = useMemo(() => {
+    if (set.kind !== 'places' || Object.keys(details).length === 0) return visible
+    const merged = mergePlaceDetails(visible.map((v) => v.item as Place), details)
+    return visible.map((entry, i) => ({ ...entry, item: merged[i] }) as RankedItem)
+  }, [visible, details, set.kind])
+
   if (ranked.length === 0) return null
+  // How many more the search already found. Nothing extra is fetched to show them.
+  const remaining = rankResults(set, set.items.length).length - ranked.length
 
   // A newer search answered this same question, so this set is history — collapse it rather than
   // leaving four dead carousels between the traveler and the live one. Nothing is deleted.
@@ -109,7 +160,6 @@ export function ResultCarousel({
     )
   }
 
-  const hidden = set.items.length - ranked.length
   const arrow =
     'hidden h-7 w-7 items-center justify-center rounded-full border border-hairline bg-white/80 text-xs font-bold text-ink transition hover:bg-white disabled:opacity-30 sm:flex'
 
@@ -134,7 +184,8 @@ export function ResultCarousel({
               Earlier search
             </span>
           )}
-          {hidden > 0 && <span>· showing the best {ranked.length}</span>}
+          {remaining > 0 && <span>· showing the best {ranked.length}</span>}
+          {expanded && <span>· showing all {ranked.length}</span>}
         </div>
         <div className="flex shrink-0 gap-1">
           <button type="button" aria-label="Scroll left" onClick={() => step(-1)} disabled={atStart} className={arrow}>
@@ -196,6 +247,23 @@ export function ResultCarousel({
             />
           )
         })}
+
+        {/*
+          The rest of what this search already found, at the end of the track where the traveler
+          runs out of cards. Expanding fetches nothing — these results are already in hand, and
+          before this they were simply discarded.
+        */}
+        {remaining > 0 && (
+          <button
+            type="button"
+            data-testid="show-all"
+            onClick={() => setExpanded(true)}
+            className="flex w-[min(11rem,45vw)] shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-[22px] border border-dashed border-hairline bg-white/40 px-4 text-center transition hover:border-accent/50 hover:bg-accent-050"
+          >
+            <span className="text-sm font-bold text-ink">Show all {ranked.length + remaining}</span>
+            <span className="text-xs font-semibold text-muted">{remaining} more found</span>
+          </button>
+        )}
       </div>
 
       {/* Said where the choice is made, not buried at checkout. */}

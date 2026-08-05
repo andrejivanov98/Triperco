@@ -8,12 +8,22 @@ import { SiteFooter } from '@/components/landing/SiteFooter'
 import { SiteHeader } from '@/components/SiteHeader'
 import { Heading } from '@/components/ui/Heading'
 import { destinations, experiences, lovedPlaces } from '@/lib/landing/content'
+import { homepageStructuredData } from '@/lib/seo/structuredData'
+
+export const metadata = {
+  alternates: { canonical: '/' },
+}
 
 const ask = (question: string) => `/plan?q=${encodeURIComponent(question)}`
 
 export default function Home() {
   return (
     <>
+      <script
+        type="application/ld+json"
+        // The content is ours and built from static strings, so there is nothing here to escape.
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(homepageStructuredData()) }}
+      />
       <SiteHeader />
 
       <main className="flex flex-col gap-14 pb-4">
