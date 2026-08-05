@@ -45,3 +45,54 @@ describe('createRedisTripStore', () => {
     expect(await store.load('str1')).toEqual(trip)
   })
 })
+
+/**
+ * Tokens live in their own keyspace. Nothing that reads a trip can reach one, which is what stops a
+ * secret being serialized into a response by accident.
+ */
+describe('createRedisTripStore — write tokens', () => {
+  it('stores a token under its own key, never inside the trip', async () => {
+    const redis = fakeRedis()
+    const store = createRedisTripStore(redis)
+    await store.save(createTrip('abc'))
+    await store.putToken('abc', 'secret')
+
+    expect(redis.map.get('trip-token:abc')).toBe('secret')
+    expect(JSON.stringify(redis.map.get('trip:abc'))).not.toContain('secret')
+  })
+
+  it('reads a token back', async () => {
+    const store = createRedisTripStore(fakeRedis())
+    await store.putToken('abc', 'secret')
+    expect(await store.getToken('abc')).toBe('secret')
+  })
+
+  it('is null when there is no token for that id', async () => {
+    const store = createRedisTripStore(fakeRedis())
+    expect(await store.getToken('missing')).toBeNull()
+  })
+
+  it('gives a token the same lifetime as the trip it protects', async () => {
+    const seen: { key: string; ex?: number }[] = []
+    const redis = {
+      map: new Map<string, unknown>(),
+      async get() {
+        return null
+      },
+      async set(key: string, _value: unknown, opts?: { ex?: number }) {
+        seen.push({ key, ex: opts?.ex })
+      },
+    }
+    const store = createRedisTripStore(redis)
+    await store.save(createTrip('abc'))
+    await store.putToken('abc', 'secret')
+    // A token outliving its trip would protect nothing; one expiring first would strand the link.
+    expect(seen[0].ex).toBe(seen[1].ex)
+  })
+
+  it('ignores a non-string token, rather than trusting whatever came back', async () => {
+    const redis = fakeRedis()
+    redis.map.set('trip-token:abc', { not: 'a string' })
+    expect(await createRedisTripStore(redis).getToken('abc')).toBeNull()
+  })
+})

@@ -14,6 +14,8 @@ export interface RedisLike {
 }
 
 const KEY_PREFIX = 'trip:'
+/** Its own keyspace, so a token can never be read back by anything that reads trips. */
+const TOKEN_PREFIX = 'trip-token:'
 const TTL_SECONDS = 60 * 60 * 24 * 90 // 90 days
 
 /** A TripStore backed by an Upstash-like Redis client. */
@@ -29,6 +31,14 @@ export function createRedisTripStore(redis: RedisLike): TripStore {
       // Upstash may return a parsed object or a raw string depending on how it
       // was stored; normalize both through the validating deserializer.
       return deserializeTrip(typeof raw === 'string' ? raw : serializeTrip(raw as TripState))
+    },
+    async putToken(id: string, token: string): Promise<void> {
+      // The same lifetime as the trip: a token outliving its trip protects nothing.
+      await redis.set(`${TOKEN_PREFIX}${id}`, token, { ex: TTL_SECONDS })
+    },
+    async getToken(id: string): Promise<string | null> {
+      const raw = await redis.get(`${TOKEN_PREFIX}${id}`)
+      return typeof raw === 'string' ? raw : null
     },
   }
 }

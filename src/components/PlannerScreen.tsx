@@ -56,6 +56,14 @@ export function PlannerScreen() {
   const [planOpen, setPlanOpen] = useState(false)
   const tripRef = useRef(trip)
   tripRef.current = trip
+  /*
+   * The address this trip has already been shared at, and the token that permits updating it.
+   *
+   * Deliberately not on the trip itself: a trip opened from someone else's link would then carry
+   * their id, and editing it would overwrite their shared plan. This is per-session, so a copied
+   * trip can only ever get a link of its own.
+   */
+  const shareRef = useRef<{ id?: string; token?: string }>({})
   // Read at send time, not render time: the snapshot must describe the screen they just left.
   const detailRef = useRef(detail)
   detailRef.current = detail
@@ -131,6 +139,8 @@ export function PlannerScreen() {
     setBooking(false)
     setPlanOpen(false)
     setShareUrl(null)
+    // A new trip is a new thing to share; reusing the last link would overwrite the old plan.
+    shareRef.current = {}
     setView('plan')
     router.replace('/plan')
   }, [router, setMessages])
@@ -142,6 +152,11 @@ export function PlannerScreen() {
     void (async () => {
       const res = await fetch(`/api/trips/${fromId}`)
       if (!res.ok || cancelled) return
+      /*
+       * This copy gets its own link. Someone else's trip arrives with their id, and adopting it would
+       * mean editing a copy silently rewrote the plan they shared with everybody.
+       */
+      shareRef.current = {}
       setTrip((await res.json()) as TripState)
     })()
     return () => {
@@ -240,17 +255,25 @@ export function PlannerScreen() {
   /**
    * Save the trip and return the link to it. Null when it could not be saved, so a caller can say so
    * rather than handing someone a link to an empty planner.
+   *
+   * One trip keeps one link. The id and the write token from the first save are held here and sent
+   * back on every later one, so the same address is updated in place: a link already sent to somebody
+   * keeps working and shows what the plan looks like now. Sharing from the header and from the trip
+   * summary therefore hand out the same url rather than two divergent snapshots.
    */
   const createShareLink = useCallback(async (): Promise<string | null> => {
     try {
       const res = await fetch('/api/trips', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ trip: tripRef.current }),
+        body: JSON.stringify({ trip: tripRef.current, ...shareRef.current }),
       })
       if (!res.ok) return null
-      const { id } = (await res.json()) as { id?: string }
-      return id ? `${window.location.origin}/trip/${id}` : null
+      const { id, token } = (await res.json()) as { id?: string; token?: string }
+      if (!id) return null
+      // The server may have minted a new pair (first save, or an expired trip); keep whatever it says.
+      shareRef.current = token ? { id, token } : { id }
+      return `${window.location.origin}/trip/${id}`
     } catch {
       return null
     }
