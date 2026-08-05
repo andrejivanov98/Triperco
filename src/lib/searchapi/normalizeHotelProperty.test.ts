@@ -105,9 +105,13 @@ describe('normalizeHotelProperty', () => {
 
   it('reads reviewer quotes from review_results', () => {
     const p = normalizeHotelProperty(raw, 4)!
-    expect(p.reviewSnippets).toEqual([
-      { author: 'Tracy Lulic', text: '"Breakfast was included."' },
-    ])
+    // The provider wraps its own quotes around the body; ours come from the blockquote.
+    expect(p.reviewSnippets).toEqual([{ text: 'Breakfast was included.' }])
+  })
+
+  it("never carries the reviewer's name", () => {
+    const property = normalizeHotelProperty(raw, 4)!
+    for (const review of property.reviewSnippets ?? []) expect(review).not.toHaveProperty('author')
   })
 
   it('keeps the sub-ratings and price insight', () => {

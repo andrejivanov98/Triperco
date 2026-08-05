@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import Link from 'next/link'
 import { Heading } from '@/components/ui/Heading'
+import { Icon } from '@/components/ui/Icon'
 
 /** One card plus its gap. */
 const STEP = 288
@@ -72,7 +73,7 @@ export function SectionRow({
             disabled={atStart}
             className={arrow}
           >
-            ‹
+            <Icon name="chevron-left" className="h-4 w-4" />
           </button>
           <button
             type="button"
@@ -81,7 +82,7 @@ export function SectionRow({
             disabled={atEnd}
             className={arrow}
           >
-            ›
+            <Icon name="chevron-right" className="h-4 w-4" />
           </button>
         </div>
       </div>

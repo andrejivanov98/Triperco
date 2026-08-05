@@ -64,6 +64,7 @@ export function StayResultCard({
   const layout = layoutLine(stay)
   const amenities = amenityChips(stay)
   const rating = formatRating(stay.rating, stay.reviewCount)
+  const quote = stay.reviewSnippets?.[0]?.text?.trim()
 
   return (
     <div
@@ -142,6 +143,19 @@ export function StayResultCard({
               </span>
             ))}
           </div>
+        )}
+
+        {/*
+          What a guest actually said. Amenities and a star average describe a stay on paper; this is
+          the line that tells you what it is like to sleep there.
+        */}
+        {quote && (
+          <p
+            data-testid="stay-quote"
+            className="line-clamp-2 text-[11px] font-medium italic leading-relaxed text-muted"
+          >
+            “{quote}”
+          </p>
         )}
 
         <div className="mt-auto flex items-baseline justify-between gap-2 border-t border-hairline pt-2.5">

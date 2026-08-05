@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { Icon } from '@/components/ui/Icon'
 import { RemoteImage } from '@/components/ui/RemoteImage'
 
 /** Full-screen photo viewer: arrows, keyboard, counter, click-out to close. */
@@ -62,17 +63,17 @@ export function Lightbox({
             type="button"
             aria-label="Previous photo"
             onClick={() => go(-1)}
-            className="absolute left-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-lg font-bold text-ink transition hover:bg-white"
+            className="absolute left-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-ink transition hover:bg-white"
           >
-            ‹
+            <Icon name="chevron-left" className="h-5 w-5" />
           </button>
           <button
             type="button"
             aria-label="Next photo"
             onClick={() => go(1)}
-            className="absolute right-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-lg font-bold text-ink transition hover:bg-white"
+            className="absolute right-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-ink transition hover:bg-white"
           >
-            ›
+            <Icon name="chevron-right" className="h-5 w-5" />
           </button>
         </>
       )}

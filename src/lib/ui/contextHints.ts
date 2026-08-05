@@ -1,4 +1,4 @@
-import type { Flight, Stay, Place } from '@/lib/trip/types'
+import type { Flight, Stay, Place, TripState } from '@/lib/trip/types'
 import type { ResultSet } from './results'
 import { resultSetKey } from './results'
 import { rankResults, MAX_CARDS } from './rank'
@@ -17,6 +17,7 @@ export interface ContextHint {
     | 'flight_detail'
     | 'stay_detail'
     | 'place_detail'
+    | 'plan'
   /** Plain English, addressed to the model. */
   description: string
   /** JSON payload, already capped. */
@@ -317,11 +318,53 @@ function detailHint(
   }
 }
 
+/**
+ * What the traveler has actually put in the plan, and what is therefore still missing.
+ *
+ * This is the hint that makes "you have flights — shall we sort the hotel?" possible at all. The
+ * trip was already sent to the server and sat in the tool state, but nothing ever described it to
+ * the model, so the agent could not tell an empty plan from a finished one and had no way to know
+ * which step to offer next.
+ */
+function planHint(trip: TripState, capturedAt: string): ContextHint | null {
+  const activities = trip.days.reduce((sum, day) => sum + day.items.length, 0)
+  if (trip.flights.length === 0 && trip.stays.length === 0 && activities === 0) return null
+
+  const missing = [
+    trip.flights.length === 0 ? 'transport' : undefined,
+    trip.stays.length === 0 ? 'somewhere to stay' : undefined,
+    activities === 0 ? 'things to do' : undefined,
+  ].filter((part): part is string => part !== undefined)
+
+  const content = JSON.stringify(
+    compact({
+      flights: trip.flights.length || undefined,
+      stays: trip.stays.length || undefined,
+      things_to_do: activities || undefined,
+      // Named plainly so the agent can offer the next step without working it out.
+      still_missing: missing.length > 0 ? missing : undefined,
+      stay_names: list(trip.stays.map((s) => s.name), 3),
+    }),
+  )
+
+  return {
+    hintType: 'plan',
+    description:
+      'What the traveler has already added to their plan, and what it is still missing. They put ' +
+      'these there themselves. Offer the missing pieces as the next step rather than re-offering ' +
+      'what is already in.',
+    content,
+    capturedAt,
+  }
+}
+
 export interface VisibleContext {
   /** Result sets rendered in the thread, oldest first. */
   sets?: ResultSet[]
   /** Whichever detail panel is open, if any. */
   open?: { kind: ResultSet['kind']; item: Flight | Stay | Place } | null
+  /** The plan as it stands, so the agent knows what is already settled. */
+  trip?: TripState
   capturedAt?: string
 }
 
@@ -343,6 +386,11 @@ export function buildContextHints(ctx: VisibleContext = {}): ContextHint[] {
     if (hint) hints.push(hint)
   }
   if (ctx.open) hints.push(detailHint(ctx.open, capturedAt))
+  // Last, so it reads as the standing state after the transient screen contents.
+  if (ctx.trip) {
+    const plan = planHint(ctx.trip, capturedAt)
+    if (plan) hints.push(plan)
+  }
 
   return hints
 }

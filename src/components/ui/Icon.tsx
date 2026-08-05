@@ -23,6 +23,15 @@ export type IconName =
   | 'pin'
   | 'new-chat'
   | 'arrow-right'
+  | 'arrow-up-right'
+  | 'arrow-up'
+  | 'chevron-right'
+  | 'chevron-left'
+  | 'car'
+  | 'transit'
+  | 'walk'
+  | 'bike'
+  | 'route'
 
 /**
  * One stroked line-icon set, drawn on a 24-grid at 1.7 weight.
@@ -164,6 +173,65 @@ const PATHS: Record<IconName, ReactElement> = {
     <>
       <path d="M4.5 12h14.5" />
       <path d="m13.5 6.5 5.5 5.5-5.5 5.5" />
+    </>
+  ),
+  /*
+   * Leaving Triperco for somebody else's site. This replaces a literal "↗" character, which picked
+   * up whichever arrow glyph the platform happened to ship and sat at the wrong weight and baseline
+   * beside our own text.
+   */
+  'arrow-up-right': (
+    <>
+      <path d="M7 17 17 7" />
+      <path d="M8.5 7H17v8.5" />
+    </>
+  ),
+  'arrow-up': (
+    <>
+      <path d="M12 19.5V5" />
+      <path d="m5.5 11.5 6.5-6.5 6.5 6.5" />
+    </>
+  ),
+  'chevron-right': <path d="m9.5 6 6 6-6 6" />,
+  'chevron-left': <path d="m14.5 6-6 6 6 6" />,
+  /* Getting between two places: one glyph per travel mode the directions engine reports. */
+  car: (
+    <>
+      <path d="M4 16.5v-3l1.8-4.2A2 2 0 0 1 7.6 8h8.8a2 2 0 0 1 1.8 1.3L20 13.5v3" />
+      <path d="M4 16.5h16" />
+      <circle cx="7.5" cy="16.5" r="1.6" />
+      <circle cx="16.5" cy="16.5" r="1.6" />
+    </>
+  ),
+  transit: (
+    <>
+      <rect x="6" y="3.5" width="12" height="13" rx="2.5" />
+      <path d="M6 10.5h12M9.5 20l1.5-3.5M14.5 20 13 16.5" />
+      <path d="M9.5 13.5h.01M14.5 13.5h.01" />
+    </>
+  ),
+  walk: (
+    <>
+      <circle cx="13" cy="4.6" r="1.8" />
+      <path d="M12.5 21l-1-5.5-2 2.5" />
+      <path d="m13.5 8-3 2.5 1 5" />
+      <path d="M13.5 8 16 11l2.5 1" />
+      <path d="M13.5 21l2-4.5" />
+    </>
+  ),
+  bike: (
+    <>
+      <circle cx="6" cy="17" r="3.2" />
+      <circle cx="18" cy="17" r="3.2" />
+      <path d="M6 17l4.5-7h4l3.5 7M9.5 10h5.5" />
+    </>
+  ),
+  /* The whole journey, rather than one hop of it. */
+  route: (
+    <>
+      <circle cx="6" cy="6" r="2.4" />
+      <circle cx="18" cy="18" r="2.4" />
+      <path d="M8.4 6h4.6a3 3 0 0 1 0 6H11a3 3 0 0 0 0 6h4.6" />
     </>
   ),
 }

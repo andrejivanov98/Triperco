@@ -11,6 +11,7 @@ import {
   WEEKDAY_LABELS,
   type DateRange,
 } from '@/lib/ui/calendar'
+import { Icon } from '@/components/ui/Icon'
 
 /** Month calendar with range selection. `today` is injectable so tests stay deterministic. */
 export function DateRangePicker({
@@ -42,18 +43,18 @@ export function DateRangePicker({
           type="button"
           aria-label="Previous month"
           onClick={() => setView(addMonths(view.year, view.month, -1))}
-          className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold text-muted transition hover:bg-sand hover:text-ink"
+          className="flex h-8 w-8 items-center justify-center rounded-full text-muted transition hover:bg-sand hover:text-ink"
         >
-          ‹
+          <Icon name="chevron-left" className="h-4 w-4" />
         </button>
         <span className="text-sm font-bold text-ink">{monthLabel(view.year, view.month)}</span>
         <button
           type="button"
           aria-label="Next month"
           onClick={() => setView(addMonths(view.year, view.month, 1))}
-          className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold text-muted transition hover:bg-sand hover:text-ink"
+          className="flex h-8 w-8 items-center justify-center rounded-full text-muted transition hover:bg-sand hover:text-ink"
         >
-          ›
+          <Icon name="chevron-right" className="h-4 w-4" />
         </button>
       </div>
 

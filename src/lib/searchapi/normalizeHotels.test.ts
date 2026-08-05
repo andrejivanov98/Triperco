@@ -104,9 +104,12 @@ describe('normalizeHotels', () => {
   it('keeps nearby places and review snippets', () => {
     const [stay] = normalizeHotels(rich, 4)
     expect(stay.nearbyPlaces).toEqual([{ name: 'Termini Station', transit: '8 min · Walking' }])
-    expect(stay.reviewSnippets).toEqual([
-      { author: 'Marco', rating: 5, text: 'Spotless and central.' },
-    ])
+    expect(stay.reviewSnippets).toEqual([{ rating: 5, text: 'Spotless and central.' }])
+  })
+
+  it("never carries the reviewer's name", () => {
+    const [stay] = normalizeHotels(rich, 4)
+    for (const review of stay.reviewSnippets ?? []) expect(review).not.toHaveProperty('author')
   })
 
   it('falls back to city and country when there is no street address', () => {

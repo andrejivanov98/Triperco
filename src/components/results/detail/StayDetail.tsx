@@ -3,6 +3,7 @@ import type { StayFinding } from '@/lib/trip/stayVerdict'
 import { stayVerdict, hasVerdict, findingEvidence } from '@/lib/trip/stayVerdict'
 import { formatMoney, formatRating } from '@/lib/ui/format'
 import { Heading } from '@/components/ui/Heading'
+import { Icon } from '@/components/ui/Icon'
 import { RemoteImage } from '@/components/ui/RemoteImage'
 import {
   DetailSection,
@@ -145,9 +146,10 @@ export function StayDetail({
                     href={offer.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="shrink-0 rounded-lg bg-deep px-2.5 py-1 text-[11px] font-bold text-white"
+                    className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-deep px-2.5 py-1 text-[11px] font-bold text-white"
                   >
-                    Book ↗
+                    Book
+                    <Icon name="arrow-up-right" className="h-3 w-3" />
                   </a>
                 )}
               </div>

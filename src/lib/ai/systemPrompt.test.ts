@@ -143,3 +143,28 @@ describe('buildSystemPrompt — controls over prose', () => {
     expect(buildSystemPrompt().toLowerCase()).toContain('never write code, json, a payload')
   })
 })
+
+describe('buildSystemPrompt — closing the loop', () => {
+  it('tells the agent to offer what the plan is still missing', () => {
+    const p = buildSystemPrompt()
+    expect(p).toContain('CLOSE THE LOOP')
+    expect(p.toLowerCase()).toContain('never re-offer something the plan already has')
+  })
+
+  it('names the three things a trip needs', () => {
+    const p = buildSystemPrompt().toLowerCase()
+    expect(p).toContain('transport, somewhere to stay, things to do')
+  })
+})
+
+describe('buildSystemPrompt — getting around', () => {
+  it('asks for the whole connection, not just the airport run', () => {
+    const p = buildSystemPrompt()
+    expect(p).toContain('GIVE THEM THE WHOLE CONNECTION')
+    expect(p).toContain('getTransferOptions')
+  })
+
+  it('still forbids guessing a duration', () => {
+    expect(buildSystemPrompt()).toContain('NEVER guess a duration')
+  })
+})

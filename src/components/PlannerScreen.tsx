@@ -117,6 +117,7 @@ export function PlannerScreen() {
           hints: buildContextHints({
             sets: allResultSets(messages as TriperUIMessage[]),
             open: detailRef.current,
+            trip: tripRef.current,
           }),
         },
       }),

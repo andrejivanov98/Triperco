@@ -3,8 +3,14 @@ export interface Coords {
   lng: number
 }
 
+/**
+ * One quotable review.
+ *
+ * Note what is absent: the reviewer's name. It is a real person's name, it adds nothing to a travel
+ * decision, and while it was merely "not displayed" it still travelled into the model's context on
+ * every place lookup. Not having the field is the only version of that with nothing to leak.
+ */
 export interface ReviewSnippet {
-  author?: string
   rating?: number
   text: string
   date?: string

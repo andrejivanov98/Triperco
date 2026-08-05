@@ -98,7 +98,7 @@ describe('DetailPanel — stays', () => {
             description: 'Rooftop bar with city views.',
             amenities: ['Free Wi-Fi', 'Pool'],
             checkInTime: '3:00 PM',
-            reviewSnippets: [{ author: 'Marco', text: 'Spotless and central.' }],
+            reviewSnippets: [{ text: 'Spotless and central.' }],
           },
         }),
       })),
@@ -149,7 +149,7 @@ describe('DetailPanel — places', () => {
       vi.fn(async () => ({
         ok: true,
         json: async () => ({
-          reviews: [{ author: 'Ana', rating: 5, text: 'Breathtaking at sunset.' }],
+          reviews: [{ rating: 5, text: 'Breathtaking at sunset.' }],
           photos: ['https://p/1'],
         }),
       })),

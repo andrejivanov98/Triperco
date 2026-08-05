@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { PlaceResultCard } from './PlaceResultCard'
 import type { Place } from '@/lib/trip/types'
 
@@ -47,10 +47,19 @@ describe('PlaceResultCard — events', () => {
     expect(screen.getByText('Casa del Jazz')).toBeInTheDocument()
   })
 
-  it('sends you to the ticket seller rather than a map', () => {
-    render(<PlaceResultCard place={concert} onOpen={noop} onAdd={noop} />)
-    const link = screen.getByRole('link', { name: /tickets/i })
-    expect(link).toHaveAttribute('href', 'https://tickets.example/1')
+  it('carries no links of its own — the whole card opens the detail, as a stay does', () => {
+    const onOpen = vi.fn()
+    render(<PlaceResultCard place={concert} onOpen={onOpen} onAdd={noop} />)
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('place-card'))
+    expect(onOpen).toHaveBeenCalled()
+  })
+
+  it('opens the detail from the keyboard too', () => {
+    const onOpen = vi.fn()
+    render(<PlaceResultCard place={concert} onOpen={onOpen} onAdd={noop} />)
+    fireEvent.keyDown(screen.getByTestId('place-card'), { key: 'Enter' })
+    expect(onOpen).toHaveBeenCalled()
   })
 
   it('warns before you add something that happens after you fly home', () => {
@@ -105,26 +114,43 @@ describe('PlaceResultCard — richer cards', () => {
     expect(screen.getByTestId('place-quote')).toHaveTextContent('Go early, the queue is brutal by ten.')
   })
 
-  it('says how many photos there are, so the gallery is findable', () => {
+  it('flips through its photos without opening the detail, exactly as a stay does', () => {
+    const onOpen = vi.fn()
     render(
       <PlaceResultCard
-        place={place({ photos: ['https://p/1', 'https://p/2', 'https://p/3'] })}
-        onOpen={noop}
+        place={place({ name: 'Mercado 28', photos: ['https://p/1', 'https://p/2', 'https://p/3'] })}
+        onOpen={onOpen}
         onAdd={noop}
       />,
     )
-    expect(screen.getByText('3 photos')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /photo 2 of Mercado 28/i }))
+    expect(screen.getByRole('button', { name: /photo 2 of Mercado 28/i })).toHaveAttribute(
+      'aria-current',
+      'true',
+    )
+    expect(onOpen).not.toHaveBeenCalled()
   })
 
-  it('stays quiet about a gallery of one', () => {
+  it('shows no photo dots for a gallery of one', () => {
     render(<PlaceResultCard place={place({ photos: ['https://p/1'] })} onOpen={noop} onAdd={noop} />)
-    expect(screen.queryByText(/photos$/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /photo 1 of/i })).not.toBeInTheDocument()
   })
 
   it('renders cleanly with nothing extra to show', () => {
     render(<PlaceResultCard place={place()} onOpen={noop} onAdd={noop} />)
     expect(screen.queryByTestId('place-quote')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /add to trip/i })).toBeInTheDocument()
+    expect(screen.getByTestId('place-card')).toBeInTheDocument()
+  })
+
+  it('says when it is already in the plan, as state rather than a second button', () => {
+    render(<PlaceResultCard place={place()} added onOpen={noop} onAdd={noop} />)
+    expect(screen.getByTestId('place-added')).toHaveTextContent('In your plan')
+  })
+
+  it('never invents a price when the provider gave none', () => {
+    render(<PlaceResultCard place={place({ category: 'Museum' })} onOpen={noop} onAdd={noop} />)
+    expect(screen.getByText('place to visit')).toBeInTheDocument()
+    expect(screen.queryByText(/free/i)).not.toBeInTheDocument()
   })
 
   it('shows opening hours for a restaurant, which closes just like a museum', () => {

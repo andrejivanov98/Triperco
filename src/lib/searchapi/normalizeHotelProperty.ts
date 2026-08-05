@@ -6,6 +6,7 @@ import type {
   Stay,
   StayOffer,
 } from '../trip/types'
+import { sanitizeReviewText } from './reviewText'
 
 interface RawPrice {
   price?: string
@@ -104,15 +105,19 @@ function toTopics(raw: RawHotelProperty['reviews_breakdown']): ReviewTopic[] | u
   return topics.length ? topics : undefined
 }
 
+/** The reviewer's name is deliberately not carried. See the note in normalizeReviews. */
 function toReviews(raw: RawHotelProperty['review_results']): ReviewSnippet[] | undefined {
   const reviews = (raw?.reviews ?? [])
-    .filter((r): r is { text: string } & NonNullable<typeof r> => Boolean(r.text))
-    .map((r) => ({
-      ...(r.username ? { author: r.username } : {}),
-      ...(r.rating !== undefined ? { rating: r.rating } : {}),
-      text: r.text,
-      ...(r.date ? { date: r.date } : {}),
-    }))
+    .map((r): ReviewSnippet | null => {
+      const text = sanitizeReviewText(r.text)
+      if (!text) return null
+      return {
+        ...(r.rating !== undefined ? { rating: r.rating } : {}),
+        text,
+        ...(r.date ? { date: r.date } : {}),
+      }
+    })
+    .filter((r): r is ReviewSnippet => r !== null)
   return reviews.length ? reviews : undefined
 }
 

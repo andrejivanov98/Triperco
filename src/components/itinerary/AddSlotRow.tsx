@@ -55,12 +55,10 @@ export function AddSlotRow({
           {action}
         </span>
       </span>
-      <span
-        aria-hidden="true"
-        className="shrink-0 text-xs font-bold text-muted transition group-hover:translate-x-0.5 group-hover:text-accent"
-      >
-        →
-      </span>
+      <Icon
+        name="arrow-right"
+        className="h-4 w-4 shrink-0 text-muted transition group-hover:translate-x-0.5 group-hover:text-accent"
+      />
     </button>
   )
 }

@@ -139,7 +139,7 @@ export function ReviewList({
   reviews,
   title,
 }: {
-  reviews: { author?: string; rating?: number; text: string; date?: string }[]
+  reviews: { rating?: number; text: string; date?: string }[]
   title: string
 }) {
   if (reviews.length === 0) return null

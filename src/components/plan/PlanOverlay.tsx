@@ -128,9 +128,7 @@ export function PlanButton({ itemCount, onOpen }: { itemCount: number; onOpen: (
           {itemCount}
         </span>
       )}
-      <span aria-hidden className="ml-0.5 hidden text-xs text-white/60 sm:inline">
-        ›
-      </span>
+      <Icon name="chevron-right" className="ml-0.5 hidden h-3.5 w-3.5 text-white/60 sm:inline" />
     </button>
   )
 }

@@ -1,6 +1,7 @@
 import type { Place } from '@/lib/trip/types'
 import { formatRating } from '@/lib/ui/format'
 import { Heading } from '@/components/ui/Heading'
+import { Icon } from '@/components/ui/Icon'
 import { DetailSection, FactGrid, Gallery, PillList, ReviewList } from './DetailPrimitives'
 
 export function PlaceDetail({
@@ -82,9 +83,10 @@ export function PlaceDetail({
           href={place.website}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-sm font-semibold text-accent"
+          className="inline-flex w-fit items-center gap-1 text-sm font-semibold text-accent"
         >
-          Visit website ↗
+          Visit website
+          <Icon name="arrow-up-right" className="h-3.5 w-3.5" />
         </a>
       )}
     </div>

@@ -22,8 +22,8 @@ const reviewed = stay({
     { name: 'noise', positive: 40, negative: 30, total: 70 },
   ],
   reviewSnippets: [
-    { author: 'Jane Doe', text: 'The service was extraordinary from start to finish.', rating: 5 },
-    { author: 'Sam Smith', text: 'Noise from the courtyard woke us early.', rating: 2 },
+    { text: 'The service was extraordinary from start to finish.', rating: 5 },
+    { text: 'Noise from the courtyard woke us early.', rating: 2 },
   ],
   excludedAmenities: ['No parking', 'Ironing service'],
 })

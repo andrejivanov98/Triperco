@@ -54,9 +54,10 @@ function PartnerCard({
           href={item.bookUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="rounded-full bg-deep px-4 py-3 text-center text-sm font-bold text-white transition active:scale-[0.97] hover:opacity-90"
+          className="flex items-center justify-center gap-1.5 rounded-full bg-deep px-4 py-3 text-center text-sm font-bold text-white transition active:scale-[0.97] hover:opacity-90"
         >
-          Book on {item.partner} ↗
+          Book on {item.partner}
+          <Icon name="arrow-up-right" className="h-3.5 w-3.5" />
         </a>
       )}
 

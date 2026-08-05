@@ -149,7 +149,7 @@ describe('stayVerdict — quotes are real and unattributed', () => {
       stay({
         reviewTopics: topics,
         reviewSnippets: [
-          { author: 'Jane Doe', text: 'Parking is impossible on this street.', rating: 2 },
+          { text: 'Parking is impossible on this street.', rating: 2 },
         ],
       }),
     )

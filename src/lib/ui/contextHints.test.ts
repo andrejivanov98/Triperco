@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { buildContextHints, formatContextHints, visibleSets } from './contextHints'
 import { MAX_CARDS } from './rank'
 import type { ResultSet } from './results'
-import type { Flight, Stay, Place } from '@/lib/trip/types'
+import type { Flight, Stay, Place, TripState } from '@/lib/trip/types'
 
 const AT = '2026-07-28T10:00:00.000Z'
 
@@ -239,5 +239,82 @@ describe('formatContextHints', () => {
     expect(text).toMatch(/captured snapshot/)
     expect(text).toContain(AT)
     expect(text).toContain('[stay_results]')
+  })
+})
+
+/**
+ * The trip was already sent to the server and sat in the tool state, but nothing described it to the
+ * model — so the agent could not tell an empty plan from a finished one, and "flights sorted, shall
+ * we find a hotel?" was impossible to produce.
+ */
+describe('buildContextHints — what is in the plan', () => {
+  const flight: Flight = { id: 'f1', from: 'SKP', to: 'FCO', stops: 0, price: 120, bookUrl: 'x' }
+
+  function trip(over: Partial<TripState> = {}): TripState {
+    return {
+      id: 't1',
+      meta: { travelers: 2 },
+      flights: [],
+      stays: [],
+      days: [],
+      estimatedTotal: 0,
+      ...over,
+    }
+  }
+
+  const planPayload = (t: TripState) => {
+    const hint = buildContextHints({ trip: t, capturedAt: AT }).find((h) => h.hintType === 'plan')
+    return hint ? (JSON.parse(hint.content) as Record<string, unknown>) : null
+  }
+
+  it('says nothing at all about an empty plan', () => {
+    expect(planPayload(trip())).toBeNull()
+  })
+
+  it('reports what has been added', () => {
+    const payload = planPayload(trip({ flights: [flight] }))
+    expect(payload?.flights).toBe(1)
+  })
+
+  it('names what is still missing, so the next step needs no working out', () => {
+    const payload = planPayload(trip({ flights: [flight] }))
+    expect(payload?.still_missing).toEqual(['somewhere to stay', 'things to do'])
+  })
+
+  it('stops naming something once it is in', () => {
+    const payload = planPayload(
+      trip({
+        flights: [flight],
+        stays: [stay('s1')],
+        days: [{ items: [{ placeId: 'p1', name: 'Colosseum' }] }],
+      }),
+    )
+    expect(payload?.still_missing).toBeUndefined()
+  })
+
+  it('counts things to do across every day', () => {
+    const payload = planPayload(
+      trip({
+        days: [
+          { items: [{ placeId: 'p1', name: 'A' }] },
+          { items: [{ placeId: 'p2', name: 'B' }, { placeId: 'p3', name: 'C' }] },
+        ],
+      }),
+    )
+    expect(payload?.things_to_do).toBe(3)
+  })
+
+  it('comes last, after the transient screen contents', () => {
+    const hints = buildContextHints({
+      sets: [{ kind: 'stays', items: [stay('a')] }],
+      trip: trip({ flights: [flight] }),
+      capturedAt: AT,
+    })
+    expect(hints.at(-1)?.hintType).toBe('plan')
+  })
+
+  it('is absent when no trip was passed at all', () => {
+    const hints = buildContextHints({ sets: [{ kind: 'stays', items: [stay('a')] }], capturedAt: AT })
+    expect(hints.some((h) => h.hintType === 'plan')).toBe(false)
   })
 })

@@ -226,11 +226,18 @@ export function ChatPane({
             submit(input)
           }}
         >
+          {/*
+            Locked while a turn is in flight. Typing into a composer that cannot send is a trap: the
+            words look sent, the turn lands, and the half-written message is either lost or fires
+            into a conversation that has already moved on.
+          */}
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Tell Triperco what you want…"
-            className="min-w-0 flex-1 rounded-2xl border border-hairline bg-white/70 px-3.5 py-3 text-base font-medium text-ink outline-none transition focus:border-accent/50 focus:bg-white placeholder:text-muted sm:px-4 sm:text-sm"
+            disabled={busy}
+            aria-busy={busy}
+            placeholder={busy ? 'Triperco is working…' : 'Tell Triperco what you want…'}
+            className="min-w-0 flex-1 rounded-2xl border border-hairline bg-white/70 px-3.5 py-3 text-base font-medium text-ink outline-none transition focus:border-accent/50 focus:bg-white disabled:cursor-not-allowed disabled:bg-sand/50 disabled:text-muted placeholder:text-muted sm:px-4 sm:text-sm"
           />
           <button
             type="submit"

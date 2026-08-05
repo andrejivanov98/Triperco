@@ -9,6 +9,7 @@ import { activityKindLabel } from '@/lib/trip/activityKind'
 import { rankResults, MAX_CARDS } from '@/lib/ui/rank'
 import { idsToEnrich, mergePlaceDetails, type PlaceDetail } from '@/lib/ui/enrichPlaces'
 import { Lightbox } from '@/components/ui/Lightbox'
+import { Icon } from '@/components/ui/Icon'
 import { StayResultCard } from './StayResultCard'
 import { FlightResultCard } from './FlightResultCard'
 import { PlaceResultCard } from './PlaceResultCard'
@@ -189,10 +190,10 @@ export function ResultCarousel({
         </div>
         <div className="flex shrink-0 gap-1">
           <button type="button" aria-label="Scroll left" onClick={() => step(-1)} disabled={atStart} className={arrow}>
-            ←
+            <Icon name="chevron-left" className="h-3.5 w-3.5" />
           </button>
           <button type="button" aria-label="Scroll right" onClick={() => step(1)} disabled={atEnd} className={arrow}>
-            →
+            <Icon name="chevron-right" className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>

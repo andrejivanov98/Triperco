@@ -1,4 +1,5 @@
 import type { NearbyPlace, RatingBucket, ReviewSnippet, ReviewTopic, Stay, StayOffer } from '../trip/types'
+import { sanitizeReviewText } from './reviewText'
 
 interface RawPrice {
   price?: string
@@ -123,13 +124,13 @@ function toNearby(raw: RawNearby[] | undefined): NearbyPlace[] | undefined {
   return places.length ? places : undefined
 }
 
+/** The reviewer's name is deliberately not carried. See the note in normalizeReviews. */
 function toReviews(raw: RawUserReview[] | undefined): ReviewSnippet[] | undefined {
   const reviews = (raw ?? [])
     .map((r): ReviewSnippet | null => {
-      const text = r.snippet ?? r.text
+      const text = sanitizeReviewText(r.snippet ?? r.text)
       if (!text) return null
       return {
-        ...(r.user?.name ? { author: r.user.name } : {}),
         ...(r.rating !== undefined ? { rating: r.rating } : {}),
         text,
         ...(r.date ? { date: r.date } : {}),

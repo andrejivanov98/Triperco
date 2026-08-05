@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, type ReactNode } from 'react'
+import { Icon } from '@/components/ui/Icon'
 
 /**
  * The shell every guided prompt sits in: a titled card, one clean row per choice, a way to answer
@@ -69,9 +70,9 @@ export function GuidedCard({
             onClick={submitFreeText}
             disabled={text.trim().length === 0}
             aria-label="Send this answer"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-deep text-sm font-bold text-white transition hover:bg-ink disabled:opacity-30"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-deep text-white transition hover:bg-ink disabled:opacity-30"
           >
-            ↑
+            <Icon name="arrow-up" className="h-4 w-4" />
           </button>
         </div>
       )}
@@ -134,12 +135,10 @@ export function GuidedRow({
       )}
       <span className="flex-1 text-[15px] font-medium text-ink">{label}</span>
       {!showCheckbox && (
-        <span
-          aria-hidden
-          className="shrink-0 text-sm font-semibold text-muted transition group-hover:translate-x-0.5 group-hover:text-accent"
-        >
-          ›
-        </span>
+        <Icon
+          name="chevron-right"
+          className="h-4 w-4 shrink-0 text-muted transition group-hover:translate-x-0.5 group-hover:text-accent"
+        />
       )}
     </button>
   )

@@ -105,9 +105,10 @@ export function TimelineItemCard({
                 href={item.bookUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-lg bg-deep px-2.5 py-1 text-[11px] font-bold text-white transition active:scale-[0.97] hover:opacity-90"
+                className="inline-flex items-center gap-1 rounded-lg bg-deep px-2.5 py-1 text-[11px] font-bold text-white transition active:scale-[0.97] hover:opacity-90"
               >
-                {item.bookLabel ?? 'Book'} ↗
+                {item.bookLabel ?? 'Book'}
+                <Icon name="arrow-up-right" className="h-3 w-3" />
               </a>
             )}
           </div>

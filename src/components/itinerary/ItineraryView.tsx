@@ -6,6 +6,7 @@ import { Heading } from '@/components/ui/Heading'
 import { TimelineItemCard } from './TimelineItemCard'
 import { WatchoutBanner } from './WatchoutBanner'
 import { AddSlotRow, slotPrompt } from './AddSlotRow'
+import { ConnectionsSection } from './ConnectionsSection'
 import { ProgressMeter } from './ProgressMeter'
 import { RemoteImage } from '@/components/ui/RemoteImage'
 import { Icon } from '@/components/ui/Icon'
@@ -101,6 +102,12 @@ export function ItineraryView({
                 ))}
               </div>
             ))}
+
+            {/*
+              The journeys between the places above. A plan that lists destinations and says nothing
+              about the gaps is where the "great value" apartment turns out to be two changes away.
+            */}
+            <ConnectionsSection trip={trip} />
           </div>
         )}
       </div>
@@ -146,10 +153,11 @@ export function ItineraryView({
             <button
               type="button"
               onClick={onContinueToBook}
-              className="rounded-2xl bg-deep px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-deep/20 transition active:scale-[0.97] hover:opacity-90 disabled:opacity-40"
+              className="flex items-center gap-1.5 rounded-2xl bg-deep px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-deep/20 transition active:scale-[0.97] hover:opacity-90 disabled:opacity-40"
               disabled={isEmpty || !onContinueToBook}
             >
-              Continue to book →
+              Continue to book
+              <Icon name="arrow-right" className="h-3.5 w-3.5" />
             </button>
           </div>
         </div>

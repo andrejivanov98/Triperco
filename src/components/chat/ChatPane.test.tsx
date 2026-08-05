@@ -296,3 +296,41 @@ describe('ChatPane — turn notices', () => {
     expect(screen.getByTestId('turn-notice')).toHaveAttribute('data-kind', 'failed')
   })
 })
+
+/**
+ * Typing into a composer that cannot send is a trap: the words look sent, the turn lands, and the
+ * half-written message is either lost or fires into a conversation that has already moved on.
+ */
+describe('ChatPane — the composer while a turn is in flight', () => {
+  const field = () => screen.getByPlaceholderText(/triperco/i)
+
+  it('locks the input while the model is working', () => {
+    render(<ChatPane messages={messages} status="streaming" onSend={() => {}} />)
+    expect(field()).toBeDisabled()
+    expect(field()).toHaveAttribute('aria-busy', 'true')
+  })
+
+  it('says why it is locked rather than looking broken', () => {
+    render(<ChatPane messages={messages} status="streaming" onSend={() => {}} />)
+    expect(screen.getByPlaceholderText('Triperco is working…')).toBeInTheDocument()
+  })
+
+  it('unlocks the moment the turn is done', () => {
+    const { rerender } = render(<ChatPane messages={messages} status="streaming" onSend={() => {}} />)
+    rerender(<ChatPane messages={messages} status="ready" onSend={() => {}} />)
+    expect(field()).not.toBeDisabled()
+    expect(screen.getByPlaceholderText('Tell Triperco what you want…')).toBeInTheDocument()
+  })
+
+  it('unlocks after a failed turn, so the traveler can try again', () => {
+    render(<ChatPane messages={messages} status="error" onSend={() => {}} />)
+    expect(field()).not.toBeDisabled()
+  })
+
+  it('cannot send while locked', () => {
+    const onSend = vi.fn()
+    render(<ChatPane messages={messages} status="streaming" onSend={onSend} />)
+    fireEvent.submit(screen.getByRole('form'))
+    expect(onSend).not.toHaveBeenCalled()
+  })
+})

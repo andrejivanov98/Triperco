@@ -19,11 +19,22 @@ function bookLabel(kind: ResultSet['kind'], item: Item): string {
     return airline ? `Book on ${airline}` : 'Book flight'
   }
   if (kind === 'stays') return 'Book stay'
-  return 'Open in Maps'
+  // An event you have to buy into leads with that, not with a map pin.
+  return (item as Place).ticketUrl ? 'Tickets' : 'Open in Maps'
 }
 
+/**
+ * Where this option is actually acted on.
+ *
+ * Tickets win over the map for a place that sells them: the cards stopped carrying their own links
+ * when they became one tappable object, so if this preferred the map an event's ticket seller would
+ * be unreachable from anywhere in the app.
+ */
 function bookUrl(kind: ResultSet['kind'], item: Item): string | undefined {
-  if (kind === 'places') return (item as Place).sourceLinks?.maps
+  if (kind === 'places') {
+    const place = item as Place
+    return place.ticketUrl ?? place.sourceLinks?.maps
+  }
   const url = (item as Flight | Stay).bookUrl
   return url || undefined
 }
@@ -199,9 +210,10 @@ export function DetailPanel({
               href={url}
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-2xl bg-deep px-4 py-2.5 text-sm font-bold text-white transition hover:opacity-90"
+              className="flex items-center gap-1.5 rounded-2xl bg-deep px-4 py-2.5 text-sm font-bold text-white transition hover:opacity-90"
             >
-              {bookLabel(kind, item)} ↗
+              {bookLabel(kind, item)}
+              <Icon name="arrow-up-right" className="h-3.5 w-3.5" />
             </a>
           )}
         </div>

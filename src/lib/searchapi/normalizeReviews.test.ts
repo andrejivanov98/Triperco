@@ -12,8 +12,26 @@ const raw: RawReviewsResponse = {
 describe('normalizeReviews', () => {
   it('maps reviews, preferring snippet then text', () => {
     const out = normalizeReviews(raw)
-    expect(out[0]).toMatchObject({ author: 'Ana', rating: 5, text: 'Incredible history.' })
+    expect(out[0]).toMatchObject({ rating: 5, text: 'Incredible history.' })
     expect(out[1].text).toBe('Busy but worth it.')
+  })
+
+  it("never carries the reviewer's name, so it cannot reach the model or the screen", () => {
+    for (const review of normalizeReviews(raw)) {
+      expect(review).not.toHaveProperty('author')
+      expect(JSON.stringify(review)).not.toContain('Ana')
+    }
+  })
+
+  it('cleans the markup out of a provider review body', () => {
+    const [review] = normalizeReviews({
+      reviews: [{ snippet: 'Great market 🌴<br><br>Bring cash &amp; comfy shoes' }],
+    })
+    expect(review.text).toBe('Great market 🌴 Bring cash & comfy shoes')
+  })
+
+  it('drops a review that was nothing but markup', () => {
+    expect(normalizeReviews({ reviews: [{ snippet: '<br><br>' }] })).toEqual([])
   })
 
   it('keeps the date and like count so reviews can be shown in context', () => {
