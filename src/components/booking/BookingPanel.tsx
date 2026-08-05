@@ -196,7 +196,7 @@ export function BookingPanel({
                 className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-deep px-4 py-4 text-base font-bold text-white shadow-lg shadow-deep/25 transition active:scale-[0.97] hover:bg-ink hover:shadow-xl"
               >
                 View trip summary
-                <span aria-hidden>→</span>
+                <Icon name="arrow-right" className="h-4 w-4" />
               </button>
               <p className="mt-3 text-xs font-medium leading-relaxed text-muted">
                 Triperco keeps the itinerary together. Each booking is completed on the provider&apos;s
@@ -210,9 +210,10 @@ export function BookingPanel({
             <button
               type="button"
               onClick={() => setView('partners')}
-              className="no-print mt-5 text-sm font-bold text-accent"
+              className="no-print mt-5 flex items-center gap-1.5 text-sm font-bold text-accent"
             >
-              ← Back to booking links
+              <Icon name="chevron-left" className="h-3.5 w-3.5" />
+              Back to booking links
             </button>
           )}
         </div>

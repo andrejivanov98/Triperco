@@ -29,7 +29,10 @@ export function placeUrl(place: {
   coords?: Coords
   placeId?: string
 }): string | undefined {
-  if (place.placeId) return `https://www.google.com/maps/place/?q=place_id:${place.placeId}`
+  // Encoded: a provider id is normally url-safe, but one stray & would silently truncate the query.
+  if (place.placeId) {
+    return `https://www.google.com/maps/place/?q=place_id:${encodeURIComponent(place.placeId)}`
+  }
   const query = target(place)
   if (!query) return undefined
   return `https://www.google.com/maps/search/?${new URLSearchParams({ api: '1', query }).toString()}`

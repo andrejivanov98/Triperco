@@ -6,10 +6,25 @@ export const maxDuration = 20
 /** How many legs one request may price. A plan has a handful; this stops a crafted request. */
 const MAX_LEGS = 8
 
+/**
+ * The longest place a leg may name. "Hotel Artemide, Via Nazionale 22, Rome" is comfortably inside
+ * it, and a bounded value is what keeps a crafted request from writing an enormous cache key or
+ * handing the directions engine a megabyte to parse.
+ */
+const MAX_PLACE_CHARS = 200
+
 interface Leg {
   key: string
   from: string
   to: string
+}
+
+/**
+ * Bounded rather than truncated: the key is how the caller matches an answer back to its journey, so
+ * a shortened one would come back unrecognisable. A real key is a couple of ids joined by colons.
+ */
+function usable(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0 && value.length <= MAX_PLACE_CHARS
 }
 
 function readLegs(value: unknown): Leg[] {
@@ -18,7 +33,7 @@ function readLegs(value: unknown): Leg[] {
     .filter((leg): leg is Leg => {
       if (typeof leg !== 'object' || leg === null) return false
       const { key, from, to } = leg as Record<string, unknown>
-      return [key, from, to].every((v) => typeof v === 'string' && v.length > 0)
+      return usable(key) && usable(from) && usable(to)
     })
     .slice(0, MAX_LEGS)
 }

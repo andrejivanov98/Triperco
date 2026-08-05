@@ -11,6 +11,7 @@ import type { TriperUIMessage } from '@/lib/ui/messages'
 import type { TripState } from '@/lib/trip/types'
 import type { ContextHint } from '@/lib/ui/contextHints'
 import { checkRateLimit, tooManyRequests } from '@/lib/rate/limit'
+import { threadProblem, sanitizeHints } from '@/lib/ai/requestLimits'
 
 /**
  * A planning turn can chain several provider searches, and a long-haul round trip fans out to
@@ -28,7 +29,7 @@ export async function POST(req: Request) {
   const limit = await checkRateLimit(req, 'chat')
   if (!limit.ok) return tooManyRequests(limit.retryAfter)
 
-  let body: { messages?: unknown; trip?: TripState; hints?: ContextHint[] }
+  let body: { messages?: unknown; trip?: TripState; hints?: unknown }
   try {
     body = await req.json()
   } catch {
@@ -38,10 +39,30 @@ export async function POST(req: Request) {
   if (!Array.isArray(body.messages)) {
     return Response.json({ error: 'messages must be an array.' }, { status: 400 })
   }
+  /*
+   * The rate limiter bounds how often somebody can ask; this bounds how much they can ask with.
+   * Every character here is billed as input on every turn, so an unbounded thread is an unbounded
+   * bill — and the client's own caps are the one thing a crafted request simply omits.
+   */
+  const problem = threadProblem(body.messages)
+  if (problem === 'unsupported_part') {
+    return Response.json({ error: 'That message carries something I cannot read.' }, { status: 400 })
+  }
+  if (problem) {
+    return Response.json(
+      { error: 'That conversation is too large to continue. Start a new chat.', reason: problem },
+      { status: 413 },
+    )
+  }
   const messages = body.messages as TriperUIMessage[]
 
-  // The client sends what was on screen, so the agent can resolve "the second one" without asking.
-  const { agent, state } = createPlannerAgent({ trip: body.trip, hints: body.hints })
+  /*
+   * The client sends what was on screen, so the agent can resolve "the second one" without asking.
+   * Sanitized rather than trusted: hints are interpolated straight into the system prompt, and one
+   * of them describes a trip that may have arrived from somebody else's shared link.
+   */
+  const hints: ContextHint[] = sanitizeHints(body.hints)
+  const { agent, state } = createPlannerAgent({ trip: body.trip, hints })
 
   const stream = createUIMessageStream<TriperUIMessage>({
     // A thrown turn becomes one calm sentence — never a stack, never the provider's own words.
@@ -55,21 +76,39 @@ export async function POST(req: Request) {
        * still write to the stream afterwards.
        */
       let text = ''
+      /*
+       * Whether the first attempt got as far as producing a stream. It decides whether a second one
+       * is safe, and the distinction is not academic: `agent.stream()` resolves as soon as the
+       * request is accepted, so a turn that dies part-way through dies by rejecting `result.text` —
+       * after its stream was merged and after its tools already ran. Retrying at that point would
+       * bill every search a second time, append a second reply to the same bubble, and leave two
+       * copies of every result set in the state written below.
+       */
+      let started = false
       try {
         const result = await agent.stream({ messages: modelMessages })
+        started = true
         writer.merge(toUIMessageStream({ stream: result.stream }))
         text = await result.text
       } catch {
         /*
-         * The turn never got going. One retry, because the usual causes — a transient provider
-         * error, a rate limit at the model — clear within a second. A second failure falls through
-         * to the empty-turn handling below, which always leaves something on screen.
+         * The turn never got going: nothing reached the traveler and no tool ran, so one retry costs
+         * only time. The usual causes — a transient provider error, a rate limit at the model —
+         * clear within a second.
+         *
+         * A turn that died mid-stream is not retried. It falls through to the empty-turn handling
+         * below, whose repair is deliberately toolless: the traveler still gets a sentence, and the
+         * searches that already ran are not paid for twice.
          */
-        try {
-          const retry = await agent.stream({ messages: modelMessages })
-          writer.merge(toUIMessageStream({ stream: retry.stream }))
-          text = await retry.text
-        } catch {
+        if (!started) {
+          try {
+            const retry = await agent.stream({ messages: modelMessages })
+            writer.merge(toUIMessageStream({ stream: retry.stream }))
+            text = await retry.text
+          } catch {
+            text = ''
+          }
+        } else {
           text = ''
         }
       }

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import type { PrefForm as PrefFormData } from '@/lib/ui/interactions'
 import { GuidedCard, GuidedRow } from './GuidedCard'
+import { Icon } from '@/components/ui/Icon'
 
 export function PrefForm({
   form,
@@ -36,7 +37,8 @@ export function PrefForm({
             disabled={selected.length === 0}
             className="flex items-center gap-1.5 rounded-full bg-deep px-4 py-2 text-xs font-bold text-white transition hover:bg-ink disabled:opacity-40"
           >
-            Next <span aria-hidden>→</span>
+            Next
+            <Icon name="arrow-right" className="h-3.5 w-3.5" />
           </button>
         ) : undefined
       }

@@ -7,6 +7,7 @@ import { describeGuests, DEFAULT_GUESTS, type Guests } from '@/lib/ui/guests'
 import { DateRangePicker } from '@/components/landing/DateRangePicker'
 import { GuestPicker } from '@/components/landing/GuestPicker'
 import { GuidedCard, GuidedRow } from './GuidedCard'
+import { Icon } from '@/components/ui/Icon'
 
 /**
  * Rough bands rather than a number field. Someone who has not settled on a figure can still say
@@ -60,7 +61,8 @@ export function DetailForm({
             disabled={!range.start}
             className="flex items-center gap-1.5 rounded-full bg-deep px-4 py-2 text-xs font-bold text-white transition hover:bg-ink disabled:opacity-40"
           >
-            {range.start ? describeRange(range) : 'Pick dates'} <span aria-hidden>→</span>
+            {range.start ? describeRange(range) : 'Pick dates'}
+            <Icon name="arrow-right" className="h-3.5 w-3.5" />
           </button>
         }
       >
@@ -83,7 +85,8 @@ export function DetailForm({
             onClick={() => onSubmit(describeGuests(guests))}
             className="flex items-center gap-1.5 rounded-full bg-deep px-4 py-2 text-xs font-bold text-white transition hover:bg-ink"
           >
-            {describeGuests(guests)} <span aria-hidden>→</span>
+            {describeGuests(guests)}
+            <Icon name="arrow-right" className="h-3.5 w-3.5" />
           </button>
         }
       >

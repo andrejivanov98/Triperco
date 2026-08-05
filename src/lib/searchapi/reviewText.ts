@@ -35,11 +35,26 @@ const ENTITIES: Record<string, string> = {
   '&ldquo;': '“',
 }
 
+/** The highest code point there is. Past it, `String.fromCodePoint` throws rather than returning. */
+const MAX_CODE_POINT = 0x10ffff
+
+/**
+ * Decode one numeric escape, or leave it as written.
+ *
+ * A review body is text a stranger typed, so `&#99999999;` is a thing that can arrive — and decoding
+ * it unguarded threw a RangeError that failed the entire place search, not just the one quote.
+ */
+function fromCode(code: string): string {
+  const point = Number(code)
+  if (!Number.isInteger(point) || point <= 0 || point > MAX_CODE_POINT) return `&#${code};`
+  return String.fromCodePoint(point)
+}
+
 function decodeEntities(text: string): string {
   return text
     .replace(/&[a-z#0-9]+;/gi, (match) => ENTITIES[match.toLowerCase()] ?? match)
     // Numeric escapes the table does not name, e.g. &#8217;
-    .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
+    .replace(/&#(\d+);/g, (_, code: string) => fromCode(code))
 }
 
 /**

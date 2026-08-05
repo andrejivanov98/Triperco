@@ -16,6 +16,13 @@ interface PlaceDetail {
  */
 const MAX_BATCH = 6
 
+/** A provider place id is a short token. Bounded so it cannot become an enormous cache key. */
+const MAX_ID_CHARS = 200
+
+function usableId(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0 && value.length <= MAX_ID_CHARS
+}
+
 async function detailFor(placeId: string): Promise<PlaceDetail> {
   const [reviews, photos] = await Promise.all([
     getPlaceReviews(placeId, undefined).catch(() => [] as ReviewSnippet[]),
@@ -43,14 +50,12 @@ export async function POST(req: Request) {
 
   // Batch form: keyed by id, so the caller can match each answer back to its card.
   if (Array.isArray(body.placeIds)) {
-    const ids = [
-      ...new Set(body.placeIds.filter((id): id is string => typeof id === 'string' && id.length > 0)),
-    ].slice(0, MAX_BATCH)
+    const ids = [...new Set(body.placeIds.filter(usableId))].slice(0, MAX_BATCH)
     const entries = await Promise.all(ids.map(async (id) => [id, await detailFor(id)] as const))
     return Response.json({ places: Object.fromEntries(entries) })
   }
 
-  if (typeof body.placeId !== 'string' || body.placeId.length === 0) {
+  if (!usableId(body.placeId)) {
     return Response.json({ error: 'placeId or placeIds is required' }, { status: 400 })
   }
   // Single form, unchanged for the detail panel: reviews and photos at the top level.

@@ -40,6 +40,20 @@ describe('sanitizeReviewText', () => {
     expect(sanitizeReviewText('It&#8217;s fine')).toBe('It’s fine')
   })
 
+  /**
+   * A review body is text a stranger typed. Decoding this unguarded threw a RangeError, which failed
+   * the whole place search rather than the one quote.
+   */
+  it('leaves a numeric escape that is not a character alone, instead of throwing', () => {
+    expect(sanitizeReviewText('Great spot &#99999999; really')).toBe('Great spot &#99999999; really')
+    expect(sanitizeReviewText('Odd &#1114112; one')).toBe('Odd &#1114112; one')
+    expect(sanitizeReviewText('Zero &#0; here')).toBe('Zero &#0; here')
+  })
+
+  it('still decodes the boundary code point', () => {
+    expect(sanitizeReviewText('End &#1114111;')).toBe(`End ${String.fromCodePoint(0x10ffff)}`)
+  })
+
   it('drops the provider’s own wrapping quotes', () => {
     expect(sanitizeReviewText('"Breakfast was included."')).toBe('Breakfast was included.')
   })

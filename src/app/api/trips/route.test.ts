@@ -63,6 +63,12 @@ describe('POST /api/trips — first save', () => {
     expect((await post({})).status).toBe(400)
   })
 
+  /** Nobody plans a quarter-megabyte trip by hand; the endpoint is not free storage. */
+  it('refuses a trip too large to be one somebody made', async () => {
+    const bloated = { ...trip(), notes: 'x'.repeat(300_000) }
+    expect((await post({ trip: bloated })).status).toBe(413)
+  })
+
   it('rejects a malformed body', async () => {
     const res = await POST(
       new Request('https://triperco.test/api/trips', { method: 'POST', body: '{oops' }),

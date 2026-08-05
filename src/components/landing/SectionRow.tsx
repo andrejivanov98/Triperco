@@ -105,8 +105,12 @@ export function SectionRow({
 
       {cta && (
         <div className="mx-auto w-full max-w-[1500px] px-5 sm:px-8">
-          <Link href={cta.href} className="text-sm font-bold text-deep transition hover:text-accent">
-            {cta.label} →
+          <Link
+            href={cta.href}
+            className="inline-flex items-center gap-1.5 text-sm font-bold text-deep transition hover:text-accent"
+          >
+            {cta.label}
+            <Icon name="arrow-right" className="h-3.5 w-3.5" />
           </Link>
         </div>
       )}

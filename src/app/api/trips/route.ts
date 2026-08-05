@@ -7,6 +7,13 @@ import { checkRateLimit, tooManyRequests } from '@/lib/rate/limit'
  * Constant-time comparison, so a wrong token cannot be narrowed down by timing how long the
  * comparison took. Overkill for a share link, and still the right way to compare a secret.
  */
+/**
+ * How large a saved plan may be. A full trip — flights, stays, a week of activities, every photo url
+ * — runs to a few tens of kilobytes, so this is generous for a plan somebody actually made and small
+ * enough that nobody can use the share endpoint as free storage.
+ */
+const MAX_TRIP_CHARS = 256_000
+
 function tokenMatches(given: string, stored: string): boolean {
   if (given.length !== stored.length) return false
   let diff = 0
@@ -39,6 +46,9 @@ export async function POST(req: Request) {
   const trip = body.trip
   if (!trip || typeof trip !== 'object' || !Array.isArray(trip.flights)) {
     return Response.json({ error: 'trip is required.' }, { status: 400 })
+  }
+  if (JSON.stringify(trip).length > MAX_TRIP_CHARS) {
+    return Response.json({ error: 'That trip is too large to share.' }, { status: 413 })
   }
 
   const store = getTripStore()
