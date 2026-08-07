@@ -40,15 +40,15 @@ describe('RecapCard', () => {
 
   /*
    * The link is the thing that turns a chat they will lose into something they can send to the
-   * people coming with them — so it is a button *and* readable text, because a link you cannot see
-   * is a link you cannot copy.
+   * people coming with them. The button carries it; the address spelled out beside the button was
+   * just noise, so it is gone.
    */
-  it('hands over the link, in full', () => {
+  it('hands over the link, on the button and nowhere else', () => {
     render(<RecapCard recap={recap} />)
     const link = screen.getByRole('link', { name: /open the trip summary/i })
     expect(link).toHaveAttribute('href', 'https://triperco.test/trip/abc123')
     expect(link).toHaveAttribute('target', '_blank')
-    expect(screen.getByText('https://triperco.test/trip/abc123')).toBeInTheDocument()
+    expect(screen.queryByText('https://triperco.test/trip/abc123')).not.toBeInTheDocument()
   })
 
   /** A trip that could not be saved still has a summary — it just lives in the panel. */

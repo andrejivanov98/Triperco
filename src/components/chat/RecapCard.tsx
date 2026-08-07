@@ -58,7 +58,8 @@ export function RecapCard({ recap, onOpenSummary }: { recap: TripRecapCard; onOp
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-2 border-t border-hairline px-5 py-3.5">
+      {/* The button carries the link. The address in full beside it was just noise. */}
+      <div className="flex items-center border-t border-hairline px-5 py-3.5">
         {recap.url ? (
           <a
             href={recap.url}
@@ -80,15 +81,6 @@ export function RecapCard({ recap, onOpenSummary }: { recap: TripRecapCard; onOp
               <Icon name="arrow-right" className="h-3.5 w-3.5" />
             </button>
           )
-        )}
-        {/*
-          The address in full beside the button. This is the thing people paste into a group chat,
-          and a link they cannot see is a link they cannot copy.
-        */}
-        {recap.url && (
-          <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-muted">
-            {recap.url}
-          </span>
         )}
       </div>
     </div>
