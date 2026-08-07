@@ -6,6 +6,7 @@ import type {
   OptionSet,
   PrefForm,
   ReplySuggestions,
+  TripRecapCard,
   TurnNotice,
 } from './interactions'
 
@@ -26,6 +27,8 @@ export type TriperUIMessage = UIMessage<
     detail: DetailRequest
     suggestions: ReplySuggestions
     notice: TurnNotice
+    /** Written by the app from the plan, never by the model. */
+    recap: TripRecapCard
   }
 >
 

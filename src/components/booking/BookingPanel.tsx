@@ -31,11 +31,15 @@ function PartnerCard({
   return (
     <div className="flex flex-col gap-3 rounded-3xl border border-hairline bg-sand/40 p-3">
       <div className="flex items-center gap-3 rounded-2xl bg-white p-3">
+        {/* An airline's logo has to sit inside its tile; a property photo fills one. */}
         <RemoteImage
-          src={item.thumbnail}
-          alt={item.title}
+          src={item.logo ?? item.thumbnail}
+          alt={item.logo ? item.partner : item.title}
           fallbackGlyph={<Icon name={item.kind === 'flight' ? 'plane' : item.kind === 'stay' ? 'bed' : 'ticket'} className="h-5 w-5" />}
-          className="h-14 w-14 shrink-0 rounded-xl object-cover"
+          className={
+            'h-14 w-14 shrink-0 rounded-xl ' +
+            (item.logo ? 'border border-hairline bg-white object-contain p-2' : 'object-cover')
+          }
           fallbackClassName="text-lg"
         />
         <div className="min-w-0 flex-1">

@@ -1,5 +1,5 @@
 import type { Place } from '../trip/types'
-import { capPhotoSize } from './normalizePhotos'
+import { photoUrl } from './normalizePhotos'
 
 interface RawLocalResult {
   title: string
@@ -13,7 +13,11 @@ interface RawLocalResult {
   types?: string[]
   gps_coordinates?: { latitude: number; longitude: number }
   thumbnail?: string
-  images?: string[]
+  /**
+   * Urls on a search result; `{ title, thumbnail }` category tiles on a single-place result such as
+   * a city. Both shapes are real, so both are read.
+   */
+  images?: (string | { title?: string; image?: string; thumbnail?: string })[]
   hours?: string
   open_state?: string
   open_hours?: Record<string, string>
@@ -82,10 +86,14 @@ export function normalizePlaces(raw: RawMapsResponse): Place[] {
      *
      * The gallery images lead and the search thumbnail comes last: a thumbnail is an 86px crop, and
      * putting it first made it the card's cover — a blurred smear where the photo should be.
+     *
+     * Read through `photoUrl` because the field is not always a url. A city result carries photo
+     * *categories* as objects, and treating one as a string threw — which failed the whole search,
+     * not just its photos, and is why a plan could end up with no cover image.
      */
-    const photos = [...new Set([...(r.images ?? []), r.thumbnail].filter((p): p is string => Boolean(p)))].map(
-      (url) => capPhotoSize(url),
-    )
+    const photos = [
+      ...new Set([...(r.images ?? []), r.thumbnail].map(photoUrl).filter(Boolean)),
+    ]
     return {
       id: r.place_id,
       name: r.title,

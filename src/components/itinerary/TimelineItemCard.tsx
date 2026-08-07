@@ -43,13 +43,27 @@ export function TimelineItemCard({
         aria-label={canAct ? `${open ? 'Hide' : 'Show'} options for ${item.title}` : undefined}
         className="flex w-full items-start gap-2.5 p-2.5 text-left"
       >
-        <RemoteImage
-          src={item.thumbnail}
-          alt={item.title}
-          fallbackGlyph={<Icon name={KIND_ICON[item.kind]} className="h-4 w-4" />}
-          className="h-11 w-11 shrink-0 rounded-lg object-cover"
-          fallbackClassName="text-base"
-        />
+        {/*
+          A logo is contained on white, a photo is cropped to fill. Drawing an airline mark with
+          object-cover turned it into a slice of coloured square with no logo visible in it.
+        */}
+        {item.logo ? (
+          <RemoteImage
+            src={item.logo}
+            alt={item.subtitle?.split(' · ')[0] ?? item.title}
+            fallbackGlyph={<Icon name={KIND_ICON[item.kind]} className="h-4 w-4" />}
+            className="h-11 w-11 shrink-0 rounded-lg border border-hairline bg-white object-contain p-1.5"
+            fallbackClassName="text-base"
+          />
+        ) : (
+          <RemoteImage
+            src={item.thumbnail}
+            alt={item.title}
+            fallbackGlyph={<Icon name={KIND_ICON[item.kind]} className="h-4 w-4" />}
+            className="h-11 w-11 shrink-0 rounded-lg object-cover"
+            fallbackClassName="text-base"
+          />
+        )}
 
         <div className="min-w-0 flex-1">
           <div className="truncate text-xs font-bold text-ink">{item.title}</div>

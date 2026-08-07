@@ -4,6 +4,7 @@ import { formatMoney, formatDuration, formatStops } from '@/lib/ui/format'
 import { formatDateRange } from '@/lib/trip/dates'
 import { directionsUrl, placeUrl, telUrl } from '@/lib/trip/mapsLink'
 import { Icon, type IconName } from '@/components/ui/Icon'
+import { RemoteImage } from '@/components/ui/RemoteImage'
 
 /**
  * One thing to press. The summary is read on a phone while travelling, so an address has to be a tap
@@ -57,6 +58,25 @@ export function TripSummarySheet({ trip }: { trip: TripState }) {
 
   return (
     <div className="flex flex-col gap-6 text-ink">
+      {/*
+        The destination, so the document opens on the place rather than on a heading. Left out of the
+        print sheet on purpose: on paper it costs most of the first page and tells the reader nothing
+        the title does not.
+      */}
+      {trip.meta.coverImage && (
+        <div
+          data-testid="summary-cover"
+          className="relative h-40 w-full overflow-hidden rounded-2xl print:hidden"
+        >
+          <RemoteImage
+            src={trip.meta.coverImage}
+            alt={trip.meta.destination ? `${trip.meta.destination} cover photo` : 'Trip cover'}
+            fallbackGlyph={<Icon name="compass" className="h-7 w-7" />}
+            className="h-full w-full object-cover"
+          />
+        </div>
+      )}
+
       <header className="border-b border-hairline pb-4">
         <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted">Trip summary</p>
         <h1 className="mt-1 font-display text-3xl leading-tight">{title}</h1>
@@ -72,18 +92,31 @@ export function TripSummarySheet({ trip }: { trip: TripState }) {
           <h2 className="text-xs font-bold uppercase tracking-wide text-muted">Flights</h2>
           {trip.flights.map((flight, i) => {
             const nextDay = arrivalDayLabel(flight)
+            const logo = flight.airlineLogo ?? flight.segments?.find((s) => s.airlineLogo)?.airlineLogo
             return (
               <div
                 key={`${flight.id}-${i}`}
                 className="flex flex-col gap-1 rounded-2xl border border-hairline p-3"
               >
                 <div className="flex items-baseline justify-between gap-3">
-                  <span className="text-sm font-bold">
-                    {flight.direction === 'return' ? 'Return' : 'Outbound'} · {flight.from} →{' '}
-                    {flight.to}
+                  <span className="flex min-w-0 items-center gap-2 text-sm font-bold">
+                    {/* Whose plane it is, next to the route. Contained, so the mark stays a mark. */}
+                    {logo && (
+                      <RemoteImage
+                        src={logo}
+                        alt={flight.airline ?? 'Airline'}
+                        fallbackGlyph={<Icon name="plane" className="h-3 w-3" />}
+                        className="h-5 w-5 shrink-0 rounded object-contain"
+                        fallbackClassName="text-[10px]"
+                      />
+                    )}
+                    <span className="truncate">
+                      {flight.direction === 'return' ? 'Return' : 'Outbound'} · {flight.from} →{' '}
+                      {flight.to}
+                    </span>
                   </span>
                   {flight.price > 0 && (
-                    <span className="text-sm font-bold">{formatMoney(flight.price)}</span>
+                    <span className="shrink-0 text-sm font-bold">{formatMoney(flight.price)}</span>
                   )}
                 </div>
                 <div className="text-sm font-medium">

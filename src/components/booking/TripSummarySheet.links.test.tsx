@@ -92,3 +92,51 @@ describe('TripSummarySheet — links you can press', () => {
     expect(screen.queryAllByRole('link', { name: /call/i })).toHaveLength(0)
   })
 })
+
+/**
+ * The summary is the finished article, and it opened on a heading. The destination photo is what
+ * makes it read as a trip rather than as a receipt — and it is the same photo the plan hero and the
+ * shared page use, so all three agree.
+ *
+ * Kept off the printed sheet: on paper it costs most of the first page and says nothing the title
+ * does not.
+ */
+describe('TripSummarySheet — the cover photo', () => {
+  it('opens on the destination when the trip has a cover', () => {
+    const withCover = setMeta(trip(), { coverImage: 'https://photos/rome.jpg' })
+    render(<TripSummarySheet trip={withCover} />)
+    const img = screen.getByAltText('Rome cover photo')
+    expect(img).toHaveAttribute('src', 'https://photos/rome.jpg')
+    expect(screen.getByTestId('summary-cover').className).toContain('print:hidden')
+  })
+
+  it('takes up no room at all when there is no cover', () => {
+    render(<TripSummarySheet trip={trip()} />)
+    expect(screen.queryByTestId('summary-cover')).not.toBeInTheDocument()
+  })
+})
+
+describe('TripSummarySheet — whose plane it is', () => {
+  it('shows the airline logo beside the route', () => {
+    const withLogo = addFlight(setMeta(createTrip('t1'), { destination: 'Rome', travelers: 1 }), {
+      id: 'f1',
+      from: 'SKP',
+      to: 'FCO',
+      airline: 'Wizz Air',
+      airlineLogo: 'https://logos/wizz.png',
+      stops: 0,
+      price: 120,
+      bookUrl: 'x',
+    })
+    render(<TripSummarySheet trip={withLogo} />)
+    const img = screen.getByAltText('Wizz Air')
+    expect(img).toHaveAttribute('src', 'https://logos/wizz.png')
+    // A mark, not a photograph: contained inside its box rather than cropped to fill it.
+    expect(img.className).toContain('object-contain')
+  })
+
+  it('says nothing where the provider gave no logo', () => {
+    render(<TripSummarySheet trip={trip()} />)
+    expect(screen.queryByAltText(/airline/i)).not.toBeInTheDocument()
+  })
+})

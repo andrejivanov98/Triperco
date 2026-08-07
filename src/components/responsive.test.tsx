@@ -70,7 +70,12 @@ describe('the header survives a narrow screen', () => {
     }
   })
 
-  it('holds the section navigator back until there is room for it', () => {
+  /*
+   * The header's own slot stays wide-screen-only: there is no room beside the plan and share buttons
+   * on a phone. The navigator is not lost there — the planner gives it its own row above the
+   * conversation instead, which PlannerScreen.sections.test.tsx covers.
+   */
+  it('holds the section navigator out of the header until there is room for it', () => {
     const { container } = render(<SiteHeader center={<span>nav</span>} />)
     const slot = [...container.querySelectorAll('div')].find((d) => d.textContent === 'nav')
     expect(slot?.className).toContain('hidden')

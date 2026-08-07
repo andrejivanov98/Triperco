@@ -11,6 +11,7 @@ import {
   getForms,
   getDetailRequests,
   getNotices,
+  getRecaps,
   getSuggestions,
 } from '@/lib/ui/interactions'
 import { ResultCarousel } from '@/components/results/ResultCarousel'
@@ -19,6 +20,7 @@ import { OptionList } from './OptionList'
 import { PrefForm } from './PrefForm'
 import { DetailForm } from './DetailForm'
 import { SuggestionChips } from './SuggestionChips'
+import { RecapCard } from './RecapCard'
 import { ThinkingIndicator, ResultSkeleton } from './ThinkingIndicator'
 
 interface ChatPaneProps {
@@ -38,6 +40,8 @@ interface ChatPaneProps {
   plannedIds?: Set<string>
   /** Rendered above the greeting when the chat is empty (e.g. starter prompts). */
   emptyState?: React.ReactNode
+  /** Opens the trip summary panel, for a recap written before the trip had a link. */
+  onOpenSummary?: () => void
 }
 
 function messageText(message: TriperUIMessage): string {
@@ -63,6 +67,7 @@ export function ChatPane({
   tripDates,
   plannedIds,
   emptyState,
+  onOpenSummary,
 }: ChatPaneProps) {
   const [input, setInput] = useState('')
   const busy = status !== 'ready' && status !== 'error'
@@ -106,6 +111,7 @@ export function ChatPane({
           const forms = m.role === 'assistant' ? getForms(m) : []
           const details = m.role === 'assistant' ? getDetailRequests(m) : []
           const notices = m.role === 'assistant' ? getNotices(m) : []
+          const recaps = m.role === 'assistant' ? getRecaps(m) : []
           const text = messageText(m)
           const isUser = m.role === 'user'
 
@@ -165,6 +171,13 @@ export function ChatPane({
                 </div>
               )}
 
+              {/* The end of the conversation: the whole trip in one place, with its link. */}
+              {recaps.map((recap, i) => (
+                <div key={`rc${i}`} className="w-full max-w-md">
+                  <RecapCard recap={recap} onOpenSummary={onOpenSummary} />
+                </div>
+              ))}
+
               {options.map((set, i) => (
                 <div key={`o${i}`} className="w-full max-w-md">
                   <OptionList set={set} onChoose={onSend} />
@@ -193,12 +206,15 @@ export function ChatPane({
 
               {/*
                 A guided card is already a question with its own answers, so chips beside one would
-                offer two competing ways to reply to the same thing.
+                offer two competing ways to reply to the same thing. A recap is the same in reverse:
+                it is an ending, and the stage chips underneath it would invite the traveler to finish
+                a trip they have just finished.
               */}
               {m.id === liveTurnId &&
                 options.length === 0 &&
                 forms.length === 0 &&
-                details.length === 0 && <SuggestionChips replies={liveReplies} onPick={onSend} />}
+                details.length === 0 &&
+                recaps.length === 0 && <SuggestionChips replies={liveReplies} onPick={onSend} />}
             </div>
           )
         })}

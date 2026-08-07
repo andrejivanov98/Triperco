@@ -72,3 +72,45 @@ describe('TimelineItemCard', () => {
     expect(screen.getByText(/● booked/i)).toBeInTheDocument()
   })
 })
+
+/**
+ * A flight row used to be the only one with nothing in its tile, so every leg of every trip looked
+ * identical. The airline's own logo is the fastest possible way to tell them apart — but it is a mark
+ * on white, not a photograph, so cropping it to fill the tile leaves a slice of coloured square with
+ * no logo in it.
+ */
+describe('TimelineItemCard — the airline on a flight row', () => {
+  const flight: TimelineItem = {
+    kind: 'flight',
+    id: 'f1',
+    title: 'SKP → FCO',
+    subtitle: 'Wizz Air · Nonstop',
+    logo: 'https://logos/wizz.png',
+    price: 120,
+    priceUnit: 'total',
+    bookingStatus: 'not_booked',
+  }
+
+  it('shows the logo, named after the airline', () => {
+    render(<TimelineItemCard item={flight} />)
+    const img = screen.getByAltText('Wizz Air')
+    expect(img).toHaveAttribute('src', 'https://logos/wizz.png')
+  })
+
+  it('contains the mark rather than cropping it', () => {
+    render(<TimelineItemCard item={flight} />)
+    const img = screen.getByAltText('Wizz Air')
+    expect(img.className).toContain('object-contain')
+    expect(img.className).not.toContain('object-cover')
+  })
+
+  it('falls back to the plane glyph when the airline gave no logo', () => {
+    render(<TimelineItemCard item={{ ...flight, logo: undefined }} />)
+    expect(screen.getByRole('img', { name: 'SKP → FCO' })).toBeInTheDocument()
+  })
+
+  it('leaves a photo cropped to fill its tile', () => {
+    render(<TimelineItemCard item={stay} />)
+    expect(screen.getByAltText("Guido's Apartments").className).toContain('object-cover')
+  })
+})

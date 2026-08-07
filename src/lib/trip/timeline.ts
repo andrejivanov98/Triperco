@@ -15,6 +15,12 @@ export interface TimelineItem {
   price?: number
   priceUnit?: 'total' | 'night'
   thumbnail?: string
+  /**
+   * A brand mark rather than a photograph — an airline's logo. Kept apart from `thumbnail` because
+   * the two are drawn differently: a photo is cropped to fill its tile, a logo has to sit inside one
+   * with its whitespace intact or it comes out as a slice of coloured square.
+   */
+  logo?: string
   bookUrl?: string
   bookLabel?: string
   bookingStatus: 'not_booked' | 'booked'
@@ -49,6 +55,8 @@ function flightItem(f: Flight): TimelineItem {
     timeLabel: times,
     price: f.price,
     priceUnit: 'total',
+    // Whose plane it is, at a glance. A row reading "SKP → FCO" alone made every flight look alike.
+    logo: f.airlineLogo ?? f.segments?.find((s) => s.airlineLogo)?.airlineLogo,
     bookUrl: f.bookUrl,
     bookLabel: f.airline ? `Book on ${f.airline}` : 'Book flight',
     bookingStatus: f.bookingStatus ?? 'not_booked',

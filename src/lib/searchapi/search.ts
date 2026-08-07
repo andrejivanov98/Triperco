@@ -318,15 +318,56 @@ export interface TransferOption {
   via?: string
 }
 
+interface RawRoute {
+  travel_mode?: string
+  formatted_duration?: string
+  duration?: number
+  formatted_distance?: string
+  via?: string
+}
+
 interface RawDirections {
   travel_modes?: { travel_mode?: string; formatted_duration?: string; duration?: number }[]
-  directions?: {
-    travel_mode?: string
-    formatted_duration?: string
-    duration?: number
-    formatted_distance?: string
-    via?: string
-  }[]
+  directions?: RawRoute[]
+}
+
+/**
+ * Read the provider's payload into the options a traveler chooses between.
+ *
+ * `travel_modes` is the summary row — every way of covering the ground with a headline time — and
+ * `directions` holds the routed detail for whichever modes it actually worked out. Normally both
+ * arrive. When only `directions` does, the modes in it are still real answers, and the version of
+ * this that read `travel_modes` alone threw them away and reported "no route" for a journey the
+ * provider had just described.
+ */
+function readTransferOptions(raw: RawDirections): TransferOption[] {
+  // Detail from the routed directions where we have it, falling back to the mode summary.
+  const routes = (raw.directions ?? []).filter((d) => d.travel_mode)
+  const detail = new Map(routes.map((d) => [d.travel_mode as string, d]))
+
+  const summary = (raw.travel_modes ?? []).filter((m) => m.travel_mode)
+  // Whichever list has the modes. Both name the same journeys, so this never doubles anything up.
+  const modes =
+    summary.length > 0
+      ? summary
+      : [...new Set(routes.map((d) => d.travel_mode as string))].map((travel_mode) => ({
+          travel_mode,
+          formatted_duration: undefined,
+          duration: detail.get(travel_mode)?.duration,
+        }))
+
+  return modes.map((m) => {
+    const mode = m.travel_mode as string
+    const routed = detail.get(mode)
+    const option: TransferOption = { mode }
+    const duration = m.formatted_duration ?? routed?.formatted_duration
+    if (duration) option.duration = duration
+    const seconds = typeof m.duration === 'number' ? m.duration : routed?.duration
+    if (typeof seconds === 'number') option.durationSeconds = seconds
+    if (routed?.formatted_distance) option.distance = routed.formatted_distance
+    if (routed?.via) option.via = routed.via
+    return option
+  })
 }
 
 /**
@@ -334,6 +375,11 @@ interface RawDirections {
  *
  * A trip is not planned until someone knows whether it is a 27-minute taxi or a 53-minute train
  * with a change, so this is worth asking about rather than leaving to the traveler to discover.
+ *
+ * An empty answer is deliberately not cached. It is almost always a bad question rather than a
+ * routeless journey — a name the geocoder could not place, a provider blip, a timeout — and holding
+ * it for a day meant one unlucky moment left the plan insisting there was no way to get somewhere
+ * for the rest of the trip.
  */
 export async function getTransferOptions(
   from: string,
@@ -342,28 +388,59 @@ export async function getTransferOptions(
 ): Promise<TransferOption[]> {
   const { search, cache } = resolve(deps)
   const key = `google_maps_directions:${from}:${to}`
-  return withCache(cache, key, TTL.places, async () => {
-    const raw = await search<RawDirections>('google_maps_directions', { from, to })
-    // Detail from the routed directions where we have it, falling back to the mode summary.
-    const detail = new Map(
-      (raw.directions ?? [])
-        .filter((d) => d.travel_mode)
-        .map((d) => [d.travel_mode as string, d]),
-    )
-    return (raw.travel_modes ?? [])
-      .filter((m) => m.travel_mode)
-      .map((m) => {
-        const mode = m.travel_mode as string
-        const routed = detail.get(mode)
-        const option: TransferOption = { mode }
-        const duration = m.formatted_duration ?? routed?.formatted_duration
-        if (duration) option.duration = duration
-        if (typeof m.duration === 'number') option.durationSeconds = m.duration
-        if (routed?.formatted_distance) option.distance = routed.formatted_distance
-        if (routed?.via) option.via = routed.via
-        return option
-      })
-  })
+  const cached = await cache.get<TransferOption[]>(key)
+  if (cached && cached.length > 0) return cached
+
+  const raw = await search<RawDirections>('google_maps_directions', { from, to })
+  const options = readTransferOptions(raw)
+  if (options.length > 0) await cache.set(key, options, TTL.places)
+  return options
+}
+
+/** One way of naming a journey, for `findTransferOptions` to try. */
+export interface TransferCandidate {
+  from: string
+  to: string
+}
+
+/**
+ * How many ways of naming the same journey we will pay to try. Three: the name as the traveler sees
+ * it, then coordinates, then the bare essentials.
+ */
+export const MAX_TRANSFER_ATTEMPTS = 3
+
+/**
+ * The same journey, asked in whatever ways we can describe it, until one comes back with a route.
+ *
+ * This exists because of a specific and very visible failure: the plan said "no route came back" and
+ * the traveler tapped Directions, landed in Google Maps, and was shown four. Nothing was wrong with
+ * the journey — the *question* was wrong. A stay whose provider address was only "Apartamentos X,
+ * Spain" does not geocode, and one unresolvable end returns an empty answer with no error.
+ *
+ * So each end is described more than once — the human name, the coordinates we already hold, the
+ * plain address — and the first description that routes is the answer. Attempts stop at the first
+ * success, so the extra descriptions cost nothing on the journeys that were always fine.
+ */
+export async function findTransferOptions(
+  candidates: TransferCandidate[],
+  deps?: SearchDeps,
+): Promise<TransferOption[]> {
+  const tried = new Set<string>()
+  for (const { from, to } of candidates) {
+    if (!from || !to) continue
+    const shape = `${from}→${to}`.toLowerCase()
+    if (tried.has(shape) || from.toLowerCase() === to.toLowerCase()) continue
+    tried.add(shape)
+    if (tried.size > MAX_TRANSFER_ATTEMPTS) break
+
+    try {
+      const options = await getTransferOptions(from, to, deps)
+      if (options.length > 0) return options
+    } catch {
+      // A failed description is not a routeless journey; try the next way of naming it.
+    }
+  }
+  return []
 }
 
 export interface StayDetailsParams {

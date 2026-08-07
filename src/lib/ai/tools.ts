@@ -521,7 +521,7 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
 
     getTransferOptions: tool({
       description:
-        'How to get between two places — normally the airport and where they are staying. Returns driving, transit, walking and cycling times. Ask whether they want airport transfers once a stay is in the plan, and use this to answer with real numbers rather than a guess.',
+        'How to get between two places — normally the airport and where they are staying. Returns driving, transit, walking and cycling times. Name each end as fully as you can: an airport by its real name ("Tenerife South Airport", not "TFS"), and a stay by its name plus its city, or its street address. A name the map cannot place returns nothing, which is a different thing from there being no way to get there. Ask whether they want airport transfers once a stay is in the plan, and use this to answer with real numbers rather than a guess.',
       inputSchema: z.object({
         from: z.string().describe('e.g. "Turin Airport" or a full address'),
         to: z.string().describe('The accommodation name and city, or a full address'),
@@ -532,6 +532,20 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
           // The tool records that the journeys were answered, so the plan can reach its end without
           // depending on the agent remembering to say it did this.
           state.trip = setMeta(state.trip, { transfersReviewed: true })
+          /*
+           * Spelled out, because the model kept drawing the wrong conclusion from an empty list. An
+           * empty answer is a failed lookup far more often than it is a journey with no route, and
+           * telling somebody there is no way to get somewhere they can route in one tap is worse
+           * than telling them nothing at all.
+           */
+          if (options.length === 0) {
+            return {
+              from,
+              to,
+              options,
+              note: 'No times came back. That is almost always a name the map could not place rather than a journey with no route — try naming that end more fully. Never tell the traveler there is no way to get there.',
+            }
+          }
           return { from, to, options }
         }),
     }),

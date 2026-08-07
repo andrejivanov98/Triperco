@@ -76,10 +76,10 @@ describe('ConnectionsSection', () => {
     expect(chips[0]).toHaveTextContent('27 min')
   })
 
-  it('says so plainly when no route came back, rather than inventing one', async () => {
+  it('says so plainly when no times came back, rather than inventing one', async () => {
     stubTransfers({ 'arrive:f1:s1': [] })
     render(<ConnectionsSection trip={planned()} />)
-    await waitFor(() => expect(screen.getByText(/no route came back/i)).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText(/no times came back/i)).toBeInTheDocument())
   })
 
   it('always offers a way to check the route itself', () => {
@@ -90,14 +90,29 @@ describe('ConnectionsSection', () => {
     expect(link).toHaveAttribute('href', expect.stringContaining('FCO+airport'))
   })
 
-  it('survives the lookup failing', async () => {
+  /**
+   * A request that never landed says nothing about whether the journey has a route, so it must not
+   * be reported as one that has none. That claim is exactly what sent travelers to Google Maps to
+   * find the four options we had just told them did not exist.
+   */
+  it('admits it could not check, rather than claiming there is no route', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => {
       throw new Error('offline')
     }))
     render(<ConnectionsSection trip={planned()} />)
-    await waitFor(() => expect(screen.getByText(/no route came back/i)).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText(/could not check/i)).toBeInTheDocument())
+    expect(screen.queryByText(/no times came back/i)).not.toBeInTheDocument()
     // The leg is still named and still linkable, which is the part that matters.
     expect(screen.getByText('Airport to your stay')).toBeInTheDocument()
+  })
+
+  it('says the same when the request is refused rather than dropped', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: false, status: 429, json: async () => ({}) }) as Response),
+    )
+    render(<ConnectionsSection trip={planned()} />)
+    await waitFor(() => expect(screen.getByText(/could not check/i)).toBeInTheDocument())
   })
 
   it('adds a leg for each thing to do', () => {
@@ -129,5 +144,50 @@ describe('ConnectionsSection', () => {
     await waitFor(() => expect(sent).toHaveLength(1))
     const body = JSON.parse(sent[0]) as { legs: { key: string }[] }
     expect(body.legs).toHaveLength(2)
+  })
+
+  /**
+   * The server prices eight legs per request and drops the rest. The client used to send everything
+   * in one go and then record an empty answer for every key it had asked about — so a plan with nine
+   * journeys reported "no route" for the ninth every single time, whatever Maps would have said.
+   */
+  it('never asks about more journeys than one request can price', async () => {
+    const sent: { legs: { key: string }[] }[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string, init: RequestInit) => {
+        sent.push(JSON.parse(String(init.body)))
+        return { ok: true, json: async () => ({ legs: {} }) } as Response
+      }),
+    )
+
+    let trip = planned()
+    for (let i = 0; i < 9; i++) {
+      trip = addItineraryItem(trip, 0, { placeId: `p${i}`, name: `Place ${i}` })
+    }
+    render(<ConnectionsSection trip={trip} />)
+
+    // Ten journeys: the airport run plus nine visits. Two requests, and every key in one of them.
+    await waitFor(() => expect(sent).toHaveLength(2))
+    for (const request of sent) expect(request.legs.length).toBeLessThanOrEqual(8)
+    const asked = sent.flatMap((r) => r.legs.map((l) => l.key))
+    expect(asked).toHaveLength(10)
+  })
+
+  it('sends other ways of naming each end, so one bad name is not the final answer', async () => {
+    const sent: { legs: Record<string, unknown>[] }[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string, init: RequestInit) => {
+        sent.push(JSON.parse(String(init.body)))
+        return { ok: true, json: async () => ({ legs: {} }) } as Response
+      }),
+    )
+    render(<ConnectionsSection trip={planned()} />)
+
+    await waitFor(() => expect(sent).toHaveLength(1))
+    const leg = sent[0].legs[0]
+    expect(leg.to).toBe('Hotel Artemide, Rome')
+    expect(leg.toAlternates).toContain('Via Nazionale 22, Rome')
   })
 })

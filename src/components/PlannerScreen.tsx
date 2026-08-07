@@ -13,6 +13,8 @@ import { buildContextHints } from '@/lib/ui/contextHints'
 import { tripToMarkers } from '@/lib/ui/mapMarkers'
 import { plannedIds } from '@/lib/trip/planned'
 import { suggestQuickReplies } from '@/lib/ui/quickReplies'
+import { isFinishRequest, planDoneOptions, PLAN_DONE_TEXT } from '@/lib/ui/finish'
+import { tripRecap } from '@/lib/trip/recap'
 import { planStageName, stageAdvancePrompt, type PlanStage } from '@/lib/trip/stage'
 import { readOpeningContext, contextToMeta, buildOpeningMessage } from '@/lib/ui/openingMessage'
 import type { TimelineItem } from '@/lib/trip/timeline'
@@ -46,6 +48,18 @@ import { chatSections } from '@/lib/ui/chatSections'
  * rather than two interruptions; short enough that it still reads as a reply to what they just did.
  */
 const ADVANCE_DELAY_MS = 1500
+
+/**
+ * Ids for the turns Triperco writes itself — the "your trip is covered" card and the recap.
+ *
+ * Prefixed so they can never collide with a turn from the model, and counted rather than timestamped
+ * so two of them created in the same millisecond still get different keys.
+ */
+let localTurns = 0
+function localTurnId(kind: string): string {
+  localTurns += 1
+  return `triperco-${kind}-${localTurns}`
+}
 
 export function PlannerScreen() {
   const router = useRouter()
@@ -242,6 +256,33 @@ export function PlannerScreen() {
       return
     }
     if (busy || nudgedRef.current.has(stage)) return
+
+    /*
+     * Reaching the end is announced rather than asked about.
+     *
+     * Every other stage hands the next step to the concierge, because the next step is a search. The
+     * last one has no search in it: the plan is covered, and what the traveler needs to hear is that
+     * it is — plus what they can do instead of carrying on. Asking the model produced the opposite,
+     * because a concierge told everything is done goes looking for one more thing to offer.
+     */
+    if (stage === 'complete') {
+      const timer = setTimeout(() => {
+        nudgedRef.current.add(stage)
+        setMessages((current) => [
+          ...current,
+          {
+            id: localTurnId('done'),
+            role: 'assistant',
+            parts: [
+              { type: 'text', text: PLAN_DONE_TEXT },
+              { type: 'data-options', data: planDoneOptions(tripRef.current.meta.destination) },
+            ],
+          } as TriperUIMessage,
+        ])
+      }, ADVANCE_DELAY_MS)
+      return () => clearTimeout(timer)
+    }
+
     const prompt = stageAdvancePrompt(stage)
     if (!prompt) return
 
@@ -250,7 +291,7 @@ export function PlannerScreen() {
       sendMessage({ text: prompt })
     }, ADVANCE_DELAY_MS)
     return () => clearTimeout(timer)
-  }, [stage, busy, messages.length, sendMessage])
+  }, [stage, busy, messages.length, sendMessage, setMessages])
 
   const markers = useMemo(() => tripToMarkers(trip), [trip])
   // Recomputed on every plan change, so a card flips to "Added" the moment it lands.
@@ -260,6 +301,11 @@ export function PlannerScreen() {
     [messages, trip.meta.destination],
   )
   const quickReplies = useMemo(() => suggestQuickReplies(trip), [trip])
+
+  const jumpToSection = useCallback((id: string) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [])
+
   const planCount = useMemo(
     () =>
       trip.flights.length +
@@ -326,6 +372,62 @@ export function PlannerScreen() {
     }
   }, [])
 
+  /**
+   * End the planning: put the finished trip in the chat, step by step, with the link to take away.
+   *
+   * Written here from the plan rather than asked of the concierge, and that is deliberate. This is
+   * the turn where the traveler stops planning and starts trusting the answer, so a recap carrying
+   * an invented price or a flight nobody chose would be worse than no recap at all — and prose is
+   * exactly where that happens. The link is saved at the same moment, because a summary they cannot
+   * send to the people coming with them is a summary they will lose with the tab.
+   */
+  const finishPlanning = useCallback(
+    async (text: string) => {
+      // Their own words go in first: a transcript with invisible turns in it is unreadable.
+      setMessages((current) => [
+        ...current,
+        { id: localTurnId('finish'), role: 'user', parts: [{ type: 'text', text }] } as TriperUIMessage,
+      ])
+      // Null when the trip could not be saved; the card then offers the summary panel instead.
+      const url = await createShareLink()
+      const recap = tripRecap(tripRef.current)
+      setMessages((current) => [
+        ...current,
+        {
+          id: localTurnId('recap'),
+          role: 'assistant',
+          // The line goes first because the chat draws prose above cards, and it has to read as an
+          // introduction to the recap rather than as a footnote stranded above it.
+          parts: [
+            {
+              type: 'text',
+              text: "That's your trip, start to finish — anything you want to change, just say.",
+            },
+            { type: 'data-recap', data: { ...recap, ...(url ? { url } : {}) } },
+          ],
+        } as TriperUIMessage,
+      ])
+    },
+    [createShareLink, setMessages],
+  )
+
+  /**
+   * Everything the traveler says, whether typed, tapped on a chip, or chosen from a guided card.
+   *
+   * Asking to stop is the one message the concierge never sees. It has an exact answer that lives in
+   * the plan, so sending it to a model would only risk getting a worse one back.
+   */
+  const handleSend = useCallback(
+    (text: string) => {
+      if (isFinishRequest(text)) {
+        void finishPlanning(text)
+        return
+      }
+      sendMessage({ text })
+    },
+    [finishPlanning, sendMessage],
+  )
+
   const handleShare = useCallback(async () => {
     setSharing(true)
     try {
@@ -340,14 +442,7 @@ export function PlannerScreen() {
     <main className="flex h-[100dvh] flex-col overflow-hidden">
       <SiteHeader
         onNewChat={startNewTrip}
-        center={
-          <SectionNavigator
-            sections={sections}
-            onJump={(id) =>
-              document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-            }
-          />
-        }
+        center={<SectionNavigator sections={sections} onJump={jumpToSection} />}
         right={
           <>
             <PlanButton itemCount={planCount} onOpen={openPlan} />
@@ -357,6 +452,17 @@ export function PlannerScreen() {
       />
 
       <div className="mx-auto flex w-full min-h-0 max-w-[1400px] flex-1 flex-col gap-2 px-2 py-2 sm:px-4">
+      {/*
+        The same table of contents as the header's, on the phone that has no room for it there. Six
+        searches in, the flights are a long way above the restaurants, and scrolling and hoping is
+        worse on a small screen than on a large one — so this is exactly where it was needed most.
+      */}
+      {sections.length > 0 && (
+        <div data-testid="mobile-section-nav" className="shrink-0 md:hidden">
+          <SectionNavigator sections={sections} onJump={jumpToSection} fullWidth />
+        </div>
+      )}
+
       <div
         data-testid="chat-pane"
         className="glass flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-3 sm:p-4"
@@ -365,12 +471,13 @@ export function PlannerScreen() {
           messages={messages}
           status={status}
           suggestions={quickReplies}
-          onSend={(text) => sendMessage({ text })}
+          onSend={handleSend}
           onAddResult={addResult}
           onOpenDetail={openDetail}
           tripDates={trip.meta}
           plannedIds={planned}
-          emptyState={<ChatEmptyState onPick={(text) => sendMessage({ text })} />}
+          onOpenSummary={() => setBooking('summary')}
+          emptyState={<ChatEmptyState onPick={handleSend} />}
         />
       </div>
       </div>
@@ -388,7 +495,7 @@ export function PlannerScreen() {
               <ItineraryView
                 trip={trip}
                 onFix={(prompt) => {
-                  sendMessage({ text: prompt })
+                  handleSend(prompt)
                   closePlan()
                 }}
                 onRemoveItem={removeItem}

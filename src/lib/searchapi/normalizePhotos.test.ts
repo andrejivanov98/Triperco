@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { normalizePhotos, capPhotoSize, type RawPhotosResponse } from './normalizePhotos'
+import { normalizePhotos, capPhotoSize, photoUrl, type RawPhotosResponse } from './normalizePhotos'
 
 const raw: RawPhotosResponse = {
   photos: [
@@ -58,5 +58,33 @@ describe('capPhotoSize — upgrading a thumbnail', () => {
   it('leaves a url with no size hint untouched', () => {
     const url = 'https://example.com/photo.jpg'
     expect(capPhotoSize(url)).toBe(url)
+  })
+})
+
+/**
+ * The provider does not use one shape for a photo, and the one that surprised us cost the app every
+ * cover image: asking Maps about a city returns `images` as photo *categories* — objects carrying a
+ * title and a thumbnail — and handing one of those to String.replace threw, which failed the entire
+ * search rather than just the picture.
+ */
+describe('photoUrl — every shape a provider photo arrives in', () => {
+  it('takes a bare url', () => {
+    expect(photoUrl('https://example.com/a.jpg')).toBe('https://example.com/a.jpg')
+  })
+
+  it('prefers the full image on an object', () => {
+    expect(photoUrl({ image: 'https://full/1', thumbnail: 'https://thumb/1' })).toBe('https://full/1')
+  })
+
+  it('takes a category tile, which only ever has a thumbnail', () => {
+    expect(photoUrl({ title: 'All', thumbnail: 'https://lh3.example/x=w224-h298-k-no' })).toBe(
+      'https://lh3.example/x=w800-h800-k-no',
+    )
+  })
+
+  it('answers with nothing rather than throwing on something unreadable', () => {
+    for (const value of [undefined, null, 42, {}, { image: 7 }, []]) {
+      expect(photoUrl(value)).toBe('')
+    }
   })
 })

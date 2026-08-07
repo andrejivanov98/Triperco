@@ -1,6 +1,7 @@
 import type { TripState } from './types'
 import { hasDestination, tripProgress } from './progress'
 import { planConnections } from './connections'
+import { FINISH_PROMPT } from '../ui/finish'
 
 /**
  * Where a plan has got to, as one value.
@@ -225,10 +226,12 @@ function describe(stage: PlanStage, trip: TripState): Omit<StagePlan, 'stage'> {
     case 'complete':
       return {
         goal:
-          'Everything a trip needs is covered. Follow their lead now: tighten what they have, make ' +
-          'it cheaper, put it in a sensible order, or hand them the summary.',
+          'Everything a trip needs is covered, and the app has already told them so. Follow their ' +
+          'lead now: tighten what they have, make it cheaper, put it in a sensible order. If they ' +
+          'say they are done, do not write the summary yourself — the app hands them the finished ' +
+          `trip and its link when they ask for it. Say something like "${FINISH_PROMPT}" is how.`,
         askTools: ['presentOptions', 'askTripDetail', 'askPreferences'],
-        replies: ['Make it cheaper', 'Plan it day by day', 'Add a hidden gem', 'Show me the summary'],
+        replies: ['Make it cheaper', 'Plan it day by day', 'Add a hidden gem', FINISH_PROMPT],
         nudge: 'What would you like to change?',
         delivers: false,
       }
@@ -274,10 +277,16 @@ export function stageAdvancePrompt(stage: PlanStage): string | null {
       return "That's the stay sorted — what's worth doing?"
     case 'connections':
       return 'How do I get between all of these?'
-    case 'complete':
-      return "What's left to sort?"
     default:
-      // destination, dates, origin and transport are reached by talking, not by adding.
+      /*
+       * destination, dates, origin and transport are reached by talking, not by adding.
+       *
+       * `complete` is silent for a different reason. Reaching the end is a fact about the plan, not
+       * a question for the concierge, and asking one produced exactly the wrong turn: a model that
+       * had just been told everything was covered would go looking for something else to offer,
+       * and the traveler never heard that they were finished. The app says so itself, and offers
+       * finishing as one of the choices — see `PlanDoneCard`.
+       */
       return null
   }
 }

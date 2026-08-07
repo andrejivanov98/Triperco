@@ -127,6 +127,58 @@ describe('normalizePlaces', () => {
   })
 })
 
+/**
+ * Asking Maps about a city — which is exactly what the plan's cover photo does — comes back with one
+ * result whose `images` are photo *categories*: objects with a title and a thumbnail, not urls.
+ * Treating one as a string threw inside the size-capper, and because that ran inside a `.map` over
+ * every result it failed the whole search. The visible symptom was a plan with no cover image; the
+ * invisible one was any places search containing such a result returning nothing at all.
+ */
+describe('normalizePlaces — the shapes a photo arrives in', () => {
+  it('reads gallery photos given as urls', () => {
+    const [place] = normalizePlaces({
+      local_results: [
+        { title: 'X', place_id: 'P', images: ['https://g/1', 'https://g/2'], thumbnail: 'https://t/1' },
+      ],
+    })
+    expect(place.photos).toEqual(['https://g/1', 'https://g/2', 'https://t/1'])
+  })
+
+  it('reads a city result whose images are category tiles', () => {
+    const [place] = normalizePlaces({
+      local_results: [
+        {
+          title: 'Rome',
+          place_id: 'PROME',
+          thumbnail: 'https://lh3.example/t=w86-h86-k-no',
+          images: [
+            { title: 'All', thumbnail: 'https://lh3.example/all=w224-h298-k-no' },
+            { title: 'Latest', thumbnail: 'https://lh3.example/latest=w224-h298-k-no' },
+          ],
+        },
+      ],
+    })
+    expect(place.photos).toEqual([
+      'https://lh3.example/all=w800-h800-k-no',
+      'https://lh3.example/latest=w800-h800-k-no',
+      'https://lh3.example/t=w800-h800-k-no',
+    ])
+  })
+
+  it('keeps the rest of the search when one result has an unreadable photo', () => {
+    const places = normalizePlaces({
+      local_results: [
+        // @ts-expect-error — deliberately the shape the provider is not documented to send.
+        { title: 'Odd', place_id: 'P1', images: [{ nothing: true }, 42, null] },
+        { title: 'Fine', place_id: 'P2', thumbnail: 'https://t/2' },
+      ],
+    })
+    expect(places.map((p) => p.name)).toEqual(['Odd', 'Fine'])
+    expect(places[0].photos).toEqual([])
+    expect(places[1].photos).toEqual(['https://t/2'])
+  })
+})
+
 describe('normalizePlaces — closed state', () => {
   it('flags a permanently closed place', () => {
     const [place] = normalizePlaces({

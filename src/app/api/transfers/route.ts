@@ -1,7 +1,13 @@
-import { getTransferOptions } from '@/lib/searchapi/search'
+import { findTransferOptions, MAX_TRANSFER_ATTEMPTS } from '@/lib/searchapi/search'
+import { connectionCandidates } from '@/lib/trip/connections'
 import { checkRateLimit, tooManyRequests } from '@/lib/rate/limit'
 
-export const maxDuration = 20
+/**
+ * A leg can take three provider calls before it gives up, and eight legs run at once. Twenty seconds
+ * was cutting that off mid-flight, and an aborted request answers the same way a routeless journey
+ * does — which is part of how the plan came to claim there was no way to get somewhere.
+ */
+export const maxDuration = 60
 
 /** How many legs one request may price. A plan has a handful; this stops a crafted request. */
 const MAX_LEGS = 8
@@ -17,6 +23,9 @@ interface Leg {
   key: string
   from: string
   to: string
+  /** Other ways of naming each end, tried in order when the first returns no route. */
+  fromAlternates?: string[]
+  toAlternates?: string[]
 }
 
 /**
@@ -27,15 +36,25 @@ function usable(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0 && value.length <= MAX_PLACE_CHARS
 }
 
+/** The alternate names for one end, bounded the same way as the primary. */
+function readAlternates(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value.filter(usable).slice(0, MAX_TRANSFER_ATTEMPTS)
+}
+
 function readLegs(value: unknown): Leg[] {
   if (!Array.isArray(value)) return []
   return value
-    .filter((leg): leg is Leg => {
-      if (typeof leg !== 'object' || leg === null) return false
-      const { key, from, to } = leg as Record<string, unknown>
-      return usable(key) && usable(from) && usable(to)
-    })
+    .filter((leg): leg is Record<string, unknown> => typeof leg === 'object' && leg !== null)
+    .filter((leg) => usable(leg.key) && usable(leg.from) && usable(leg.to))
     .slice(0, MAX_LEGS)
+    .map((leg) => ({
+      key: leg.key as string,
+      from: leg.from as string,
+      to: leg.to as string,
+      fromAlternates: readAlternates(leg.fromAlternates),
+      toAlternates: readAlternates(leg.toAlternates),
+    }))
 }
 
 /**
@@ -63,7 +82,7 @@ export async function POST(req: Request) {
 
   const entries = await Promise.all(
     legs.map(async (leg) => {
-      const options = await getTransferOptions(leg.from, leg.to, undefined).catch(() => [])
+      const options = await findTransferOptions(connectionCandidates(leg), undefined).catch(() => [])
       return [leg.key, options] as const
     }),
   )

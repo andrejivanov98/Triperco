@@ -73,7 +73,8 @@ export function SiteHeader({
 
         {/*
           The navigator is a shortcut, not a control — on a narrow screen it would crowd out the
-          plan, which is the thing you actually need to reach.
+          plan, which is the thing you actually need to reach. The planner puts it on its own row
+          above the conversation there, so a phone still gets it.
         */}
         {center && <div className="hidden min-w-0 flex-1 justify-center md:flex">{center}</div>}
 

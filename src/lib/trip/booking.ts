@@ -16,6 +16,8 @@ export interface BookableItem {
   /** "Aug 7–10 · 3 nights · 2 guests" style context. */
   detail?: string
   thumbnail?: string
+  /** A brand mark — an airline's logo. Drawn contained rather than cropped, unlike a thumbnail. */
+  logo?: string
   status: BookingStatus
 }
 
@@ -60,6 +62,7 @@ export function bookableItems(trip: TripState): BookableItem[] {
       ]
         .filter(Boolean)
         .join(' · '),
+      logo: f.airlineLogo ?? f.segments?.find((s) => s.airlineLogo)?.airlineLogo,
       status: f.bookingStatus === 'booked' ? 'booked' : 'not_booked',
     })
   })

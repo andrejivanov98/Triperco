@@ -214,7 +214,7 @@ describe('formatStagePlan', () => {
 
 describe('stageAdvancePrompt', () => {
   it('picks the conversation up at each stage reached by adding something', () => {
-    for (const stage of ['stay', 'activities', 'connections', 'complete'] as const) {
+    for (const stage of ['stay', 'activities', 'connections'] as const) {
       expect(stageAdvancePrompt(stage)).toBeTruthy()
     }
   })
@@ -223,5 +223,15 @@ describe('stageAdvancePrompt', () => {
     for (const stage of ['destination', 'dates', 'origin', 'transport'] as PlanStage[]) {
       expect(stageAdvancePrompt(stage)).toBeNull()
     }
+  })
+
+  /**
+   * Every other stage hands the next step to the concierge because the next step is a search. The
+   * last one has no search in it — the plan is covered — and asking anyway produced exactly the
+   * wrong turn: a concierge told everything was done went looking for one more thing to offer, and
+   * the traveler was never told they had finished. The app says so itself now.
+   */
+  it('says nothing at the end, because reaching it is not a question', () => {
+    expect(stageAdvancePrompt('complete')).toBeNull()
   })
 })

@@ -38,6 +38,24 @@ export interface ReplySuggestions {
 }
 
 /**
+ * The finished trip, said back step by step, with the link to take away.
+ *
+ * Written by the app from the plan itself and never by the model. This is the turn where the
+ * traveler stops planning and starts trusting the answer, so a recap carrying an invented price or a
+ * flight nobody chose would be worse than no recap at all — and prose is exactly where that happens.
+ */
+export interface TripRecapCard {
+  title: string
+  /** Where, when, how many. */
+  subtitle: string
+  /** The trip in travel order, one step per line. */
+  steps: string[]
+  total?: string
+  /** The shareable trip summary. Absent when the trip could not be saved. */
+  url?: string
+}
+
+/**
  * A line Triperco writes itself, when the model's own answer could not be shown.
  *
  * Kept separate from assistant text on purpose: this is never the model's voice, so it can never be
@@ -70,6 +88,12 @@ export function getForms(message: TriperUIMessage): PrefForm[] {
 export function getDetailRequests(message: TriperUIMessage): DetailRequest[] {
   return message.parts
     .filter((p): p is { type: 'data-detail'; data: DetailRequest } => p.type === 'data-detail')
+    .map((p) => p.data)
+}
+
+export function getRecaps(message: TriperUIMessage): TripRecapCard[] {
+  return message.parts
+    .filter((p): p is { type: 'data-recap'; data: TripRecapCard } => p.type === 'data-recap')
     .map((p) => p.data)
 }
 

@@ -1,4 +1,4 @@
-import type { TripState } from './types'
+import type { Coords, Flight, Stay, TripState } from './types'
 
 /**
  * The journeys a plan implies but never states.
@@ -12,13 +12,68 @@ export interface Connection {
   key: string
   from: string
   to: string
+  /**
+   * Other ways of naming each end, tried in order when the first returns no route.
+   *
+   * A directions engine answers a *question*, and an unresolvable name is a bad question rather than
+   * a journey with no route — which is exactly how the plan came to say "no route came back" about
+   * hops Google Maps happily routes. Coordinates and the full street address are the descriptions
+   * that survive a name the geocoder cannot place.
+   */
+  fromAlternates?: string[]
+  toAlternates?: string[]
   /** What this hop is for, in the traveler's terms. */
   label: string
 }
 
-/** The airport a flight arrives at, as a place a directions engine will recognise. */
-function airportName(code: string): string {
-  return `${code} airport`
+/** `lat,lng`, which a directions engine takes verbatim and cannot misread. */
+function asCoords(coords: Coords | undefined): string | undefined {
+  return coords ? `${coords.lat},${coords.lng}` : undefined
+}
+
+/**
+ * Every way of naming a place, best first: the name with enough locality to be unambiguous, the
+ * coordinates, and the plain street address.
+ */
+function describe(place: {
+  name: string
+  address?: string
+  coords?: Coords
+}): { primary: string; alternates: string[] } {
+  const locality = place.address?.split(',').pop()?.trim()
+  const primary = [place.name, locality].filter(Boolean).join(', ')
+  const alternates = [asCoords(place.coords), place.address, place.name].filter(
+    (value): value is string => Boolean(value) && value !== primary,
+  )
+  return { primary, alternates: [...new Set(alternates)] }
+}
+
+/**
+ * The airport a flight touches, as a place a directions engine will recognise.
+ *
+ * The provider gives us the airport's real name on the segment — "Tenerife South Airport" — and that
+ * resolves far more reliably than a three-letter code, so it leads where we have it. The code stays
+ * as the alternate, and as the answer for trips saved before segments were carried.
+ */
+function airport(code: string, name: string | undefined): { primary: string; alternates: string[] } {
+  const label = `${code} airport`
+  return name && name !== code
+    ? { primary: name, alternates: [label] }
+    : { primary: label, alternates: [] }
+}
+
+/** The name the provider gave the airport a flight arrives at. */
+function arrivalAirportName(flight: Flight): string | undefined {
+  return flight.segments?.[flight.segments.length - 1]?.toName
+}
+
+/** The name the provider gave the airport a flight departs from. */
+function departureAirportName(flight: Flight): string | undefined {
+  return flight.segments?.[0]?.fromName
+}
+
+function stayEnd(stay: Stay): { primary: string; alternates: string[] } {
+  return describe({ name: stay.name, address: stay.address, coords: stay.coords })
 }
 
 /**
@@ -34,26 +89,30 @@ export function planConnections(trip: TripState): Connection[] {
   if (!stay) return []
 
   const connections: Connection[] = []
-  const stayName = [stay.name, stay.address?.split(',').pop()?.trim()].filter(Boolean).join(', ')
+  const home = stayEnd(stay)
 
   const outbound = trip.flights.find((f) => f.direction !== 'return')
   if (outbound) {
-    const airport = airportName(outbound.to)
+    const end = airport(outbound.to, arrivalAirportName(outbound))
     connections.push({
       key: `arrive:${outbound.id}:${stay.id}`,
-      from: airport,
-      to: stayName,
+      from: end.primary,
+      fromAlternates: end.alternates,
+      to: home.primary,
+      toAlternates: home.alternates,
       label: 'Airport to your stay',
     })
   }
 
   for (const day of trip.days) {
     for (const item of day.items) {
-      const to = [item.name, item.address?.split(',').pop()?.trim()].filter(Boolean).join(', ')
+      const there = describe({ name: item.name, address: item.address, coords: item.coords })
       connections.push({
         key: `visit:${stay.id}:${item.placeId}`,
-        from: stayName,
-        to,
+        from: home.primary,
+        fromAlternates: home.alternates,
+        to: there.primary,
+        toAlternates: there.alternates,
         label: `Your stay to ${item.name}`,
       })
     }
@@ -62,10 +121,13 @@ export function planConnections(trip: TripState): Connection[] {
   // The way back, which is a different journey: a 6am departure is not the arrival in reverse.
   const homeward = trip.flights.find((f) => f.direction === 'return')
   if (homeward) {
+    const end = airport(homeward.from, departureAirportName(homeward))
     connections.push({
       key: `depart:${stay.id}:${homeward.id}`,
-      from: stayName,
-      to: airportName(homeward.from),
+      from: home.primary,
+      fromAlternates: home.alternates,
+      to: end.primary,
+      toAlternates: end.alternates,
       label: 'Your stay to the airport',
     })
   }
@@ -78,4 +140,28 @@ export function planConnections(trip: TripState): Connection[] {
     seen.add(route)
     return true
   })
+}
+
+/** The two ends of a journey, each with the other ways it can be named. */
+export interface NamedJourney {
+  from: string
+  to: string
+  fromAlternates?: string[]
+  toAlternates?: string[]
+}
+
+/**
+ * The ways of naming one journey, best first, for the directions engine to work through.
+ *
+ * Paired index by index rather than every combination: a bad name is almost always one end, and
+ * asking about nine variants of a journey to find that out would cost nine provider calls.
+ */
+export function connectionCandidates(journey: NamedJourney): { from: string; to: string }[] {
+  const froms = [journey.from, ...(journey.fromAlternates ?? [])]
+  const tos = [journey.to, ...(journey.toAlternates ?? [])]
+  const depth = Math.max(froms.length, tos.length)
+  return Array.from({ length: depth }, (_, i) => ({
+    from: froms[Math.min(i, froms.length - 1)],
+    to: tos[Math.min(i, tos.length - 1)],
+  }))
 }
