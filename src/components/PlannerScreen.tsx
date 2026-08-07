@@ -17,6 +17,7 @@ import { isFinishRequest, planDoneOptions, PLAN_DONE_TEXT } from '@/lib/ui/finis
 import { tripRecap } from '@/lib/trip/recap'
 import { planStageName, stageAdvancePrompt, type PlanStage } from '@/lib/trip/stage'
 import { readOpeningContext, contextToMeta, buildOpeningMessage } from '@/lib/ui/openingMessage'
+import { metaFromAnswer, type IntakeAnswer } from '@/lib/ui/intakeAnswers'
 import type { TimelineItem } from '@/lib/trip/timeline'
 import {
   createTrip,
@@ -114,6 +115,28 @@ export function PlannerScreen() {
 
   const openDetail = useCallback((set: ResultSet, item: Flight | Stay | Place) => {
     setDetail({ kind: set.kind, item })
+  }, [])
+
+  /**
+   * Record what a guided card just answered, without waiting for the model to.
+   *
+   * The brief is driven by the stage, and the stage is a function of the trip — so if a picked date
+   * range only reaches the trip via `setTripMeta`, a model that forgets to call it leaves the stage
+   * where it was and the calendar comes straight back. The card knows exactly what it asked; this
+   * applies it, and the model's own recording then agrees with what is already there.
+   */
+  const recordAnswer = useCallback((answer: IntakeAnswer) => {
+    const patch = metaFromAnswer(answer, tripRef.current.meta)
+    if (Object.keys(patch).length === 0) return
+    /*
+     * Written to the ref as well as to state, and the ref is the half that matters here.
+     *
+     * The message goes out in this same tick, and the request body reads `tripRef.current` — so a trip
+     * updated only through `setTrip` would send the server a plan that has not heard the answer, and
+     * the server would compute the same step and ask the same question straight back.
+     */
+    tripRef.current = setMeta(tripRef.current, patch)
+    setTrip(tripRef.current)
   }, [])
 
   const removeItem = useCallback((item: TimelineItem) => {
@@ -293,6 +316,23 @@ export function PlannerScreen() {
     return () => clearTimeout(timer)
   }, [stage, busy, messages.length, sendMessage, setMessages])
 
+  /*
+   * Pin the page while the planner is up.
+   *
+   * The chrome was never scrolling on its own — the *document* was. `body { min-height: 100vh }` under
+   * a shell sized to the visible viewport leaves the page taller than the screen by the height of the
+   * browser's URL bar, so any `scrollIntoView` in the conversation scrolled the document too, and the
+   * header and plan button went with it. With the document pinned there is nowhere for them to go.
+   *
+   * Applied here rather than in a stylesheet because it belongs to this screen: the landing page and
+   * a shared trip are documents, and pages you read should scroll.
+   */
+  useEffect(() => {
+    const root = document.documentElement
+    root.classList.add('app-shell')
+    return () => root.classList.remove('app-shell')
+  }, [])
+
   const markers = useMemo(() => tripToMarkers(trip), [trip])
   // Recomputed on every plan change, so a card flips to "Added" the moment it lands.
   const planned = useMemo(() => plannedIds(trip), [trip])
@@ -451,7 +491,12 @@ export function PlannerScreen() {
         }
       />
 
-      <div className="mx-auto flex w-full min-h-0 max-w-[1400px] flex-1 flex-col gap-2 px-2 py-2 sm:px-4">
+      {/*
+        The bottom inset is the phone's home indicator. Without it the composer sits under the swipe
+        bar, which is both hard to hit and the clearest sign that a layout was only ever seen on a
+        desktop.
+      */}
+      <div className="mx-auto flex w-full min-h-0 max-w-[1400px] flex-1 flex-col gap-2 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-4">
       {/*
         The same table of contents as the header's, on the phone that has no room for it there. Six
         searches in, the flights are a long way above the restaurants, and scrolling and hoping is
@@ -459,7 +504,7 @@ export function PlannerScreen() {
       */}
       {sections.length > 0 && (
         <div data-testid="mobile-section-nav" className="shrink-0 md:hidden">
-          <SectionNavigator sections={sections} onJump={jumpToSection} fullWidth />
+          <SectionNavigator sections={sections} onJump={jumpToSection} fullWidth asSheet />
         </div>
       )}
 
@@ -477,6 +522,7 @@ export function PlannerScreen() {
           tripDates={trip.meta}
           plannedIds={planned}
           onOpenSummary={() => setBooking('summary')}
+          onIntakeAnswer={recordAnswer}
           emptyState={<ChatEmptyState onPick={handleSend} />}
         />
       </div>

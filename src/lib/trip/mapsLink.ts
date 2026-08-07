@@ -38,6 +38,24 @@ export function placeUrl(place: {
   return `https://www.google.com/maps/search/?${new URLSearchParams({ api: '1', query }).toString()}`
 }
 
+/** The travel modes Google Maps will open a journey in. */
+export type TravelMode = 'driving' | 'transit' | 'walking'
+
+/**
+ * One journey, opened in Maps — with the mode already chosen when we name one.
+ *
+ * The mode is the whole point. When our own directions lookup comes back empty, the traveler ends up
+ * in Maps having to pick arrivals or departures, then a terminal, then a mode, before seeing a single
+ * time. A link carrying `travelmode` collapses that into one tap, and coordinates as the endpoints
+ * skip the disambiguation entirely.
+ */
+export function journeyUrl(from: string, to: string, mode?: TravelMode): string | undefined {
+  if (!from.trim() || !to.trim()) return undefined
+  const params = new URLSearchParams({ api: '1', origin: from, destination: to })
+  if (mode) params.set('travelmode', mode)
+  return `https://www.google.com/maps/dir/?${params.toString()}`
+}
+
 /** A phone number as something to press, not to read out. */
 export function telUrl(phone: string | undefined): string | undefined {
   const digits = phone?.replace(/[^\d+]/g, '')

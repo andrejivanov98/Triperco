@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { planConnections, connectionCandidates } from './connections'
+import { planConnections, connectionCandidates, journeyCandidates } from './connections'
 import { createTrip, setMeta, addFlight, addStay, addItineraryItem } from './tripState'
 import type { Flight, Stay, TripState } from './types'
 
@@ -205,5 +205,62 @@ describe('connectionCandidates', () => {
 
   it('is just the one pairing when neither end has another name', () => {
     expect(connectionCandidates({ from: 'a', to: 'b' })).toHaveLength(1)
+  })
+})
+
+/**
+ * The agent types names; the plan holds coordinates and street addresses for the same places.
+ *
+ * Without this the concierge's own transfer lookups had one description to work with while the plan
+ * panel had three — which is how the panel could answer a journey the concierge had just told the
+ * traveler was unroutable.
+ */
+describe('journeyCandidates', () => {
+  const planned = tripWith((t) =>
+    addStay(t, stay({ coords: { lat: 41.9, lng: 12.49 } })),
+  )
+
+  it('leads with the agent’s own wording, which is what the traveler was just told', () => {
+    const [first] = journeyCandidates(planned, 'FCO airport', 'Hotel Artemide')
+    expect(first).toEqual({ from: 'FCO airport', to: 'Hotel Artemide' })
+  })
+
+  it('adds the coordinates and address the plan already holds for that place', () => {
+    const candidates = journeyCandidates(planned, 'FCO airport', 'Hotel Artemide')
+    expect(candidates.map((c) => c.to)).toEqual([
+      'Hotel Artemide',
+      'Hotel Artemide, Rome',
+      '41.9,12.49',
+      'Via Nazionale 22, Rome',
+    ])
+  })
+
+  /** The agent writes "Hotel Artemide, Rome" for a plan entry stored as "Hotel Artemide". */
+  it('matches a name the agent embellished', () => {
+    const candidates = journeyCandidates(planned, 'FCO airport', 'Hotel Artemide, Rome')
+    expect(candidates.map((c) => c.to)).toContain('41.9,12.49')
+  })
+
+  it('matches something in the itinerary as well as the stay', () => {
+    const withPlace = addItineraryItem(planned, 0, {
+      placeId: 'p1',
+      name: 'Colosseum',
+      coords: { lat: 41.89, lng: 12.49 },
+    })
+    const candidates = journeyCandidates(withPlace, 'Hotel Artemide', 'Colosseum')
+    expect(candidates.map((c) => c.to)).toContain('41.89,12.49')
+  })
+
+  it('asks about a place the plan has never heard of exactly as it was named', () => {
+    expect(journeyCandidates(planned, 'FCO airport', 'Some cafe')).toEqual([
+      { from: 'FCO airport', to: 'Some cafe' },
+    ])
+  })
+
+  /** A two-letter fragment would match half the plan; that is worse than no match at all. */
+  it('does not match on a fragment too short to mean anything', () => {
+    expect(journeyCandidates(planned, 'FCO airport', 'Ho')).toEqual([
+      { from: 'FCO airport', to: 'Ho' },
+    ])
   })
 })

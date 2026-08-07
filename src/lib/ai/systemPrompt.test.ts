@@ -12,6 +12,8 @@ function tenerife() {
     endDate: '2027-03-28',
     travelers: 2,
     adults: 2,
+    // The brief closed off, so the next step is the search rather than another question.
+    vibe: ['relaxed'],
   })
 }
 

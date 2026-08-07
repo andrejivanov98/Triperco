@@ -6,6 +6,7 @@ import type { Flight, Stay, Place, TripMeta } from '@/lib/trip/types'
 import type { ResultSet } from '@/lib/ui/results'
 import { getResultSets } from '@/lib/ui/results'
 import { revisionsFor, setId } from '@/lib/ui/revisions'
+import { SKIP_TEXT, type IntakeAnswer } from '@/lib/ui/intakeAnswers'
 import {
   getOptionSets,
   getForms,
@@ -42,6 +43,14 @@ interface ChatPaneProps {
   emptyState?: React.ReactNode
   /** Opens the trip summary panel, for a recap written before the trip had a link. */
   onOpenSummary?: () => void
+  /**
+   * An answer to one of the guided cards, alongside the message it sends.
+   *
+   * The card knows which question it asked; prose does not. Reporting it lets the trip record the
+   * answer itself instead of waiting for the model to — so a dropped `setTripMeta` cannot bring the
+   * same calendar back on the next turn.
+   */
+  onIntakeAnswer?: (answer: IntakeAnswer) => void
 }
 
 function messageText(message: TriperUIMessage): string {
@@ -68,6 +77,7 @@ export function ChatPane({
   plannedIds,
   emptyState,
   onOpenSummary,
+  onIntakeAnswer,
 }: ChatPaneProps) {
   const [input, setInput] = useState('')
   const busy = status !== 'ready' && status !== 'error'
@@ -100,9 +110,25 @@ export function ChatPane({
     setInput('')
   }
 
+  /**
+   * A guided card's answer: reported as structured, then sent as the traveler's own words.
+   *
+   * Both halves matter. The structured half updates the trip immediately, so the brief closes whether
+   * or not the model records it; the message keeps the transcript readable, because a plan that
+   * silently changed under a conversation is one nobody can follow.
+   */
+  function answer(reported: IntakeAnswer) {
+    onIntakeAnswer?.(reported)
+    onSend(reported.text)
+  }
+
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col">
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden px-1 pb-4">
+      {/*
+        `overscroll-contain` is what stops reaching the top of the thread turning into the browser's
+        pull-to-refresh, and stops a flick at the end of the conversation scrolling the page behind it.
+      */}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden overscroll-contain px-1 pb-4">
         {messages.length === 0 && emptyState}
 
         {messages.map((m) => {
@@ -188,8 +214,8 @@ export function ChatPane({
                 <div key={`f${i}`} className="w-full max-w-md">
                   <PrefForm
                     form={form}
-                    onSubmit={onSend}
-                    onSkip={() => onSend("Let's skip that.")}
+                    onSubmit={(text) => answer({ kind: 'form', intent: form.intent, text })}
+                    onSkip={() => answer({ kind: 'form', intent: form.intent, text: SKIP_TEXT })}
                   />
                 </div>
               ))}
@@ -198,8 +224,10 @@ export function ChatPane({
                 <div key={`d${i}`} className="w-full max-w-md">
                   <DetailForm
                     request={request}
-                    onSubmit={onSend}
-                    onSkip={() => onSend("Let's skip that.")}
+                    onSubmit={(text) => answer({ kind: 'detail', field: request.field, text })}
+                    onSkip={() =>
+                      answer({ kind: 'detail', field: request.field, text: SKIP_TEXT })
+                    }
                   />
                 </div>
               ))}
@@ -247,18 +275,23 @@ export function ChatPane({
             words look sent, the turn lands, and the half-written message is either lost or fires
             into a conversation that has already moved on.
           */}
+          {/*
+            16px on a phone, and not by accident: iOS zooms the whole page in on any input smaller
+            than that, and then leaves it zoomed — which is how a chat ends up sideways mid-sentence.
+          */}
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             disabled={busy}
             aria-busy={busy}
+            enterKeyHint="send"
             placeholder={busy ? 'Triperco is working…' : 'Tell Triperco what you want…'}
-            className="min-w-0 flex-1 rounded-2xl border border-hairline bg-white/70 px-3.5 py-3 text-base font-medium text-ink outline-none transition focus:border-accent/50 focus:bg-white disabled:cursor-not-allowed disabled:bg-sand/50 disabled:text-muted placeholder:text-muted sm:px-4 sm:text-sm"
+            className="min-h-12 min-w-0 flex-1 rounded-2xl border border-hairline bg-white/70 px-3.5 py-3 text-base font-medium text-ink outline-none transition focus:border-accent/50 focus:bg-white disabled:cursor-not-allowed disabled:bg-sand/50 disabled:text-muted placeholder:text-muted sm:px-4 sm:text-sm"
           />
           <button
             type="submit"
             disabled={busy || input.trim().length === 0}
-            className="shrink-0 rounded-2xl bg-accent px-4 py-3 text-sm font-bold text-white shadow-md shadow-accent/25 transition active:scale-[0.97] hover:bg-accent-600 disabled:opacity-40 sm:px-5"
+            className="min-h-12 shrink-0 rounded-2xl bg-accent px-4 py-3 text-sm font-bold text-white shadow-md shadow-accent/25 transition active:scale-[0.97] hover:bg-accent-600 disabled:opacity-40 sm:px-5"
           >
             Send
           </button>

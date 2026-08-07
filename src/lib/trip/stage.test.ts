@@ -24,7 +24,11 @@ const stay = {
   bookUrl: '',
 }
 
-/** The trip the reported bug started from: destination, dates and party typed in one sentence. */
+/**
+ * The trip the reported bug started from: destination, dates and party typed in one sentence, and the
+ * brief closed off. Everything a flight search needs is here, so this is the trip that must go
+ * straight to searching rather than to another question.
+ */
 function tenerife(): TripState {
   return setMeta(createTrip('t'), {
     destination: 'Tenerife',
@@ -33,6 +37,16 @@ function tenerife(): TripState {
     endDate: '2027-03-28',
     travelers: 2,
     adults: 2,
+    vibe: ['relaxed'],
+  })
+}
+
+/** Destination and dates known, nothing else. Where the brief picks up. */
+function dated(): TripState {
+  return setMeta(createTrip('t'), {
+    destination: 'Tenerife',
+    startDate: '2027-03-19',
+    endDate: '2027-03-28',
   })
 }
 
@@ -49,13 +63,42 @@ describe('planStageName', () => {
     expect(planStageName(setMeta(createTrip('t'), { destination: 'Tenerife' }))).toBe('dates')
   })
 
-  it('asks where they fly from when only that is missing', () => {
-    const trip = setMeta(createTrip('t'), {
-      destination: 'Tenerife',
-      startDate: '2027-03-19',
-      endDate: '2027-03-28',
-    })
+  /*
+   * The rest of the brief, before any searching. A flight priced for one adult and a room booked for
+   * two is not a trip anybody can take, and "what do you like" steers everything after it — so both
+   * are asked while the answer can still change what gets searched.
+   */
+  it('asks who is coming once where and when are settled', () => {
+    expect(planStageName(dated())).toBe('party')
+  })
+
+  it('asks what the trip is for once the party is known', () => {
+    expect(planStageName(setMeta(dated(), { adults: 2, travelers: 2 }))).toBe('interests')
+  })
+
+  it('treats a party of more than one as answered without a breakdown', () => {
+    expect(planStageName(setMeta(dated(), { travelers: 3 }))).toBe('interests')
+  })
+
+  /** An empty list is what skipping records, and it must not bring the same form back. */
+  it('accepts declining to pick interests as an answer', () => {
+    const trip = setMeta(dated(), { adults: 2, travelers: 2, vibe: [] })
     expect(planStageName(trip)).toBe('origin')
+  })
+
+  it('asks where they fly from when only that is missing', () => {
+    const trip = setMeta(dated(), { adults: 2, travelers: 2, vibe: ['culture'] })
+    expect(planStageName(trip)).toBe('origin')
+  })
+
+  /*
+   * The brief closes the moment anything is in the plan. Somebody else's shared trip arrives with
+   * flights, a stay and no recorded interests, and asking them what sort of trip they want would
+   * stall a plan that is already built on a question nobody needs answered.
+   */
+  it('does not reopen the brief on a plan that already has things in it', () => {
+    const arrived = addStay(withBothFlights(dated()), stay)
+    expect(planStageName(arrived)).toBe('activities')
   })
 
   /*
@@ -143,19 +186,59 @@ describe('planStage — what each stage allows', () => {
   })
 
   it('lets the question stages ask, and expects nothing rendered', () => {
-    for (const stageName of ['dates', 'origin'] as const) {
-      const trip =
-        stageName === 'dates'
-          ? setMeta(createTrip('t'), { destination: 'Tenerife' })
-          : setMeta(createTrip('t'), {
-              destination: 'Tenerife',
-              startDate: '2027-03-19',
-              endDate: '2027-03-28',
-            })
+    const trips = {
+      dates: setMeta(createTrip('t'), { destination: 'Tenerife' }),
+      party: dated(),
+      origin: setMeta(dated(), { adults: 2, travelers: 2, vibe: ['culture'] }),
+    }
+    for (const [stageName, trip] of Object.entries(trips)) {
       const plan = planStage(trip)
       expect(plan.stage).toBe(stageName)
       expect(plan.askTools).toEqual(['askTripDetail'])
       expect(plan.delivers).toBe(false)
+    }
+  })
+
+  /*
+   * The guarantee, not the hope. Every question stage names the exact control it exists to put on
+   * screen, so a turn that asked in prose — or asked nothing — can be repaired by sending the control
+   * rather than by asking the model for another sentence.
+   */
+  it('names the control each question stage must end with', () => {
+    const expected = {
+      destination: { kind: 'detail', field: 'destination' },
+      dates: { kind: 'detail', field: 'dates' },
+      party: { kind: 'detail', field: 'party' },
+      interests: { kind: 'form', intent: 'interests' },
+      origin: { kind: 'detail', field: 'origin' },
+    }
+    const trips = {
+      destination: createTrip('t'),
+      dates: setMeta(createTrip('t'), { destination: 'Tenerife' }),
+      party: dated(),
+      interests: setMeta(dated(), { adults: 2, travelers: 2 }),
+      origin: setMeta(dated(), { adults: 2, travelers: 2, vibe: ['culture'] }),
+    }
+    for (const [stageName, trip] of Object.entries(trips)) {
+      const plan = planStage(trip)
+      expect(plan.stage).toBe(stageName)
+      expect(plan.asks).toMatchObject(expected[stageName as keyof typeof expected])
+      expect(plan.asks?.question.length).toBeGreaterThan(0)
+    }
+  })
+
+  it('offers real options on the interests form rather than asking in prose', () => {
+    const plan = planStage(setMeta(dated(), { adults: 2, travelers: 2 }))
+    expect(plan.askTools).toEqual(['askPreferences'])
+    expect(plan.asks).toMatchObject({ kind: 'form', mode: 'multi' })
+    if (plan.asks?.kind !== 'form') throw new Error('expected a form')
+    expect(plan.asks.options.length).toBeGreaterThan(3)
+  })
+
+  /** A delivery stage has nothing to ask, so nothing must claim it does. */
+  it('gives the delivery stages no control to fall back on', () => {
+    for (const trip of [tenerife(), addStay(withBothFlights(tenerife()), stay)]) {
+      expect(planStage(trip).asks).toBeUndefined()
     }
   })
 
@@ -220,7 +303,15 @@ describe('stageAdvancePrompt', () => {
   })
 
   it('stays quiet at the stages reached by talking', () => {
-    for (const stage of ['destination', 'dates', 'origin', 'transport'] as PlanStage[]) {
+    const quiet: PlanStage[] = [
+      'destination',
+      'dates',
+      'party',
+      'interests',
+      'origin',
+      'transport',
+    ]
+    for (const stage of quiet) {
       expect(stageAdvancePrompt(stage)).toBeNull()
     }
   })

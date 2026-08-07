@@ -115,6 +115,76 @@ describe('ConnectionsSection', () => {
     await waitFor(() => expect(screen.getByText(/could not check/i)).toBeInTheDocument())
   })
 
+  /**
+   * The step the traveler was doing by hand.
+   *
+   * Told there were no times, they opened Maps — and Maps asked arrivals or departures, then which
+   * terminal, then which mode, before showing a single number. Each of these opens the journey with
+   * the mode already chosen, so what is left is one tap.
+   */
+  it('offers each way of covering the ground when no times came back', async () => {
+    stubTransfers({ 'arrive:f1:s1': [] })
+    render(<ConnectionsSection trip={planned()} />)
+    await waitFor(() => expect(screen.getByText(/no times came back/i)).toBeInTheDocument())
+
+    for (const [label, mode] of [
+      ['Drive', 'driving'],
+      ['Transit', 'transit'],
+      ['Walk', 'walking'],
+    ]) {
+      expect(screen.getByRole('link', { name: label })).toHaveAttribute(
+        'href',
+        expect.stringContaining(`travelmode=${mode}`),
+      )
+    }
+  })
+
+  it('offers them when the check itself failed too', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('offline')
+      }),
+    )
+    render(<ConnectionsSection trip={planned()} />)
+    await waitFor(() => expect(screen.getByText(/could not check/i)).toBeInTheDocument())
+    expect(screen.getByRole('link', { name: 'Transit' })).toBeInTheDocument()
+  })
+
+  it('offers nothing extra on a journey that answered', async () => {
+    stubTransfers({ 'arrive:f1:s1': [{ mode: 'Driving', duration: '27 min', durationSeconds: 1612 }] })
+    render(<ConnectionsSection trip={planned()} />)
+    await waitFor(() => expect(screen.getByText(/27 min/)).toBeInTheDocument())
+    expect(screen.queryByRole('link', { name: 'Transit' })).not.toBeInTheDocument()
+  })
+
+  /*
+   * The description that finally routed is usually a pair of coordinates rather than the airport name
+   * the plan shows — and coordinates are what skip the terminal picker. So the link must open the
+   * journey that worked, not the name that did not.
+   */
+  it('opens the journey that actually routed, not the name that failed', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          ({
+            ok: true,
+            json: async () => ({
+              legs: { 'arrive:f1:s1': [] },
+              endpoints: { 'arrive:f1:s1': { from: '41.8,12.25', to: '41.9,12.49' } },
+            }),
+          }) as Response,
+      ),
+    )
+    render(<ConnectionsSection trip={planned()} />)
+    await waitFor(() => expect(screen.getByText(/no times came back/i)).toBeInTheDocument())
+
+    const link = screen.getByRole('link', { name: /directions/i })
+    expect(link).toHaveAttribute('href', expect.stringContaining('41.8%2C12.25'))
+    expect(link).toHaveAttribute('href', expect.stringContaining('41.9%2C12.49'))
+  })
+
   it('adds a leg for each thing to do', () => {
     stubTransfers({})
     render(

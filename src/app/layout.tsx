@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { inter, fraunces, jakarta } from './fonts'
 import { siteUrl } from '@/lib/site'
 import './globals.css'
@@ -64,6 +64,24 @@ export const metadata: Metadata = {
   verification: process.env.GOOGLE_SITE_VERIFICATION
     ? { google: process.env.GOOGLE_SITE_VERIFICATION }
     : undefined,
+}
+
+/**
+ * What the app needs from a phone's viewport, which the default tag does not give it.
+ *
+ * `viewportFit: 'cover'` lets the layout reach under the notch and the home indicator, and is what
+ * makes `env(safe-area-inset-*)` return anything at all — without it the composer sits above a dead
+ * band on every recent iPhone. `interactiveWidget: 'resizes-content'` makes the on-screen keyboard
+ * shrink the layout instead of covering it, so the composer stays where the thumb left it.
+ *
+ * Zoom is deliberately left alone. Pinching to read a hotel address is somebody's accessibility
+ * setting, not a bug, and `maximum-scale=1` is how apps quietly take it away.
+ */
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  interactiveWidget: 'resizes-content',
 }
 
 export default function RootLayout({

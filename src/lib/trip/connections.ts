@@ -1,4 +1,5 @@
 import type { Coords, Flight, Stay, TripState } from './types'
+import { asPoint } from './geo'
 
 /**
  * The journeys a plan implies but never states.
@@ -28,7 +29,7 @@ export interface Connection {
 
 /** `lat,lng`, which a directions engine takes verbatim and cannot misread. */
 function asCoords(coords: Coords | undefined): string | undefined {
-  return coords ? `${coords.lat},${coords.lng}` : undefined
+  return coords ? asPoint(coords) : undefined
 }
 
 /**
@@ -164,4 +165,60 @@ export function connectionCandidates(journey: NamedJourney): { from: string; to:
     from: froms[Math.min(i, froms.length - 1)],
     to: tos[Math.min(i, tos.length - 1)],
   }))
+}
+
+/** Everything in the plan a free-text end might be referring to, with the location we hold for it. */
+function planPlaces(trip: TripState): { name: string; address?: string; coords?: Coords }[] {
+  return [
+    ...trip.stays.map((stay) => ({ name: stay.name, address: stay.address, coords: stay.coords })),
+    ...trip.days.flatMap((day) =>
+      day.items.map((item) => ({ name: item.name, address: item.address, coords: item.coords })),
+    ),
+  ]
+}
+
+/**
+ * The ways of naming a journey the *agent* asked about, enriched from the plan.
+ *
+ * The agent types names; the plan holds coordinates and street addresses for the same places. Without
+ * this, its own transfer lookups had one description to work with while the plan panel had three —
+ * which is why the panel could answer a hop the concierge had just called unroutable.
+ *
+ * Matching is loose on purpose: the agent writes "Hotel Artemide" or "Hotel Artemide, Rome" for an
+ * entry stored as "Hotel Artemide Rome Centre", and either should find the coordinates we hold. Three
+ * characters is the floor — a shorter fragment would match half the plan, which is worse than nothing.
+ */
+export function journeyCandidates(
+  trip: TripState,
+  from: string,
+  to: string,
+): { from: string; to: string }[] {
+  const known = planPlaces(trip)
+
+  const end = (name: string) => {
+    const asked = name.toLowerCase().trim()
+    const match =
+      asked.length < 3
+        ? undefined
+        : known.find((place) => {
+            const stored = place.name.toLowerCase()
+            return stored === asked || stored.includes(asked) || asked.includes(stored)
+          })
+    // The agent's own wording leads: it is what the traveler was just told, and it usually routes.
+    if (!match) return { primary: name, alternates: [] as string[] }
+    const described = describe(match)
+    return {
+      primary: name,
+      alternates: [described.primary, ...described.alternates].filter((value) => value !== name),
+    }
+  }
+
+  const start = end(from)
+  const finish = end(to)
+  return connectionCandidates({
+    from: start.primary,
+    fromAlternates: start.alternates,
+    to: finish.primary,
+    toAlternates: finish.alternates,
+  })
 }

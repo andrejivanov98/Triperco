@@ -1,4 +1,4 @@
-import { findTransferOptions, MAX_TRANSFER_ATTEMPTS } from '@/lib/searchapi/search'
+import { findTransferRoute, MAX_TRANSFER_ATTEMPTS } from '@/lib/searchapi/search'
 import { connectionCandidates } from '@/lib/trip/connections'
 import { checkRateLimit, tooManyRequests } from '@/lib/rate/limit'
 
@@ -82,10 +82,25 @@ export async function POST(req: Request) {
 
   const entries = await Promise.all(
     legs.map(async (leg) => {
-      const options = await findTransferOptions(connectionCandidates(leg), undefined).catch(() => [])
-      return [leg.key, options] as const
+      const route = await findTransferRoute(connectionCandidates(leg), undefined).catch(() => ({
+        options: [],
+        from: leg.from,
+        to: leg.to,
+      }))
+      return [leg.key, route] as const
     }),
   )
 
-  return Response.json({ legs: Object.fromEntries(entries) })
+  /*
+   * The endpoints come back beside the times, and they are not decoration. The description that
+   * finally routed is often a pair of coordinates rather than the name the plan shows — so this is
+   * what lets the card's Directions link open the journey that worked instead of the name that did
+   * not, terminal picker and all.
+   */
+  return Response.json({
+    legs: Object.fromEntries(entries.map(([key, route]) => [key, route.options])),
+    endpoints: Object.fromEntries(
+      entries.map(([key, route]) => [key, { from: route.from, to: route.to }]),
+    ),
+  })
 }

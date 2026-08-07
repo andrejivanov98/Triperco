@@ -4,6 +4,7 @@ import { useState } from 'react'
 import type { DetailRequest } from '@/lib/ui/interactions'
 import { describeRange, type DateRange } from '@/lib/ui/calendar'
 import { describeGuests, DEFAULT_GUESTS, type Guests } from '@/lib/ui/guests'
+import { DESTINATION_OPENINGS } from '@/lib/trip/intake'
 import { DateRangePicker } from '@/components/landing/DateRangePicker'
 import { GuestPicker } from '@/components/landing/GuestPicker'
 import { GuidedCard, GuidedRow } from './GuidedCard'
@@ -107,6 +108,27 @@ export function DetailForm({
       >
         {BUDGET_BANDS.map((band) => (
           <GuidedRow key={band} label={band} onClick={() => onSubmit(band)} />
+        ))}
+      </GuidedCard>
+    )
+  }
+
+  if (request.field === 'destination') {
+    /*
+     * Somewhere to go, with a way out of the blank page.
+     *
+     * A traveler who knows where they are going types it; one who does not is stuck staring at an
+     * empty field, and "anywhere warm" is a real answer this app can act on. The shapes below are
+     * openings, not destinations — the concierge turns each into somewhere real.
+     */
+    return (
+      <GuidedCard
+        title={request.question}
+        freeTextPlaceholder="…a city, a country, or just a vibe"
+        onFreeText={onSubmit}
+      >
+        {DESTINATION_OPENINGS.map((shape) => (
+          <GuidedRow key={shape} label={shape} onClick={() => onSubmit(shape)} />
         ))}
       </GuidedCard>
     )

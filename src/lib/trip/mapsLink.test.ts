@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { directionsUrl, placeUrl, telUrl } from './mapsLink'
+import { directionsUrl, journeyUrl, placeUrl, telUrl } from './mapsLink'
 
 describe('directionsUrl', () => {
   it('prefers coordinates, which cannot be confused with another place of the same name', () => {
@@ -40,6 +40,37 @@ describe('placeUrl', () => {
 
   it('is undefined with nothing to look up', () => {
     expect(placeUrl({})).toBeUndefined()
+  })
+})
+
+/**
+ * The one manual step left on a journey we could not price.
+ *
+ * Told there were no times, the traveler opened Maps — and Maps asked arrivals or departures, then
+ * which terminal, then which mode. Naming the mode in the link collapses that into one tap, and
+ * coordinates as the endpoints skip the disambiguation entirely.
+ */
+describe('journeyUrl', () => {
+  it('opens a journey between two named places', () => {
+    const url = journeyUrl('FCO airport', 'Hotel Artemide, Rome')!
+    expect(url).toContain('/maps/dir/')
+    expect(url).toContain('origin=FCO+airport')
+    expect(url).toContain('destination=Hotel+Artemide%2C+Rome')
+  })
+
+  it('chooses the mode when one is named, so Maps does not have to ask', () => {
+    expect(journeyUrl('a', 'b', 'transit')).toContain('travelmode=transit')
+    expect(journeyUrl('a', 'b', 'driving')).toContain('travelmode=driving')
+    expect(journeyUrl('a', 'b', 'walking')).toContain('travelmode=walking')
+  })
+
+  it('leaves the mode to Maps when none is named', () => {
+    expect(journeyUrl('a', 'b')).not.toContain('travelmode')
+  })
+
+  it('is undefined without both ends', () => {
+    expect(journeyUrl('', 'b')).toBeUndefined()
+    expect(journeyUrl('a', '   ')).toBeUndefined()
   })
 })
 

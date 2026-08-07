@@ -27,10 +27,40 @@
 
 body {
   color: var(--color-ink);
-  min-height: 100vh;
+  /*
+   * `dvh`, not `vh`. On a phone `100vh` is the viewport with the URL bar *hidden*, so a page sized
+   * that way is taller than what you can see by exactly the height of the bar — which gives the
+   * document somewhere to scroll to even when its content fits. That was the whole mobile bug: the
+   * header never scrolled, the document did, and the plan button went up with it.
+   */
+  min-height: 100dvh;
   background:
     radial-gradient(1100px 600px at 82% -10%, rgba(56, 189, 248, 0.08), transparent 60%),
     var(--color-canvas);
+}
+
+/*
+ * The planner is an app shell, not a document.
+ *
+ * Set while the planner is mounted (see PlannerScreen). It pins the page to the visible viewport so
+ * there is nowhere for the document to scroll: the header, the plan button and the composer are fixed
+ * furniture, and only the conversation moves. Without it, `scrollIntoView` inside the chat's own
+ * scroller — the section navigator jumping to a search, or the thread following a new message — took
+ * the whole page with it and scrolled the chrome off the top of the screen.
+ */
+html.app-shell,
+html.app-shell body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+/* A press should feel like a press, not like selecting text and waiting 300ms for a maybe. */
+button,
+[role='button'],
+a {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 /* Frosted "Sky Glass" surface — softened: lighter blur, creamier fill, warm shadow */
@@ -72,6 +102,27 @@ body {
   }
   @page {
     margin: 16mm;
+  }
+}
+
+/*
+ * The plan drawer arriving from the edge it lives on. Short, and eased out rather than linear, so it
+ * reads as the sheet being pulled across rather than as a slide transition playing.
+ */
+@keyframes plan-in {
+  from {
+    transform: translateX(6%);
+    opacity: 0.4;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glass {
+    animation: none !important;
   }
 }
 

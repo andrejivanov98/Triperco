@@ -20,6 +20,9 @@ const trip = setMeta(createTrip('t'), {
   startDate: '2027-03-19',
   endDate: '2027-03-28',
   travelers: 2,
+  adults: 2,
+  // The brief closed off, so this trip is on a stage that searches — which is what stalls.
+  vibe: ['relaxed'],
 })
 
 const repairReply = vi.fn(async () => 'A plain sentence.')

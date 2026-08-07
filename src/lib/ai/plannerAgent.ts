@@ -41,7 +41,12 @@ export function createPlannerAgent(opts: CreatePlannerAgentOptions = {}) {
 
   const agent = new ToolLoopAgent({
     model: opts.model ?? plannerModel(),
-    instructions: buildSystemPrompt(new Date(), opts.hints ?? [], stage),
+    instructions: buildSystemPrompt(
+      new Date(),
+      opts.hints ?? [],
+      stage,
+      state.trip.meta.destination,
+    ),
     tools,
     activeTools,
   })

@@ -28,7 +28,9 @@ export function PrefForm({
     <GuidedCard
       title={form.question}
       onFreeText={onSubmit}
-      onSkip={multi ? undefined : onSkip}
+      // Skippable either way now. A multi-select used to have no way out but Dismiss, which answers
+      // nothing — so the trip brief could never be closed by somebody who did not want to pick.
+      onSkip={onSkip}
       footerRight={
         multi ? (
           <button

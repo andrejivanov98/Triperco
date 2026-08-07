@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { TripState } from '@/lib/trip/types'
 import type { TransferOption } from '@/lib/searchapi/search'
 import { planConnections, type Connection } from '@/lib/trip/connections'
+import { journeyUrl, type TravelMode } from '@/lib/trip/mapsLink'
 import { Icon, type IconName } from '@/components/ui/Icon'
 
 /** The provider names its modes in prose; each gets the glyph a traveler recognises. */
@@ -39,10 +40,16 @@ function bestFirst(options: TransferOption[]): TransferOption[] {
     .slice(0, 4)
 }
 
-function mapsUrl(from: string, to: string): string {
-  const params = new URLSearchParams({ api: '1', origin: from, destination: to })
-  return `https://www.google.com/maps/dir/?${params.toString()}`
-}
+/**
+ * The modes offered on a journey that came back with no times, in the order a traveler would try
+ * them. Each opens Maps with the mode already selected, so the picking we could not do for them is
+ * one tap rather than four.
+ */
+const FALLBACK_MODES: { mode: TravelMode; label: string; icon: IconName }[] = [
+  { mode: 'driving', label: 'Drive', icon: 'car' },
+  { mode: 'transit', label: 'Transit', icon: 'transit' },
+  { mode: 'walking', label: 'Walk', icon: 'walk' },
+]
 
 function chunk<T>(items: T[], size: number): T[][] {
   const out: T[][] = []
@@ -71,6 +78,12 @@ function payload(connection: Connection) {
 export function ConnectionsSection({ trip }: { trip: TripState }) {
   const connections = useMemo(() => planConnections(trip), [trip])
   const [legs, setLegs] = useState<Record<string, TransferOption[]>>({})
+  /*
+   * How each journey was finally named, as the server resolved it. Usually a pair of coordinates:
+   * that is what routes when a name will not, and it is what the Directions link must carry so the
+   * traveler lands on the journey rather than on "which terminal did you mean?".
+   */
+  const [ends, setEnds] = useState<Record<string, { from: string; to: string }>>({})
   const [loading, setLoading] = useState(false)
   /*
    * How many times each journey has been asked about. Held in a ref rather than in state because it
@@ -118,13 +131,17 @@ export function ConnectionsSection({ trip }: { trip: TripState }) {
            * stops that becoming an endless retry.
            */
           if (!res.ok) continue
-          const { legs: found } = (await res.json()) as { legs?: Record<string, TransferOption[]> }
+          const { legs: found, endpoints } = (await res.json()) as {
+            legs?: Record<string, TransferOption[]>
+            endpoints?: Record<string, { from: string; to: string }>
+          }
           if (cancelled) return
           // Record every key in this group, so a genuinely empty answer is not retried forever.
           setLegs((current) => ({
             ...current,
             ...Object.fromEntries(group.map((key) => [key, found?.[key] ?? []])),
           }))
+          if (endpoints) setEnds((current) => ({ ...current, ...endpoints }))
         } catch {
           // Same reasoning: a dropped request is not an answer about the journey.
         }
@@ -158,6 +175,8 @@ export function ConnectionsSection({ trip }: { trip: TripState }) {
           // Asked about, not still in flight, and no answer came back: the request itself failed.
           const unanswered =
             options === undefined && !loading && (attempts.current.get(connection.key) ?? 0) > 0
+          // Whatever finally routed, falling back to the plan's own names before anything came back.
+          const routed = ends[connection.key] ?? { from: connection.from, to: connection.to }
           return (
             <div
               key={connection.key}
@@ -167,10 +186,10 @@ export function ConnectionsSection({ trip }: { trip: TripState }) {
               <div className="flex items-baseline justify-between gap-2">
                 <span className="truncate text-xs font-bold text-ink">{connection.label}</span>
                 <a
-                  href={mapsUrl(connection.from, connection.to)}
+                  href={journeyUrl(routed.from, routed.to)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex shrink-0 items-center gap-1 text-[11px] font-bold text-accent-600 hover:text-accent"
+                  className="inline-flex shrink-0 items-center gap-1 py-1 text-[11px] font-bold text-accent-600 hover:text-accent"
                 >
                   Directions
                   <Icon name="arrow-up-right" className="h-3 w-3" />
@@ -197,13 +216,37 @@ export function ConnectionsSection({ trip }: { trip: TripState }) {
                  * Two different things, said differently. "We asked and got nothing" is not the same
                  * as "we could not ask", and telling someone there is no route when we never found
                  * out is exactly the claim that sent them to Maps to prove us wrong.
+                 *
+                 * Either way, the way out is the same one they were taking by hand: open Maps. So the
+                 * modes are offered here as links, each already carrying its own travelmode — the
+                 * arrivals-or-departures, which-terminal, which-mode sequence collapsed into one tap.
                  */
                 (options !== undefined || unanswered) && (
-                  <p className="mt-1.5 text-[11px] font-medium text-muted">
-                    {unanswered
-                      ? 'I could not check this one — open Directions for it.'
-                      : 'No times came back for this one — open Directions to check it.'}
-                  </p>
+                  <div className="mt-1.5 flex flex-col gap-2">
+                    <p className="text-[11px] font-medium text-muted">
+                      {unanswered
+                        ? 'I could not check this one — open it in Maps:'
+                        : 'No times came back for this one — open it in Maps:'}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {FALLBACK_MODES.map(({ mode, label, icon }) => {
+                        const href = journeyUrl(routed.from, routed.to, mode)
+                        if (!href) return null
+                        return (
+                          <a
+                            key={mode}
+                            href={href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex min-h-9 items-center gap-1.5 rounded-full border border-hairline bg-white px-3 py-1.5 text-[11px] font-bold text-ink transition active:scale-[0.97] hover:border-accent/40 hover:text-accent-600"
+                          >
+                            <Icon name={icon} className="h-3.5 w-3.5 text-muted" />
+                            {label}
+                          </a>
+                        )
+                      })}
+                    </div>
+                  </div>
                 )
               )}
             </div>

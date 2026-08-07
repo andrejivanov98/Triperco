@@ -97,6 +97,39 @@ describe('contractBreach', () => {
   })
 })
 
+/**
+ * A stage that exists to put a control on screen — a calendar, the party steppers, the trip-type
+ * options — and put nothing on screen. It is the same structural judgement as `stalled`: whatever the
+ * prose claimed, the traveler is looking at a chat box where a calendar should be.
+ */
+describe('contractBreach — a brief asked for in prose', () => {
+  const mustAsk = { delivers: false, asks: { kind: 'detail', field: 'dates' } }
+
+  it('catches a stage that asked in words instead of with the control', () => {
+    expect(contractBreach({ text: 'When were you thinking?', rendered: 0 }, mustAsk)).toBe('unasked')
+  })
+
+  it('passes a stage that actually asked with the control', () => {
+    expect(contractBreach({ text: 'When were you thinking?', rendered: 1 }, mustAsk)).toBeNull()
+  })
+
+  /*
+   * Checked before `empty`, and the order is the whole point: a silent turn at an intake stage is
+   * repaired by *sending the calendar*, not by asking the model for another sentence — which is what
+   * produced the prose question in the first place.
+   */
+  it('outranks the empty-bubble verdict, so the repair sends a control and not a sentence', () => {
+    expect(contractBreach({ text: '', rendered: 0 }, mustAsk)).toBe('unasked')
+    expect(contractBreach({ text: '```json\n{}\n```', rendered: 0 }, mustAsk)).toBe('unasked')
+  })
+
+  it('says nothing about a stage with no control to put on screen', () => {
+    expect(
+      contractBreach({ text: 'When were you thinking?', rendered: 0 }, { delivers: false }),
+    ).toBeNull()
+  })
+})
+
 describe('recovery copy', () => {
   it('never leaks an error code, a stack or a provider name', () => {
     expect(RECOVERY_TEXT).not.toMatch(/error|stack|\b\d{3}\b|searchapi|gemini|google/i)

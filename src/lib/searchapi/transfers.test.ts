@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { getTransferOptions, findTransferOptions } from './search'
+import { getTransferOptions, findTransferOptions, findTransferRoute } from './search'
 import { createInMemoryCache } from './cache'
 
 /** Shaped exactly like a verified google_maps_directions payload. */
@@ -126,13 +126,27 @@ describe('getTransferOptions', () => {
  * returns empty with no error to tell it apart from a genuinely routeless leg.
  */
 describe('findTransferOptions', () => {
-  function tries(answers: Record<string, unknown>) {
+  /**
+   * `asked` records only the journeys, never the geocode lookups behind them.
+   *
+   * The two are different questions on the same fake. Counting them together would make every
+   * assertion about "how many descriptions did we pay for" quietly include the last-resort geocode,
+   * and the point of those assertions is the directions calls.
+   */
+  function tries(answers: Record<string, unknown>, places: Record<string, unknown> = {}) {
     const asked: string[] = []
+    const geocoded: string[] = []
     return {
       asked,
+      geocoded,
       deps: {
         cache: createInMemoryCache(),
-        search: async <T,>(_engine: string, params: Record<string, unknown>): Promise<T> => {
+        search: async <T,>(engine: string, params: Record<string, unknown>): Promise<T> => {
+          if (engine === 'google_maps') {
+            const q = String(params.q)
+            geocoded.push(q)
+            return (places[q] ?? {}) as T
+          }
           const shape = `${params.from}→${params.to}`
           asked.push(shape)
           return (answers[shape] ?? {}) as T
@@ -140,6 +154,7 @@ describe('findTransferOptions', () => {
       },
     }
   }
+
 
   it('answers from the first description that routes', async () => {
     const { asked, deps } = tries({
@@ -203,5 +218,105 @@ describe('findTransferOptions', () => {
     const { asked, deps } = tries({})
     await findTransferOptions([{ from: 'Hotel X', to: 'hotel x' }], deps)
     expect(asked).toEqual([])
+  })
+})
+
+/**
+ * The last resort, and the one that finally answers the airport run.
+ *
+ * "Tenerife South Airport" is not a point — it is a campus with arrivals, departures and terminals,
+ * and Maps stops to ask which you meant rather than routing. That is the step the traveler was being
+ * made to do by hand. A latitude and longitude has nothing left to ask about, so both ends are looked
+ * up and the journey is asked once more as point to point.
+ */
+describe('findTransferRoute — asking as coordinates when no name will do', () => {
+  function tries(answers: Record<string, unknown>, places: Record<string, unknown> = {}) {
+    const asked: string[] = []
+    return {
+      asked,
+      deps: {
+        cache: createInMemoryCache(),
+        search: async <T,>(engine: string, params: Record<string, unknown>): Promise<T> => {
+          if (engine === 'google_maps') return (places[String(params.q)] ?? {}) as T
+          const shape = `${params.from}→${params.to}`
+          asked.push(shape)
+          return (answers[shape] ?? {}) as T
+        },
+      },
+    }
+  }
+
+  function at(lat: number, lng: number) {
+    return {
+      local_results: [
+        { title: 'x', place_id: 'p', gps_coordinates: { latitude: lat, longitude: lng } },
+      ],
+    }
+  }
+
+  const driving = { travel_modes: [{ travel_mode: 'Driving', formatted_duration: '31 min' }] }
+
+  it('routes the journey the names could not', async () => {
+    const { asked, deps } = tries(
+      { '28.04,-16.57→28.41,-16.54': driving },
+      { 'Tenerife South Airport': at(28.04, -16.57), 'Apartamentos X, Spain': at(28.41, -16.54) },
+    )
+    const route = await findTransferRoute(
+      [{ from: 'Tenerife South Airport', to: 'Apartamentos X, Spain' }],
+      deps,
+    )
+    expect(route.options).toEqual([{ mode: 'Driving', duration: '31 min' }])
+    // The named attempt first, then the same journey as two points.
+    expect(asked).toEqual([
+      'Tenerife South Airport→Apartamentos X, Spain',
+      '28.04,-16.57→28.41,-16.54',
+    ])
+  })
+
+  /** The endpoints are the link the card opens, so they must be the ones that actually worked. */
+  it('reports the coordinates it used, so Directions opens the routed journey', async () => {
+    const { deps } = tries(
+      { '28.04,-16.57→28.41,-16.54': driving },
+      { 'Tenerife South Airport': at(28.04, -16.57), 'Apartamentos X, Spain': at(28.41, -16.54) },
+    )
+    const route = await findTransferRoute(
+      [{ from: 'Tenerife South Airport', to: 'Apartamentos X, Spain' }],
+      deps,
+    )
+    expect(route).toMatchObject({ from: '28.04,-16.57', to: '28.41,-16.54' })
+  })
+
+  it('reports the name that worked when a name was enough', async () => {
+    const { deps } = tries({ 'a→b': driving })
+    await expect(findTransferRoute([{ from: 'a', to: 'b' }], deps)).resolves.toMatchObject({
+      from: 'a',
+      to: 'b',
+    })
+  })
+
+  it('does not ask again when neither end can be placed', async () => {
+    const { asked, deps } = tries({})
+    const route = await findTransferRoute([{ from: 'Nowhere', to: 'Nowhere else' }], deps)
+    expect(route.options).toEqual([])
+    expect(asked).toEqual(['Nowhere→Nowhere else'])
+  })
+
+  /*
+   * The coordinates were already tried as one of the plan's own alternates. Asking the identical
+   * journey a second time is a provider call spent to be told the same thing.
+   */
+  it('does not re-ask a point-to-point journey it already tried', async () => {
+    const { asked, deps } = tries(
+      {},
+      { 'Hotel X': at(41.9, 12.49), 'FCO airport': at(41.8, 12.25) },
+    )
+    await findTransferRoute(
+      [
+        { from: 'FCO airport', to: 'Hotel X' },
+        { from: '41.8,12.25', to: '41.9,12.49' },
+      ],
+      deps,
+    )
+    expect(asked).toEqual(['FCO airport→Hotel X', '41.8,12.25→41.9,12.49'])
   })
 })

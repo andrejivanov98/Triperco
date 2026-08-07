@@ -1,6 +1,7 @@
 import type { TripState } from './types'
 import { hasDestination, tripProgress } from './progress'
 import { planConnections } from './connections'
+import { briefOpen, interestsKnown, partyKnown, INTEREST_LABELS } from './intake'
 import { FINISH_PROMPT } from '../ui/finish'
 
 /**
@@ -19,6 +20,8 @@ import { FINISH_PROMPT } from '../ui/finish'
 export type PlanStage =
   | 'destination'
   | 'dates'
+  | 'party'
+  | 'interests'
   | 'origin'
   | 'transport'
   | 'stay'
@@ -44,6 +47,30 @@ export const ASK_TOOLS: readonly AskTool[] = [
 /** Parts of a trip the traveler can settle by handling themselves rather than by choosing. */
 export type SkippablePart = 'transport' | 'stay' | 'activities'
 
+/**
+ * The control a stage exists to put on screen, in the shape the chat already renders.
+ *
+ * This is what makes the brief a guarantee rather than a hope. The model is told to ask and has the
+ * tool for it — and if the turn ends without asking, the route writes this itself. A traveler can no
+ * longer be asked in prose for something a calendar answers.
+ */
+export type StageAsk =
+  | { kind: 'detail'; field: 'destination' | 'dates' | 'party' | 'origin'; question: string }
+  | {
+      kind: 'form'
+      question: string
+      mode: 'single' | 'multi'
+      options: string[]
+      /**
+       * Which part of the brief this form closes.
+       *
+       * Carried so the client can apply the answer to the trip itself rather than waiting for the
+       * model to record it. Without that, a model that forgets to call setTripMeta leaves the stage
+       * where it was and the same form arrives again on the next turn.
+       */
+      intent: 'interests'
+    }
+
 export interface StagePlan {
   stage: PlanStage
   /** The job of this turn, addressed to the model. */
@@ -59,6 +86,8 @@ export interface StagePlan {
    * stage that rendered nothing has failed, whatever its prose claimed.
    */
   delivers: boolean
+  /** The control this stage must end with, when it is a question rather than a search. */
+  asks?: StageAsk
 }
 
 const MAX_REPLIES = 4
@@ -99,6 +128,17 @@ export function planStageName(trip: TripState): PlanStage {
   const { meta } = trip
   if (!hasDestination(trip)) return 'destination'
   if (!meta.startDate || !meta.endDate) return 'dates'
+  /*
+   * The rest of the brief, and only while nothing has been chosen yet.
+   *
+   * Gated rather than unconditional because these two are the only steps a *finished* plan can still
+   * be missing: somebody's shared trip arrives with flights, a stay and no recorded interests, and
+   * asking them what sort of trip they want would stall a plan that is already built.
+   */
+  if (briefOpen(trip)) {
+    if (!partyKnown(meta)) return 'party'
+    if (!interestsKnown(meta)) return 'interests'
+  }
   // A flight already in the plan answers where they set off from as surely as recording it did, so
   // a half-finished journey asks for the way home rather than re-asking a settled question.
   if (!transportSettled(trip)) {
@@ -117,6 +157,32 @@ function where(trip: TripState): string {
   return trip.meta.destination ?? 'there'
 }
 
+/**
+ * The hours the plan actually turns on, for the turn that answers how they get around.
+ *
+ * A transfer that comes back with no times is not a journey with no route — but saying something
+ * useful about it needs the *when*: an airport at 01:20 is a taxi, the same airport at 14:00 is a
+ * tram. That is in the plan already, and this is what puts it in front of the model. Empty when the
+ * plan has no flights, because then there is nothing to say.
+ */
+function arrivalNote(trip: TripState): string {
+  const outbound = trip.flights.find((f) => f.direction !== 'return')
+  const homeward = trip.flights.find((f) => f.direction === 'return')
+  const arrivalName = outbound?.segments?.at(-1)?.toName ?? outbound?.to
+  const departureName = homeward?.segments?.[0]?.fromName ?? homeward?.from
+
+  const notes: string[] = []
+  if (arrivalName) {
+    const at = outbound?.arriveTime ? ` at ${outbound.arriveTime}` : ''
+    notes.push(`They land at ${arrivalName}${at}.`)
+  }
+  if (departureName) {
+    const at = homeward?.departTime ? ` at ${homeward.departTime}` : ''
+    notes.push(`They fly home from ${departureName}${at}.`)
+  }
+  return notes.length > 0 ? ' ' + notes.join(' ') : ''
+}
+
 function describe(stage: PlanStage, trip: TripState): Omit<StagePlan, 'stage'> {
   const there = where(trip)
 
@@ -124,12 +190,18 @@ function describe(stage: PlanStage, trip: TripState): Omit<StagePlan, 'stage'> {
     case 'destination':
       return {
         goal:
-          'You do not know where they are going yet. Settle that first: the moment you can tell, ' +
-          'call setTripMeta with the destination and a short evocative title, then keep going.',
+          'You do not know where they are going yet. Settle that first: ask with askTripDetail ' +
+          '"destination", or offer a few ideas with presentOptions if they want inspiration. The ' +
+          'moment you can tell, call setTripMeta with the destination and a short evocative title.',
         askTools: ['presentOptions', 'askTripDetail', 'askPreferences'],
         replies: ['Somewhere warm and cheap', 'A weekend city break', 'Surprise me with an idea'],
         nudge: 'Tell me roughly where you fancy going and I will take it from there.',
         delivers: false,
+        asks: {
+          kind: 'detail',
+          field: 'destination',
+          question: 'Where are you thinking of going?',
+        },
       }
 
     case 'dates':
@@ -142,17 +214,65 @@ function describe(stage: PlanStage, trip: TripState): Omit<StagePlan, 'stage'> {
         replies: [`When is ${there} best?`, "I'm flexible on dates", 'Plan 5 days there'],
         nudge: `When were you thinking of going to ${there}?`,
         delivers: false,
+        asks: {
+          kind: 'detail',
+          field: 'dates',
+          question: `When are you going to ${there}?`,
+        },
+      }
+
+    case 'party':
+      return {
+        goal:
+          'You have where and when. Now who: ask with askTripDetail "party", and nothing else this ' +
+          'turn. Every price after this depends on it — a flight priced for one adult and a room ' +
+          'booked for two is not a trip anybody can take.',
+        askTools: ['askTripDetail'],
+        replies: ['Just me', 'Two of us', 'Family with kids'],
+        nudge: 'How many of you are travelling?',
+        delivers: false,
+        asks: {
+          kind: 'detail',
+          field: 'party',
+          question: "Who's coming along?",
+        },
+      }
+
+    case 'interests':
+      return {
+        goal:
+          `Last thing before you start searching: what this trip is for. Ask with askPreferences, ` +
+          'mode "multi", using the trip-type options. Record the answer with setTripMeta vibe, and ' +
+          'let it steer everything you surface from here — a foodie and a family do not want the ' +
+          'same shortlist of anything.',
+        askTools: ['askPreferences'],
+        replies: ['Food and culture', 'Mostly relaxing', 'Whatever you recommend'],
+        nudge: `What do you want ${there} to be about?`,
+        delivers: false,
+        asks: {
+          kind: 'form',
+          question: `What do you want ${there} to be about?`,
+          mode: 'multi',
+          options: INTEREST_LABELS,
+          intent: 'interests',
+        },
       }
 
     case 'origin':
       return {
         goal:
-          'You have the destination and the dates. The one thing you cannot guess is where they ' +
-          'set off from. Ask with askTripDetail "origin", and nothing else this turn.',
+          'You have the destination, the dates, the party and what they are after. The one thing ' +
+          'you cannot guess is where they set off from. Ask with askTripDetail "origin", and ' +
+          'nothing else this turn.',
         askTools: ['askTripDetail'],
         replies: ['I have my own transport', 'Find me somewhere to stay first'],
         nudge: 'Which airport are you flying from?',
         delivers: false,
+        asks: {
+          kind: 'detail',
+          field: 'origin',
+          question: 'Which airport are you flying from?',
+        },
       }
 
     case 'transport': {
@@ -216,7 +336,16 @@ function describe(stage: PlanStage, trip: TripState): Omit<StagePlan, 'stage'> {
         goal:
           'The plan has a way there, a bed and things to do. What it does not have is how they get ' +
           'between them — the part people discover too late. Call getTransferOptions for the ' +
-          'airport run and for the stay to what they picked, and answer with the real numbers.',
+          'airport run and for the stay to what they picked, and answer with the real numbers.' +
+          /*
+           * The plan's own arrival and departure times, because they are what makes an unrouted hop
+           * answerable. "There is no route" was never true; "the tram has stopped by the time you
+           * land, so it is a taxi" is both true and useful, and it needs the hour to say.
+           */
+          arrivalNote(trip) +
+          ' If a journey comes back with no times, never say there is no way to get there — say ' +
+          'which transport actually works at that hour and how far out it is, and point them at the ' +
+          'Directions link on the card.',
         askTools: [],
         replies: ['How do I get from the airport?', 'Is it walkable?', 'What about a taxi?'],
         nudge: 'I could not get the transfer times. Want me to try again?',

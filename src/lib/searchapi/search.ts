@@ -1,4 +1,5 @@
-import type { Flight, Stay, Place, ReviewSnippet } from '../trip/types'
+import type { Coords, Flight, Stay, Place, ReviewSnippet } from '../trip/types'
+import { asPoint, isRealPoint } from '../trip/geo'
 import { searchApi, type SearchApiOptions, type SearchParams } from './client'
 import { createInMemoryCache, withCache, type Cache } from './cache'
 import { normalizeFlights, departureTokens, type RawFlightsResponse } from './normalizeFlights'
@@ -409,6 +410,48 @@ export interface TransferCandidate {
  */
 export const MAX_TRANSFER_ATTEMPTS = 3
 
+/** A journey that routed, and the description of each end that finally worked. */
+export interface TransferRoute {
+  options: TransferOption[]
+  /** The naming that produced these options — coordinates, when that is what it took. */
+  from: string
+  to: string
+}
+
+/**
+ * Where a named place actually is, as a point on the map.
+ *
+ * Its whole purpose is to be handed back to the directions engine. A name is a *question* the
+ * geocoder can decline to answer — and an airport is the worst case of all, because "Tenerife South
+ * Airport" is a campus with arrivals, departures and several terminals, and Maps stops to ask which
+ * one you mean rather than routing. A latitude and longitude has nothing left to ask about.
+ *
+ * Cached for a day: a destination and an airport do not move.
+ */
+export async function geocodePlace(name: string, deps?: SearchDeps): Promise<Coords | null> {
+  const query = name.trim()
+  if (!query) return null
+  const { cache } = resolve(deps)
+  const key = `geocode:${query.toLowerCase()}`
+  /*
+   * Wrapped, because the cache cannot tell a stored null from a miss — and "this name does not
+   * geocode" is exactly the answer most worth remembering. Without the envelope, every unplaceable
+   * name costs a provider call on every leg of every plan, forever.
+   */
+  const cached = await cache.get<{ point: Coords | null }>(key)
+  if (cached) return cached.point
+
+  let point: Coords | null = null
+  try {
+    const found = await searchPlaces({ q: query }, deps)
+    point = found.find((place) => isRealPoint(place.coords))?.coords ?? null
+  } catch {
+    // A place we cannot locate is not an error worth failing a search over.
+  }
+  await cache.set(key, { point }, TTL.places)
+  return point
+}
+
 /**
  * The same journey, asked in whatever ways we can describe it, until one comes back with a route.
  *
@@ -420,12 +463,18 @@ export const MAX_TRANSFER_ATTEMPTS = 3
  * So each end is described more than once — the human name, the coordinates we already hold, the
  * plain address — and the first description that routes is the answer. Attempts stop at the first
  * success, so the extra descriptions cost nothing on the journeys that were always fine.
+ *
+ * When every description fails, both ends are geocoded and the journey is asked one last time as
+ * point to point. That is the version nothing can decline: no terminal to choose, no arrivals or
+ * departures to pick, nothing left to disambiguate.
  */
-export async function findTransferOptions(
+export async function findTransferRoute(
   candidates: TransferCandidate[],
   deps?: SearchDeps,
-): Promise<TransferOption[]> {
+): Promise<TransferRoute> {
+  const first = candidates.find((c) => c.from && c.to)
   const tried = new Set<string>()
+
   for (const { from, to } of candidates) {
     if (!from || !to) continue
     const shape = `${from}→${to}`.toLowerCase()
@@ -435,12 +484,47 @@ export async function findTransferOptions(
 
     try {
       const options = await getTransferOptions(from, to, deps)
-      if (options.length > 0) return options
+      if (options.length > 0) return { options, from, to }
     } catch {
       // A failed description is not a routeless journey; try the next way of naming it.
     }
   }
-  return []
+
+  if (!first) return { options: [], from: '', to: '' }
+
+  /*
+   * Last resort. Both ends as coordinates, which is the one question a directions engine cannot
+   * answer with a disambiguation prompt. Worth two extra lookups: this is the hop the traveler cares
+   * about most, and being told there is no way to reach the bed they booked is the worst thing the
+   * plan can say.
+   */
+  const [origin, destination] = await Promise.all([
+    geocodePlace(first.from, deps),
+    geocodePlace(first.to, deps),
+  ])
+  if (!origin || !destination) return { options: [], from: first.from, to: first.to }
+
+  const fromPoint = asPoint(origin)
+  const toPoint = asPoint(destination)
+  if (tried.has(`${fromPoint}→${toPoint}`.toLowerCase())) {
+    return { options: [], from: first.from, to: first.to }
+  }
+
+  try {
+    const options = await getTransferOptions(fromPoint, toPoint, deps)
+    // The points are returned whether or not they routed: they are still the best link we can offer.
+    return { options, from: fromPoint, to: toPoint }
+  } catch {
+    return { options: [], from: fromPoint, to: toPoint }
+  }
+}
+
+/** Just the options, for callers that only ever needed those. */
+export async function findTransferOptions(
+  candidates: TransferCandidate[],
+  deps?: SearchDeps,
+): Promise<TransferOption[]> {
+  return (await findTransferRoute(candidates, deps)).options
 }
 
 export interface StayDetailsParams {

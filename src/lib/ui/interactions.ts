@@ -16,6 +16,12 @@ export interface PrefForm {
   question: string
   mode: 'single' | 'multi'
   options: string[]
+  /**
+   * Which part of the trip brief this form closes, when it is one of ours rather than a question the
+   * agent invented. Set, the client applies the answer to the trip itself instead of waiting for the
+   * model to record it — so forgetting to call setTripMeta cannot make the same form come back.
+   */
+  intent?: 'interests'
 }
 
 /**
@@ -25,7 +31,7 @@ export interface PrefForm {
  * answer something a calendar answers better — and someone who has not decided yet has nothing to
  * type at all. This is a planning app; the controls are the point.
  */
-export type DetailField = 'dates' | 'party' | 'origin' | 'budget'
+export type DetailField = 'destination' | 'dates' | 'party' | 'origin' | 'budget'
 
 export interface DetailRequest {
   field: DetailField

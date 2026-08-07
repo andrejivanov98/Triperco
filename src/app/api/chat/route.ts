@@ -5,8 +5,9 @@ import {
   toUIMessageStream,
 } from 'ai'
 import { createPlannerAgent } from '@/lib/ai/plannerAgent'
+import { planStage } from '@/lib/trip/stage'
 import { repairReply } from '@/lib/ai/repair'
-import { contractBreach, RECOVERY_REPLIES, RECOVERY_TEXT } from '@/lib/ai/turnQuality'
+import { contractBreach, usableProse, RECOVERY_REPLIES, RECOVERY_TEXT } from '@/lib/ai/turnQuality'
 import type { TriperUIMessage } from '@/lib/ui/messages'
 import type { TripState } from '@/lib/trip/types'
 import type { ContextHint } from '@/lib/ui/contextHints'
@@ -62,7 +63,9 @@ export async function POST(req: Request) {
    * of them describes a trip that may have arrived from somebody else's shared link.
    */
   const hints: ContextHint[] = sanitizeHints(body.hints)
-  const { agent, state, stage } = createPlannerAgent({ trip: body.trip, hints })
+  // The stage this turn was *given* lives inside the agent's instructions. What the contract below
+  // judges is the stage the plan is on once the turn is over, which the turn itself can have moved.
+  const { agent, state } = createPlannerAgent({ trip: body.trip, hints })
 
   const stream = createUIMessageStream<TriperUIMessage>({
     // A thrown turn becomes one calm sentence — never a stack, never the provider's own words.
@@ -137,8 +140,51 @@ export async function POST(req: Request) {
         state.pendingOptions.length +
         state.pendingForms.length +
         state.pendingDetails.length
-      const breach = contractBreach({ text, rendered }, stage)
+
+      /*
+       * The contract is judged against the step the plan is on *now*, not the one it was on when the
+       * turn started. The turn itself can move it, and judging the old one gets both halves wrong.
+       *
+       * A turn asked for the destination that recorded it and stopped would have been handed the
+       * destination card back — a question about something the trip already knows. And a turn asked
+       * how they get around, that answered it, renders no cards at all: `getTransferOptions` puts
+       * nothing on screen, so every successful one of those looked like a stall and collected an
+       * "I could not get the transfer times" underneath the real answer. Recomputing fixes both,
+       * because the tool that did the work is the same tool that moved the step on.
+       */
+      const settled = planStage(state.trip)
+      const breach = contractBreach({ text, rendered }, settled)
       if (!breach) return
+
+      /*
+       * The brief was supposed to be taken with a control and was not: the model asked in prose, or
+       * asked nothing. Write the stage's own card — a calendar, the steppers, the trip-type options —
+       * and no second model call. This is what makes the intake a guarantee rather than a hope, and
+       * it is why the traveler can never be asked to type a date range into a chat box.
+       *
+       * The model's sentence is kept when it wrote one: it is usually a perfectly good lead-in to the
+       * card. Only a silent turn gets Triperco's own words instead.
+       */
+      if (breach === 'unasked' && settled.asks) {
+        const ask = settled.asks
+        if (usableProse(text).length === 0) {
+          writer.write({ type: 'data-notice', data: { text: settled.nudge, kind: 'recovered' } })
+        }
+        if (ask.kind === 'detail') {
+          writer.write({ type: 'data-detail', data: { field: ask.field, question: ask.question } })
+        } else {
+          writer.write({
+            type: 'data-form',
+            data: {
+              question: ask.question,
+              mode: ask.mode,
+              options: ask.options,
+              intent: ask.intent,
+            },
+          })
+        }
+        return
+      }
 
       /*
        * The turn promised this stage's work and delivered none of it — the "I'll look into flights"
@@ -148,8 +194,8 @@ export async function POST(req: Request) {
        * replies go out beside it so there is always a tap that gets the search moving.
        */
       if (breach === 'stalled') {
-        writer.write({ type: 'data-notice', data: { text: stage.nudge, kind: 'failed' } })
-        writer.write({ type: 'data-suggestions', data: { replies: [...stage.replies] } })
+        writer.write({ type: 'data-notice', data: { text: settled.nudge, kind: 'failed' } })
+        writer.write({ type: 'data-suggestions', data: { replies: [...settled.replies] } })
         return
       }
 

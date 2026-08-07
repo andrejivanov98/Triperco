@@ -30,6 +30,9 @@ function dated(): TripState {
     origin: 'SKP',
     startDate: '2026-09-01',
     endDate: '2026-09-04',
+    travelers: 2,
+    adults: 2,
+    vibe: ['culture'],
   })
 }
 

@@ -1,6 +1,6 @@
 import { tool } from 'ai'
 import { z } from 'zod'
-import type { TripState, Flight, Stay, Place } from '../trip/types'
+import type { Coords, TripState, Flight, Stay, Place } from '../trip/types'
 import type { ResultSet } from '../ui/results'
 import { makeSetKey } from '../ui/results'
 import { rankResults } from '../ui/rank'
@@ -9,6 +9,9 @@ import { createTrip, setMeta } from '../trip/tripState'
 import { mergeStayDetail } from '../trip/mergeStay'
 import { stayVerdict } from '../trip/stayVerdict'
 import { classifyActivity, eventOutsideTrip } from '../trip/activityKind'
+import { asBias, partitionNear, PLACE_RADIUS_KM, STAY_RADIUS_KM } from '../trip/geo'
+import { journeyCandidates } from '../trip/connections'
+import { anchorToDestination, offDestinationError } from './grounding'
 import {
   searchFlights as apiSearchFlights,
   searchFlightsFlexible as apiSearchFlightsFlexible,
@@ -16,7 +19,8 @@ import {
   searchHotels as apiSearchHotels,
   searchPlaces as apiSearchPlaces,
   searchEvents as apiSearchEvents,
-  getTransferOptions as apiGetTransferOptions,
+  findTransferRoute as apiFindTransferRoute,
+  geocodePlace as apiGeocodePlace,
   getPlaceReviews as apiGetPlaceReviews,
   getPlacePhotos as apiGetPlacePhotos,
   enrichPlaces as apiEnrichPlaces,
@@ -118,7 +122,59 @@ export async function withToolError<T>(run: () => Promise<T>): Promise<T | { err
   }
 }
 
+/**
+ * Whether a flight search names a route that cannot be the one intended, and why.
+ *
+ * Only the certainties. Both are catchable without a lookup, and neither has a legitimate reading:
+ * nobody flies from an airport to itself, and an outbound leg that lands back at the origin is the
+ * trip inverted. Null means the route is fine as far as we can tell from the codes alone.
+ */
+export function badFlightRoute(
+  params: { departure_id: string; arrival_id: string; direction?: 'outbound' | 'return' },
+  trip: TripState,
+): string | null {
+  const from = params.departure_id.trim().toUpperCase()
+  const to = params.arrival_id.trim().toUpperCase()
+  if (from && from === to) {
+    return `departure_id and arrival_id are both ${from}. Name the airport they are flying to.`
+  }
+  const origin = trip.meta.origin?.trim().toUpperCase()
+  if (origin && to === origin && params.direction !== 'return') {
+    return (
+      `arrival_id ${to} is where they are setting off from. The way out lands at an airport serving ` +
+      `${trip.meta.destination ?? 'the destination'} — use direction "return" for the flight home.`
+    )
+  }
+  return null
+}
+
+/**
+ * Where the trip is, as a point, resolved at most once per turn.
+ *
+ * Every search this turn is fenced against it, so it must not cost a provider call each time. Null
+ * means the destination could not be placed — in which case nothing is fenced, because a filter we
+ * cannot justify is worse than no filter at all.
+ */
+function destinationFence(state: PlannerState, deps?: SearchDeps) {
+  // Keyed on the name, not just held: setTripMeta can change the destination part-way through a turn,
+  // and a fence still centred on the old city would drop every result from the new one.
+  let memo: { where: string; point: Promise<Coords | null> } | undefined
+  return {
+    get destination(): string | undefined {
+      return state.trip.meta.destination?.trim() || undefined
+    },
+    async centre(): Promise<Coords | null> {
+      const where = this.destination
+      if (!where) return null
+      if (memo?.where !== where) memo = { where, point: apiGeocodePlace(where, deps) }
+      return memo.point
+    },
+  }
+}
+
 export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
+  const fence = destinationFence(state, deps)
+
   return {
     setTripMeta: tool({
       description: 'Record what you have learned about the trip: destination, dates (YYYY-MM-DD), party, title. Never guess a budget — only the traveler sets one.',
@@ -217,6 +273,20 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
       }),
       execute: async ({ flex_days, ...params }) =>
         withToolError(async () => {
+          /*
+           * The two checks a route can fail on its own terms, with no lookup and no false positives.
+           * A flight from an airport to itself is nonsense; a flight *back to where they set off
+           * from* dressed as the way out is the same wrong-city failure as an American hotel, and it
+           * costs a whole search to discover on screen.
+           *
+           * Deliberately no distance check against the destination. A destination named loosely —
+           * "Spain", "the Canaries" — geocodes to a centre hundreds of kilometres from the airport a
+           * traveler would actually use, and refusing that search would be a worse bug than the one
+           * being fixed.
+           */
+          const routed = badFlightRoute(params, state.trip)
+          if (routed) return { error: routed }
+
           state.lastFlights = flex_days
             ? await apiSearchFlightsFlexible(params, flex_days, deps)
             : await apiSearchFlights(params, deps)
@@ -322,7 +392,25 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
       }),
       execute: async (params) =>
         withToolError(async () => {
-          state.lastStays = await apiSearchHotels(params, deps)
+          /*
+           * Anchored before the search and fenced after it. `google_hotels` resolves a query with no
+           * locality in it against its own default, which is the United States — so "hotels" for a
+           * Barcelona trip really did come back as American hotels, and no amount of prompt could
+           * have stopped it, because the wrong question had already been asked.
+           */
+          const q = anchorToDestination(params.q, fence.destination)
+          // Both provider calls at once: placing the destination is not something the hotel search
+          // has to wait for, and a hotel search is the slowest thing on this screen.
+          const [found, centre] = await Promise.all([
+            apiSearchHotels({ ...params, q }, deps),
+            fence.centre(),
+          ])
+          const { near, far } = partitionNear(found, centre, STAY_RADIUS_KM)
+          if (near.length === 0 && far.length > 0) {
+            return { error: offDestinationError(fence.destination!, 'stays') }
+          }
+
+          state.lastStays = near
           state.lastStayQuery = {
             check_in_date: params.check_in_date,
             check_out_date: params.check_out_date,
@@ -330,8 +418,8 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
           }
           const set: ResultSet = {
             kind: 'stays',
-            query: params.q,
-            setKey: makeSetKey('stays', params.q),
+            query: q,
+            setKey: makeSetKey('stays', q),
             items: state.lastStays,
           }
           state.pendingResults.push(set)
@@ -413,7 +501,23 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
       }),
       execute: async (params) =>
         withToolError(async () => {
-          const found = await apiSearchPlaces(params, deps)
+          /*
+           * The query is anchored to the destination, and the destination's own coordinates become
+           * the GPS bias when the model gave none. `google_maps` with neither is the search that
+           * returned American restaurants for a Spanish trip: with no locality and no bias it has
+           * nothing to go on but its own default.
+           */
+          const q = anchorToDestination(params.q, fence.destination)
+          const centre = await fence.centre()
+          const ll = params.ll ?? (centre ? asBias(centre) : undefined)
+          const { near: found, far } = partitionNear(
+            await apiSearchPlaces({ q, ll }, deps),
+            centre,
+            PLACE_RADIUS_KM,
+          )
+          if (found.length === 0 && far.length > 0) {
+            return { error: offDestinationError(fence.destination!, 'places') }
+          }
 
           /*
            * Four different offers, four carousels. Somewhere you go to see something, somewhere you
@@ -430,8 +534,8 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
             drafts.map(async ({ kind, items }, i) => {
               const set: PlaceSet = {
                 kind: 'places',
-                query: params.q,
-                setKey: makeSetKey('places', params.q, kind),
+                query: q,
+                setKey: makeSetKey('places', q, kind),
                 placeKind: kind,
                 items,
               }
@@ -476,12 +580,15 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
       }),
       execute: async (params) =>
         withToolError(async () => {
-          const events = await apiSearchEvents(params, deps)
+          // Anchored the same way as the other searches. An events feed with no city in the query is
+          // whatever is on near the provider, which is not where the traveler is going.
+          const q = anchorToDestination(params.q, fence.destination)
+          const events = await apiSearchEvents({ ...params, q }, deps)
           state.lastPlaces = [...state.lastPlaces, ...events]
           const set: ResultSet = {
             kind: 'places',
-            query: params.q,
-            setKey: makeSetKey('places', params.q, 'event'),
+            query: q,
+            setKey: makeSetKey('places', q, 'event'),
             placeKind: 'event',
             items: events,
           }
@@ -528,7 +635,16 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
       }),
       execute: async ({ from, to }) =>
         withToolError(async () => {
-          const options = await apiGetTransferOptions(from, to, deps)
+          /*
+           * The same resolution path the plan panel uses: each end described several ways from what
+           * the plan already holds, then both ends as coordinates. A bare name is a question the map
+           * can decline to answer, and an airport is the worst case — Maps stops to ask arrivals or
+           * departures, and which terminal, rather than routing. A point has nothing left to ask.
+           */
+          const { options } = await apiFindTransferRoute(
+            journeyCandidates(state.trip, from, to),
+            deps,
+          )
           // The tool records that the journeys were answered, so the plan can reach its end without
           // depending on the agent remembering to say it did this.
           state.trip = setMeta(state.trip, { transfersReviewed: true })
@@ -543,7 +659,14 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
               from,
               to,
               options,
-              note: 'No times came back. That is almost always a name the map could not place rather than a journey with no route — try naming that end more fully. Never tell the traveler there is no way to get there.',
+              note:
+                'No times came back, and every way of naming this journey was already tried — its ' +
+                'coordinates included. That is a gap in the directions data, never a journey with no ' +
+                'route, so never say there is no way to get there. Say which transport actually works ' +
+                'for this hop and reason it from what the plan knows: how far out the stay is, the ' +
+                'hour they land or take off, and whether the city has a rail link at all. An airport ' +
+                'at 01:00 means a taxi or a booked transfer, not a tram. Then tell them the ' +
+                'Directions link on the card opens it, already routed.',
             }
           }
           return { from, to, options }
@@ -586,12 +709,12 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
       description:
         'Ask for a concrete trip detail with the right control instead of a typed answer: "dates" ' +
         'opens a calendar, "party" opens rooms/adults/children steppers, "budget" offers rough bands, ' +
-        '"origin" asks for a departure city. ALWAYS prefer this over asking in prose when you need one ' +
-        'of these four — a traveler who has not decided yet has nothing to type, and a calendar is how ' +
-        'they work it out. After calling this, STOP and wait for their answer.',
+        '"destination" and "origin" ask for a place. ALWAYS prefer this over asking in prose when you ' +
+        'need one of these — a traveler who has not decided yet has nothing to type, and a calendar is ' +
+        'how they work it out. After calling this, STOP and wait for their answer.',
       inputSchema: z.object({
         field: z
-          .enum(['dates', 'party', 'origin', 'budget'])
+          .enum(['destination', 'dates', 'party', 'origin', 'budget'])
           .describe('Which detail you need. One per call.'),
         question: z
           .string()

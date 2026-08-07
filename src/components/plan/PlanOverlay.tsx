@@ -51,12 +51,17 @@ export function PlanOverlay({
         className="absolute inset-0 bg-deep/30 backdrop-blur-[2px]"
       />
 
+      {/*
+        Full-height on a phone and padded for the notch and the home indicator, so the title is not
+        under the status bar and the last row of the plan is not under the swipe bar. The slide-in is
+        what makes it read as a drawer rather than as the page having been replaced.
+      */}
       <aside
         role="dialog"
         aria-modal="true"
         aria-label={title ?? 'Your plan'}
         data-testid="plan-pane"
-        className="glass relative flex h-full w-full min-w-0 flex-col gap-3 overflow-hidden rounded-none p-3 shadow-2xl sm:max-w-2xl sm:rounded-l-3xl"
+        className="glass relative flex h-full w-full min-w-0 animate-[plan-in_220ms_cubic-bezier(0.22,1,0.36,1)] flex-col gap-3 overflow-hidden rounded-none p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-2xl sm:max-w-2xl sm:rounded-l-3xl"
       >
         <div className="flex shrink-0 items-center justify-between gap-2">
           <span
@@ -70,13 +75,13 @@ export function PlanOverlay({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl border border-hairline bg-white px-3 py-1.5 text-xs font-bold text-ink transition active:scale-[0.97] hover:bg-sand"
+            className="min-h-10 rounded-xl border border-hairline bg-white px-3.5 py-1.5 text-xs font-bold text-ink transition active:scale-[0.97] hover:bg-sand"
           >
             Close ✕
           </button>
         </div>
 
-        <div className="min-h-0 flex-1">{children}</div>
+        <div className="min-h-0 flex-1 overscroll-contain">{children}</div>
       </aside>
     </div>
   )

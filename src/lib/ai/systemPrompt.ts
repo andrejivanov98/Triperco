@@ -2,6 +2,7 @@ import type { ContextHint } from '../ui/contextHints'
 import { formatContextHints } from '../ui/contextHints'
 import type { StagePlan } from '../trip/stage'
 import { formatStagePlan } from '../trip/stage'
+import { formatGrounding } from './grounding'
 
 /** YYYY-MM-DD in UTC. */
 function isoDate(date: Date): string {
@@ -21,10 +22,13 @@ export function buildSystemPrompt(
   now: Date = new Date(),
   hints: ContextHint[] = [],
   stage?: StagePlan,
+  /** Where this trip is going, once it is known. Nothing off it should ever reach the screen. */
+  destination?: string,
 ): string {
   const today = isoDate(now)
   const nextYear = isoDate(new Date(now.getTime() + 365 * 86_400_000))
   const screen = formatContextHints(hints)
+  const grounding = formatGrounding(destination)
 
   return [
     'You are Triperco, an expert travel concierge. You plan a complete trip inside one chat, fast.',
@@ -73,6 +77,9 @@ export function buildSystemPrompt(
     '- If they say a part is handled — driving down, staying with family, winging the days — record',
     '  it with setTripMeta skipped. It counts as settled and you stop offering it.',
     '',
+    // Where before how: a perfectly-parameterised search of the wrong country is still the wrong
+    // answer, and it was the one the traveler actually got.
+    ...(grounding ? [grounding, ''] : []),
     'ALWAYS PASS THE REAL TRIP TO EVERY SEARCH',
     '- The trip records origin, dates, adults, children, infants and rooms. Pass them. A search run',
     '  with defaults returns prices nobody can actually book.',

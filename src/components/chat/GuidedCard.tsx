@@ -77,24 +77,32 @@ export function GuidedCard({
         </div>
       )}
 
-      <div className="flex items-center justify-between border-t border-hairline px-5 py-2.5">
+      <div className="flex items-center justify-between gap-3 border-t border-hairline px-5 py-2.5">
         <button
           type="button"
           onClick={() => setDismissed(true)}
-          className="text-xs font-semibold text-muted transition hover:text-ink"
+          className="py-1 text-xs font-semibold text-muted transition hover:text-ink"
         >
           Dismiss
         </button>
-        {footerRight ??
-          (onSkip && (
+        {/*
+          Skip and the primary action sit together rather than competing for the same slot. A
+          multi-select used to lose its Skip to the Next button, which left the traveler who did not
+          want to pick anything with only Dismiss — and dismissing answers nothing, so the same card
+          came back on the next turn.
+        */}
+        <div className="flex items-center gap-3">
+          {onSkip && (
             <button
               type="button"
               onClick={onSkip}
-              className="text-xs font-semibold text-muted transition hover:text-ink"
+              className="py-1 text-xs font-semibold text-muted transition hover:text-ink"
             >
               Skip
             </button>
-          ))}
+          )}
+          {footerRight}
+        </div>
       </div>
     </div>
   )

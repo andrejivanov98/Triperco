@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-const findTransferOptions = vi.fn()
+const findTransferRoute = vi.fn()
 
 vi.mock('@/lib/searchapi/search', async () => {
   const actual = await vi.importActual<typeof import('@/lib/searchapi/search')>(
@@ -8,8 +8,8 @@ vi.mock('@/lib/searchapi/search', async () => {
   )
   return {
     MAX_TRANSFER_ATTEMPTS: actual.MAX_TRANSFER_ATTEMPTS,
-    findTransferOptions: (candidates: unknown, deps?: unknown) =>
-      findTransferOptions(candidates, deps),
+    findTransferRoute: (candidates: unknown, deps?: unknown) =>
+      findTransferRoute(candidates, deps),
   }
 })
 vi.mock('@/lib/rate/limit', () => ({
@@ -31,9 +31,16 @@ function post(body: unknown): Promise<Response> {
 
 const leg = (key: string) => ({ key, from: 'MEX airport', to: 'Hotel One, Cancun' })
 
+/** A routed answer, carrying the naming that worked — which is usually a pair of coordinates. */
+const routed = {
+  options: [{ mode: 'Driving', duration: '27 min' }],
+  from: '21.03,-86.87',
+  to: '21.16,-86.85',
+}
+
 beforeEach(() => {
-  findTransferOptions.mockReset()
-  findTransferOptions.mockResolvedValue([{ mode: 'Driving', duration: '27 min' }])
+  findTransferRoute.mockReset()
+  findTransferRoute.mockResolvedValue(routed)
 })
 
 describe('POST /api/transfers', () => {
@@ -61,29 +68,49 @@ describe('POST /api/transfers', () => {
    */
   it('prices no more than one plan’s worth of legs', async () => {
     await post({ legs: Array.from({ length: 40 }, (_, i) => leg(`k${i}`)) })
-    expect(findTransferOptions).toHaveBeenCalledTimes(8)
+    expect(findTransferRoute).toHaveBeenCalledTimes(8)
   })
 
   it('drops a leg naming somewhere absurdly long rather than passing it on', async () => {
     const res = await post({ legs: [{ ...leg('k'), to: 'x'.repeat(5_000) }] })
     expect(res.status).toBe(400)
-    expect(findTransferOptions).not.toHaveBeenCalled()
+    expect(findTransferRoute).not.toHaveBeenCalled()
   })
 
   it('ignores entries that are not legs at all', async () => {
     const res = await post({ legs: [null, 'nope', { key: 'k' }, leg('good')] })
     expect(res.status).toBe(200)
-    expect(findTransferOptions).toHaveBeenCalledTimes(1)
+    expect(findTransferRoute).toHaveBeenCalledTimes(1)
   })
 
   /** Five journeys shown beats none: one failing leg must not take the request down with it. */
   it('answers with an empty list for a leg the provider could not route', async () => {
-    findTransferOptions.mockRejectedValueOnce(new Error('provider down'))
+    findTransferRoute.mockRejectedValueOnce(new Error('provider down'))
     const body = (await (await post({ legs: [leg('a'), leg('b')] })).json()) as {
       legs: Record<string, unknown[]>
     }
     expect(body.legs.a).toEqual([])
     expect(body.legs.b).toHaveLength(1)
+  })
+
+  /*
+   * The endpoints are not decoration. The description that finally routed is usually a pair of
+   * coordinates rather than the name the plan shows, and it is what lets the card's Directions link
+   * open the journey that worked instead of the airport name that made Maps ask about terminals.
+   */
+  it('reports how each journey was finally named', async () => {
+    const body = (await (await post({ legs: [leg('arrive:1:2')] })).json()) as {
+      endpoints: Record<string, { from: string; to: string }>
+    }
+    expect(body.endpoints['arrive:1:2']).toEqual({ from: '21.03,-86.87', to: '21.16,-86.85' })
+  })
+
+  it('falls back to the names it was given when the lookup failed outright', async () => {
+    findTransferRoute.mockRejectedValueOnce(new Error('provider down'))
+    const body = (await (await post({ legs: [leg('a')] })).json()) as {
+      endpoints: Record<string, { from: string; to: string }>
+    }
+    expect(body.endpoints.a).toEqual({ from: 'MEX airport', to: 'Hotel One, Cancun' })
   })
 })
 
@@ -105,7 +132,7 @@ describe('POST /api/transfers — other ways of naming a journey', () => {
         },
       ],
     })
-    expect(findTransferOptions).toHaveBeenCalledWith(
+    expect(findTransferRoute).toHaveBeenCalledWith(
       [
         { from: 'FCO airport', to: 'Apartamentos X, Spain' },
         { from: 'FCO airport', to: '41.9,12.49' },
@@ -119,13 +146,13 @@ describe('POST /api/transfers — other ways of naming a journey', () => {
     await post({
       legs: [{ ...leg('k'), toAlternates: [42, '', 'x'.repeat(5_000), 'Calle Real 3, Madrid'] }],
     })
-    const [candidates] = findTransferOptions.mock.calls[0] as [{ to: string }[]]
+    const [candidates] = findTransferRoute.mock.calls[0] as [{ to: string }[]]
     expect(candidates.map((c) => c.to)).toEqual(['Hotel One, Cancun', 'Calle Real 3, Madrid'])
   })
 
   it('is happy with a leg that offers no alternates at all', async () => {
     await post({ legs: [leg('k')] })
-    expect(findTransferOptions).toHaveBeenCalledWith(
+    expect(findTransferRoute).toHaveBeenCalledWith(
       [{ from: 'MEX airport', to: 'Hotel One, Cancun' }],
       undefined,
     )
