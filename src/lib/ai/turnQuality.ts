@@ -44,6 +44,27 @@ export function isUnusableTurn(turn: TurnOutput): boolean {
   return usableProse(turn.text).length === 0
 }
 
+/**
+ * How a finished turn failed the traveler, if it did.
+ *
+ * `empty`   — nothing readable and nothing rendered. The bubble is blank.
+ * `stalled` — a turn whose whole job was to put options on screen, that put nothing on screen.
+ *
+ * `stalled` is judged structurally, never by reading the prose. The turn that prompted this said
+ * "Alright, I'll look into flights from Skopje to Tenerife for those dates for two adults" and then
+ * searched nothing — but matching on phrases like that is a losing game, because the next version of
+ * the same failure is worded differently. What does not vary is the outcome: a delivery stage that
+ * rendered zero cards has failed, whatever it claimed to be doing.
+ */
+export function contractBreach(
+  turn: TurnOutput,
+  stage: { delivers: boolean },
+): 'empty' | 'stalled' | null {
+  if (isUnusableTurn(turn)) return 'empty'
+  if (stage.delivers && turn.rendered === 0) return 'stalled'
+  return null
+}
+
 /** Appended to the repair attempt, naming the specific thing that went wrong. */
 export const REPAIR_INSTRUCTION =
   'Your previous reply contained no readable text for the traveler. Answer again in one short ' +

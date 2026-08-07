@@ -6,7 +6,7 @@ import {
 } from 'ai'
 import { createPlannerAgent } from '@/lib/ai/plannerAgent'
 import { repairReply } from '@/lib/ai/repair'
-import { isUnusableTurn, RECOVERY_REPLIES, RECOVERY_TEXT } from '@/lib/ai/turnQuality'
+import { contractBreach, RECOVERY_REPLIES, RECOVERY_TEXT } from '@/lib/ai/turnQuality'
 import type { TriperUIMessage } from '@/lib/ui/messages'
 import type { TripState } from '@/lib/trip/types'
 import type { ContextHint } from '@/lib/ui/contextHints'
@@ -62,7 +62,7 @@ export async function POST(req: Request) {
    * of them describes a trip that may have arrived from somebody else's shared link.
    */
   const hints: ContextHint[] = sanitizeHints(body.hints)
-  const { agent, state } = createPlannerAgent({ trip: body.trip, hints })
+  const { agent, state, stage } = createPlannerAgent({ trip: body.trip, hints })
 
   const stream = createUIMessageStream<TriperUIMessage>({
     // A thrown turn becomes one calm sentence — never a stack, never the provider's own words.
@@ -137,7 +137,21 @@ export async function POST(req: Request) {
         state.pendingOptions.length +
         state.pendingForms.length +
         state.pendingDetails.length
-      if (!isUnusableTurn({ text, rendered })) return
+      const breach = contractBreach({ text, rendered }, stage)
+      if (!breach) return
+
+      /*
+       * The turn promised this stage's work and delivered none of it — the "I'll look into flights"
+       * with no flights behind it. Answered in Triperco's own voice from the stage, and deliberately
+       * without a second model call: the searches this turn already ran would be billed twice, and
+       * the model has just demonstrated it is not going to run the one that mattered. The stage
+       * replies go out beside it so there is always a tap that gets the search moving.
+       */
+      if (breach === 'stalled') {
+        writer.write({ type: 'data-notice', data: { text: stage.nudge, kind: 'failed' } })
+        writer.write({ type: 'data-suggestions', data: { replies: [...stage.replies] } })
+        return
+      }
 
       /*
        * Nothing threw, yet the traveler is looking at an empty bubble: the model answered with a

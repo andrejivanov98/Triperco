@@ -1,5 +1,19 @@
 import { describe, it, expect } from 'vitest'
 import { buildSystemPrompt } from './systemPrompt'
+import { planStage } from '@/lib/trip/stage'
+import { createTrip, setMeta } from '@/lib/trip/tripState'
+
+/** The trip from the reported bug: everything a flight search needs, in one typed sentence. */
+function tenerife() {
+  return setMeta(createTrip('t'), {
+    destination: 'Tenerife',
+    origin: 'SKP',
+    startDate: '2027-03-19',
+    endDate: '2027-03-28',
+    travelers: 2,
+    adults: 2,
+  })
+}
 
 describe('buildSystemPrompt', () => {
   it('sets the concierge persona and key guardrails', () => {
@@ -8,9 +22,6 @@ describe('buildSystemPrompt', () => {
     expect(p.toLowerCase()).toContain('concierge')
     expect(p.toLowerCase()).toContain('never invent')
     expect(p.toLowerCase()).toContain('cons')
-    expect(p).toContain('presentOptions')
-    expect(p).toContain('askPreferences')
-    expect(p.toLowerCase()).toContain('title')
     expect(p.toLowerCase()).toContain('conflict')
   })
 
@@ -31,12 +42,6 @@ describe('buildSystemPrompt', () => {
     expect(p).toContain('cards')
   })
 
-  it('pushes the agent to assume defaults instead of interrogating', () => {
-    const p = buildSystemPrompt().toLowerCase()
-    expect(p).toContain('one question per turn')
-    expect(p).toContain('never ask permission to search')
-  })
-
   it('forbids the agent from putting anything in the plan', () => {
     const p = buildSystemPrompt().toLowerCase()
     expect(p).toContain('you never put anything in the plan')
@@ -51,29 +56,21 @@ describe('buildSystemPrompt', () => {
     expect(p).toContain('never explain your reasoning')
   })
 
-  it('makes it work one step at a time instead of dumping the whole trip', () => {
-    const p = buildSystemPrompt().toLowerCase()
-    expect(p).toContain('one step at a time')
-    expect(p).toContain('never search flights, stays and places in the same turn')
-  })
-
-  it('makes it ask which flight shape they want rather than deciding', () => {
-    const p = buildSystemPrompt().toLowerCase()
-    expect(p).toContain('do not decide between a round trip and two one-ways')
-  })
-
-  it('insists on a real trip name, never a generic one', () => {
-    const p = buildSystemPrompt()
-    expect(p).toContain('Torino Getaway')
-    expect(p.toLowerCase()).toContain('never a')
+  /*
+   * The sentence the reported bug produced — "Alright, I'll look into flights from Skopje to
+   * Tenerife" with no flights behind it — is now named as its own prohibition, rather than left to
+   * be inferred from the general ban on narration.
+   */
+  it('forbids announcing an intention it does not carry out in the same turn', () => {
+    expect(buildSystemPrompt().toLowerCase()).toContain(
+      'never announce an intention you are not carrying out in the same turn',
+    )
   })
 
   it('still tells the agent to ground its recommendations in real detail', () => {
     expect(buildSystemPrompt().toLowerCase()).toContain('getstaydetails')
   })
-})
 
-describe('buildSystemPrompt — later refinements', () => {
   it('forbids inventing a budget', () => {
     expect(buildSystemPrompt().toLowerCase()).toContain('never invent a budget')
   })
@@ -91,6 +88,14 @@ describe('buildSystemPrompt — later refinements', () => {
   it('bans closed-down recommendations', () => {
     expect(buildSystemPrompt().toLowerCase()).toContain('closed down')
   })
+
+  it('still forbids guessing a duration', () => {
+    expect(buildSystemPrompt()).toContain('NEVER guess a duration')
+  })
+
+  it('forbids code and payloads outright', () => {
+    expect(buildSystemPrompt().toLowerCase()).toContain('never write code, json, a payload')
+  })
 })
 
 describe('buildSystemPrompt — reading the traveler', () => {
@@ -100,7 +105,7 @@ describe('buildSystemPrompt — reading the traveler', () => {
     expect(p).toContain('pace, vibe')
   })
 
-  it('names all three paces and what each one changes', () => {
+  it('names all three paces', () => {
     const p = buildSystemPrompt()
     for (const pace of ['"fast"', '"explore"', '"detailed"']) expect(p).toContain(pace)
   })
@@ -110,61 +115,65 @@ describe('buildSystemPrompt — reading the traveler', () => {
       'never argue with how they feel about their own trip',
     )
   })
+
+  it('tells it to record a part the traveler is handling themselves', () => {
+    expect(buildSystemPrompt()).toContain('setTripMeta skipped')
+  })
 })
 
 /**
- * The prompt used to say both "open every new trip with presentOptions, then stop and wait" and
- * "never ask permission to search". Those cannot both be followed, and which one won was luck.
+ * Sequencing left this file entirely.
+ *
+ * It used to be spread across six shouted sections that gave different verdicts on the same input —
+ * "search now", "offer a menu", "ask which flight shape", "ask for the origin" — and which one won
+ * was luck. It now arrives as one stage block computed from the trip.
  */
-describe('buildSystemPrompt — no contradiction about when to search', () => {
-  it('no longer tells the agent to open every trip with a menu', () => {
-    expect(buildSystemPrompt().toLowerCase()).not.toContain('open every new trip with presentoptions')
+describe('buildSystemPrompt — the prompt no longer sequences the trip', () => {
+  it.each([
+    ['one step at a time'],
+    ['did they say what they want'],
+    ['close the loop'],
+    ['never re-offer something the plan already has'],
+    ['do not decide between a round trip and two one-ways'],
+    ['never ask for those four in prose'],
+  ])('has dropped the rule about %s', (phrase) => {
+    expect(buildSystemPrompt().toLowerCase()).not.toContain(phrase)
   })
 
-  it('makes the fork depend on whether a task was named', () => {
-    const p = buildSystemPrompt()
-    expect(p).toContain('DID THEY SAY WHAT THEY WANT? THEN DO IT')
-    expect(p.toLowerCase()).toContain('never ask permission')
-  })
-
-  it('keeps presentOptions for the case where the path really does fork', () => {
-    expect(buildSystemPrompt()).toContain('presentOptions')
-  })
-})
-
-describe('buildSystemPrompt — controls over prose', () => {
-  it('requires askTripDetail for dates, party, budget and origin', () => {
-    const p = buildSystemPrompt()
-    expect(p).toContain('askTripDetail')
-    expect(p.toLowerCase()).toContain('never ask for those four in prose')
-  })
-
-  it('forbids code and payloads outright', () => {
-    expect(buildSystemPrompt().toLowerCase()).toContain('never write code, json, a payload')
+  it('says nothing about which step to work on when given no stage', () => {
+    expect(buildSystemPrompt()).not.toContain('THIS TURN')
   })
 })
 
-describe('buildSystemPrompt — closing the loop', () => {
-  it('tells the agent to offer what the plan is still missing', () => {
-    const p = buildSystemPrompt()
-    expect(p).toContain('CLOSE THE LOOP')
-    expect(p.toLowerCase()).toContain('never re-offer something the plan already has')
+describe('buildSystemPrompt — the stage block', () => {
+  it('names this turn as searching flights for a trip that needs nothing else', () => {
+    const p = buildSystemPrompt(new Date(), [], planStage(tenerife()))
+    expect(p).toContain('THIS TURN')
+    expect(p).toContain('Search the flights to Tenerife now')
   })
 
-  it('names the three things a trip needs', () => {
-    const p = buildSystemPrompt().toLowerCase()
-    expect(p).toContain('transport, somewhere to stay, things to do')
-  })
-})
-
-describe('buildSystemPrompt — getting around', () => {
-  it('asks for the whole connection, not just the airport run', () => {
-    const p = buildSystemPrompt()
-    expect(p).toContain('GIVE THEM THE WHOLE CONNECTION')
-    expect(p).toContain('getTransferOptions')
+  it('names this turn as settling the destination for an empty trip', () => {
+    const p = buildSystemPrompt(new Date(), [], planStage(createTrip('t')))
+    expect(p.toLowerCase()).toContain('do not know where they are going')
+    expect(p).toContain('setTripMeta')
+    expect(p.toLowerCase()).toContain('title')
   })
 
-  it('still forbids guessing a duration', () => {
-    expect(buildSystemPrompt()).toContain('NEVER guess a duration')
+  it('lets the traveler outrank the stage, so an off-stage request is still answered', () => {
+    const p = buildSystemPrompt(new Date(), [], planStage(tenerife())).toLowerCase()
+    expect(p).toContain('if they asked for something else, do that instead')
+  })
+
+  it('puts the stage before the screen, so the job is read before the detail', () => {
+    const stage = planStage(tenerife())
+    const p = buildSystemPrompt(new Date(), [
+      {
+        hintType: 'plan',
+        description: 'What they have so far.',
+        content: '{}',
+        capturedAt: '2027-01-01T00:00:00.000Z',
+      },
+    ], stage)
+    expect(p.indexOf('THIS TURN')).toBeLessThan(p.indexOf('WHAT THE TRAVELER IS LOOKING AT'))
   })
 })

@@ -301,6 +301,20 @@ export interface TripMeta {
   pace?: TripPace
   /** What sort of trip they want, in their own terms. Steers what is worth surfacing. */
   vibe?: TripVibe[]
+  /**
+   * Parts the traveler is handling themselves — driving down, staying with family, winging the days.
+   *
+   * A skipped part is as settled as a booked one. Without this the planner would keep offering a
+   * step somebody had already told us they did not want, which is the fastest way to feel unheard.
+   */
+  skipped?: ('transport' | 'stay' | 'activities')[]
+  /**
+   * Whether the journeys between the plan's places have been answered.
+   *
+   * Set by `getTransferOptions` itself when it runs, never by the agent recording that it did.
+   * Reaching the end of a plan should not depend on the model remembering anything.
+   */
+  transfersReviewed?: boolean
 }
 
 export interface TripState {

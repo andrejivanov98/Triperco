@@ -164,6 +164,13 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
           )
           .optional()
           .describe('The sort of trip they want, from what they said. Only what they actually signalled.'),
+        skipped: z
+          .array(z.enum(['transport', 'stay', 'activities']))
+          .optional()
+          .describe(
+            'Parts they are handling themselves — "we are driving down", "staying with my sister", ' +
+              '"we will wing the days". A skipped part counts as settled and stops being offered.',
+          ),
       }),
       execute: async (patch) => {
         state.trip = setMeta(state.trip, patch)
@@ -522,6 +529,9 @@ export function buildPlannerTools(state: PlannerState, deps?: SearchDeps) {
       execute: async ({ from, to }) =>
         withToolError(async () => {
           const options = await apiGetTransferOptions(from, to, deps)
+          // The tool records that the journeys were answered, so the plan can reach its end without
+          // depending on the agent remembering to say it did this.
+          state.trip = setMeta(state.trip, { transfersReviewed: true })
           return { from, to, options }
         }),
     }),

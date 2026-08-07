@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  contractBreach,
   isUnusableTurn,
   usableProse,
   RECOVERY_TEXT,
@@ -55,6 +56,44 @@ describe('isUnusableTurn', () => {
   it('accepts code-only prose when cards carry the answer', () => {
     // The garbage is stripped at render; the cards still answer the question.
     expect(isUnusableTurn({ text: '```json\n{"a":1}\n```', rendered: 2 })).toBe(false)
+  })
+})
+
+/**
+ * The failure the empty-turn check could never see: a turn that talks and does nothing.
+ *
+ * "Alright, I'll look into flights from Skopje to Tenerife for those dates for two adults" is
+ * readable prose, so it passed every check there was, while the traveler sat looking at a promise
+ * and no flights.
+ */
+describe('contractBreach', () => {
+  const delivers = { delivers: true }
+  const asks = { delivers: false }
+
+  it('passes a delivery stage that put cards on screen', () => {
+    expect(contractBreach({ text: 'Cheapest lands at midnight.', rendered: 3 }, delivers)).toBeNull()
+  })
+
+  it('catches a delivery stage that only talked about searching', () => {
+    const turn = { text: "Alright, I'll look into flights from Skopje to Tenerife.", rendered: 0 }
+    expect(contractBreach(turn, delivers)).toBe('stalled')
+  })
+
+  it('judges the outcome, not the wording — any prose with nothing behind it stalls', () => {
+    expect(contractBreach({ text: 'Sounds lovely.', rendered: 0 }, delivers)).toBe('stalled')
+  })
+
+  it('lets a question stage end with prose and nothing rendered', () => {
+    expect(contractBreach({ text: 'When were you thinking?', rendered: 0 }, asks)).toBeNull()
+  })
+
+  it('reports an empty bubble as empty, whatever the stage wanted', () => {
+    expect(contractBreach({ text: '', rendered: 0 }, delivers)).toBe('empty')
+    expect(contractBreach({ text: '```json\n{}\n```', rendered: 0 }, asks)).toBe('empty')
+  })
+
+  it('accepts a wordless delivery turn — the cards are the answer', () => {
+    expect(contractBreach({ text: '', rendered: 2 }, delivers)).toBeNull()
   })
 })
 

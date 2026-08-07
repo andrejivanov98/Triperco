@@ -13,6 +13,7 @@ import { buildContextHints } from '@/lib/ui/contextHints'
 import { tripToMarkers } from '@/lib/ui/mapMarkers'
 import { plannedIds } from '@/lib/trip/planned'
 import { suggestQuickReplies } from '@/lib/ui/quickReplies'
+import { planStageName, stageAdvancePrompt, type PlanStage } from '@/lib/trip/stage'
 import { readOpeningContext, contextToMeta, buildOpeningMessage } from '@/lib/ui/openingMessage'
 import type { TimelineItem } from '@/lib/trip/timeline'
 import {
@@ -37,6 +38,14 @@ import { DetailPanel } from './results/DetailPanel'
 import { SiteHeader } from './SiteHeader'
 import { SectionNavigator } from './chat/SectionNavigator'
 import { chatSections } from '@/lib/ui/chatSections'
+
+/**
+ * How long to wait after the plan moves on before the concierge picks the conversation back up.
+ *
+ * Long enough that adding an outbound and a return, or two things to do in a row, is one moment
+ * rather than two interruptions; short enough that it still reads as a reply to what they just did.
+ */
+const ADVANCE_DELAY_MS = 1500
 
 export function PlannerScreen() {
   const router = useRouter()
@@ -132,8 +141,16 @@ export function PlannerScreen() {
     }),
   })
 
+  /** Matches ChatPane's own reading, so nothing is sent into a turn that is still running. */
+  const busy = status !== 'ready' && status !== 'error'
+
+  const stage = useMemo(() => planStageName(trip), [trip])
+  /** Stages already picked up, so an advance prompts exactly once per session. */
+  const nudgedRef = useRef<Set<PlanStage>>(new Set())
+
   const startNewTrip = useCallback(() => {
     setMessages([])
+    nudgedRef.current = new Set()
     setTrip(createTrip('draft'))
     setDetail(null)
     setBooking(false)
@@ -204,6 +221,36 @@ export function PlannerScreen() {
     const meta = getLatestMeta(messages)
     if (meta) setTrip((t) => setMeta(t, meta))
   }, [messages])
+
+  /*
+   * Pick the conversation back up when the plan moves on by itself.
+   *
+   * Adding a card is a decision, and until now the agent never heard about it: the plan hint is
+   * built when a message is sent, so choosing a flight and then waiting told the agent nothing and
+   * the traveler got silence. That is the whole reason "flights are in — shall we find you a bed?"
+   * could not happen. Now the stage advancing is itself the trigger.
+   *
+   * The prompt goes in as a visible message rather than a hidden one, because they really did just
+   * do the thing it describes, and a transcript with invisible turns in it is a transcript nobody
+   * can follow. Once per stage per session, never while a turn is already in flight, and never
+   * before the conversation has started — a plan opened from somebody else's link should sit still.
+   */
+  useEffect(() => {
+    if (messages.length === 0) {
+      // Whatever stage an arriving plan is already on is not news; only later moves are.
+      nudgedRef.current.add(stage)
+      return
+    }
+    if (busy || nudgedRef.current.has(stage)) return
+    const prompt = stageAdvancePrompt(stage)
+    if (!prompt) return
+
+    const timer = setTimeout(() => {
+      nudgedRef.current.add(stage)
+      sendMessage({ text: prompt })
+    }, ADVANCE_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [stage, busy, messages.length, sendMessage])
 
   const markers = useMemo(() => tripToMarkers(trip), [trip])
   // Recomputed on every plan change, so a card flips to "Added" the moment it lands.
